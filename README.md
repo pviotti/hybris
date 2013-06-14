@@ -1,12 +1,8 @@
 Hybris
 ======
 
-Hybris is the prototype of Java server side library which implements the 
+Hybris is the prototype of a Java server side library which implements the 
 hybrid cloud based data storage described in [[1\]][1].  
-
-
-Notes on architecture
----------------------
 
 Hybris code base is composed by two main modules: MdStore and KvStore, 
 the first being a thin wrapper layer of the metadata storage engine (i.e. Zookeeper),
@@ -36,9 +32,7 @@ Technical requirements
  * Zookeeper 3.4.5
  * jClouds
 
-
-Development tools
------------------
+Development tools:
 
  * Maven
  * Git
@@ -48,15 +42,15 @@ Development tools
 TODO
 ----
 
- * deduplication -> check student project (?)
+ * data deduplication -> check student project (?)
  * cloud latency check and optimization -> check student project (?)
  * metadata layout on Zookeeper
-   * / MdStore / $HybrisUserId / $fileId / $chunkId
-   * / MdStore / $HybrisUserId / $fileId / $chunkId / $old_ver
-   * data stored on ZK: replicas reference list, timestamp, hash value
-     * metadata serialization
-       * consider not to use default Java serialization: downsides about security and compatibility (among programming languages as well as different versions of serialized classes; [ref1](http://en.wikipedia.org/wiki/Java_serialization#Java), [ref2](http://uet.vnu.edu.vn/~chauttm/e-books/java/Effective.Java.2nd.Edition.May.2008.3000th.Release.pdf) pag. 312)
-       * other candidates:
+     * `` / MdStore / $HybrisUserId / $fileId / $chunkId ``
+     * `` / MdStore / $HybrisUserId / $fileId / $chunkId / $old_ver ``
+     * data stored on ZK: replicas reference list, timestamp, hash value
+ * metadata serialization
+     * consider not to use default Java serialization: downsides about security and compatibility (among programming languages as well as different versions of serialized classes; [ref1](http://en.wikipedia.org/wiki/Java_serialization#Java), [ref2](http://uet.vnu.edu.vn/~chauttm/e-books/java/Effective.Java.2nd.Edition.May.2008.3000th.Release.pdf) pag. 312)
+     * other candidates:
          * [protobuf](http://code.google.com/p/protobuf/) by Google
 
 
