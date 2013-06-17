@@ -13,16 +13,15 @@ public class SyncPrimitive implements Watcher {
 
     String root;
 
-    protected SyncPrimitive(String address) {
+    protected SyncPrimitive(String address) throws IOException {
         if(zk == null){
             try {
-                System.out.println("Connecting to ZK server:");
                 zk = new ZooKeeper(address, 3000, this);
                 mutex = new Integer(-1);
-                System.out.println("Finished starting ZK: " + zk);
             } catch (IOException e) {
-                System.out.println(e.toString());
                 zk = null;
+                System.err.println("FATAL: could not initialize the Zookeeper client");
+                throw e;
             }
         }
     }

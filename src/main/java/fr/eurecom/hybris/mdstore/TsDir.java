@@ -4,68 +4,50 @@ import java.io.Serializable;
 import java.util.List;
 import org.apache.commons.lang3.SerializationUtils;
 
-
+/**
+ * Timestamped directory class.
+ * Holds the timestamped reference to the cloud replicas.
+ * @author p.viotti
+ */
 public class TsDir implements Serializable {
-	
-	public class Timestamp implements Serializable {
 
-		private static final long serialVersionUID = -829397868153955069L;
-		private int num;
-		private String cid;
-		
-		public Timestamp(int n, String c) {
-			this.num = n;
-			this.cid = c;
-		}
-		
-		public int getNum() { return num; }
-		public void setNum(int num) { this.num = num; }
-		public String getCid() { return cid; }
-		public void setCid(String cid) { this.cid = cid; }
-		
-		public boolean isGreater(Timestamp ts) {
-			if ((this.num > ts.num) || ((this.num == ts.num) && (this.cid.compareTo(ts.cid)) > 0)) 
-				return true;
-			return false;	
-		}
-		
-		public void inc(String client) {
-			this.num = this.num + 1;
-			this.cid = client;
-		}
-	}
-	
+	// TODO use protobuf instead of Java serialization
 	private static final long serialVersionUID = -2127132184699014357L;
-	private Timestamp ts;
+
+	private long ts;
 	private String hash;
 	private List<String> replicasLst;
 	
-
+	public TsDir(long ts, String hash, List<String> replicas) {
+		this.ts = ts;
+		this.hash = hash;
+		this.replicasLst = replicas;
+	}
+	
 	public TsDir(byte[] raw) {
 		TsDir tsdir = (TsDir) SerializationUtils.deserialize(raw);
 		this.ts = tsdir.ts;
 		this.replicasLst = tsdir.replicasLst;
+		this.hash = tsdir.getHash();
 	}
 	
-	public Timestamp getTs() { return ts; }
-	public void setTs(Timestamp ts) { this.ts = ts;	}
+	public byte[] serialize() {
+		return SerializationUtils.serialize(this);	
+	}
+	
+	public long getTs() { return ts; }
+	public void setTs(long ts) { this.ts = ts;	}
 	public List<String> getReplicasLst() { return replicasLst; }
 	public void setReplicasLst(List<String> replicasLst) { this.replicasLst = replicasLst; }
 	public String getHash() { return hash; }
 	public void setHash(String hash) { this.hash = hash; }
 	
-	public TsDir(Timestamp ts, List<String> replicas) {
-		this.ts = ts;
-		this.replicasLst = replicas;
-	}
-	
-	public TsDir(int num, String cid, List<String> dl) {
-		Timestamp ts = new Timestamp(num,cid);
-		this.ts = ts;
-		this.replicasLst = dl;
-	}
-	
-	public byte[] serialize() {
-		return SerializationUtils.serialize(this);	
+	@Override
+	public String toString() {
+		StringBuilder strBld = new StringBuilder("TsDir [ts=" + ts + ", hash=" + hash + ", replicasLst={");
+		for (String str : replicasLst)
+			strBld.append(str + ",");
+		strBld.append("}]");
+		return strBld.toString();
 	}
 }

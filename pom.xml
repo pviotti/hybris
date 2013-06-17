@@ -32,6 +32,12 @@
         </exclusions>
 	</dependency>
 	
+	<dependency>
+        <groupId>org.jclouds</groupId>
+        <artifactId>jclouds-all</artifactId>
+        <version>1.6.0</version>
+    </dependency>
+	
 	<dependency> <!-- used for serialization -->
 		<groupId>org.apache.commons</groupId>
 		<artifactId>commons-lang3</artifactId>

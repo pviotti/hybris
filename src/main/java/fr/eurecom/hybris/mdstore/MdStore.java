@@ -1,151 +1,153 @@
 package fr.eurecom.hybris.mdstore;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
+import org.apache.log4j.Logger;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.data.Stat;
 
+import fr.eurecom.hybris.Config;
 
+/**
+ * Class that wraps the Zookeeper client.
+ * Provides r&w access to the metadata storage.
+ * @author p.viotti
+ */
 public class MdStore extends SyncPrimitive {
 	
-	int size;
-	String clientName;
-	Stat stat = null;
+	private static Logger logger = Logger.getLogger(Config.LOGGER_NAME);
 	
-	String storageRoot;
-	int tsVersion = 0;
-
-	public MdStore(String address, String storageRoot) {
+	private String storageRoot;
+	
+	/**
+	 * Constructs a new MdStore.
+	 * @param address the address of ZK server
+	 * @param storageRoot the hybris metadata root folder
+	 * @throws IOException thrown in case of error while initializing the ZK client
+	 */
+	public MdStore(String address, String storageRoot) throws IOException {
+		
 		super(address);
 		this.storageRoot = storageRoot;
-
-		// Create MDS service nodes
-		if (zk != null) {
-			try {
-				stat = zk.exists(storageRoot, false);
-				if (stat == null) {
-					System.out.println("creating MDSdir...");
-					zk.create(storageRoot, new byte[0], Ids.OPEN_ACL_UNSAFE,
-							CreateMode.PERSISTENT);
-					stat = zk.exists(storageRoot, false);
-				}
-				tsVersion = stat.getVersion();
-			} catch (KeeperException e) {
-				System.out
-				.println("Keeper exception when instantiating MDS: "
-						+ e.toString());
-			} catch (InterruptedException e) {
-				System.out.println("Interrupted exception");
+		
+		try {
+			Stat stat = zk.exists(storageRoot, false);
+			if (stat == null) {
+				logger.debug("Creating root dir...");
+				zk.create(this.storageRoot, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 			}
-		}
-
-		// My node name
-		try {
-			clientName = new String(InetAddress.getLocalHost().getCanonicalHostName().toString());
-			System.out.println("Client name: " + clientName);
-		} catch (UnknownHostException e) {
-			System.out.println(e.toString());
-		}
-	}
-
-	public void tsWrite(TsDir tsdir) {
-		try {
-			stat = zk.setData(storageRoot, tsdir.serialize(), tsVersion);
-			System.out.println("Good version " + tsVersion);
 		} catch (KeeperException e) {
-			if (e.code() == KeeperException.Code.BADVERSION) {
-				System.out.println("Wrong version " + tsVersion);
-				try {
-					TsDir latest = new TsDir(zk.getData(storageRoot, false, stat));
-					tsVersion = stat.getVersion();
-					if (tsdir.getTs().isGreater(latest.getTs())) {
-						this.tsWrite(tsdir);
-					} else {
-						System.out.println("Wrong version but no need to retry");
-					}
-				} catch (KeeperException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
-				} catch (InterruptedException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
-				}
-			}
-			// TODO Auto-generated catch block
-			else e.printStackTrace();
+			logger.fatal("KeeperException, could not initialize the Zookeeper client. " + e.getMessage(), e);
+			throw new IOException(e);
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.fatal("InterruptedException, could not initialize the Zookeeper client.", e);
+			throw new IOException(e);
 		}
 	}
 	
-	public byte[] tsRead(String key) {
+	// TODO should we add a flag for explicitly overwriting existing nodes 
+	// (or, viceversa, for explicitly creating a new node)? 
+	// TODO should we care about ZK node version upon writing to existing node?	
+	public void tsWrite(String key, TsDir tsdir) throws IOException {
 		
-		String path = storageRoot + "/" + key;
-		
+		String path = this.storageRoot + "/" + key;
 		try {
-			zk.sync(path, null, null);	// There is no synchronous version of this ZK API 
+			
+			Stat stat = zk.exists(path, false);
+			if (stat == null) {
+				zk.create(path, tsdir.serialize(), Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+				logger.debug("ZNode " + key + " created.");
+			} else {
+				zk.setData(path, tsdir.serialize(), -1);	// overwrite no matter which version
+				logger.debug("ZNode " + key + " written.");
+			}
+					
+		} catch (KeeperException e) {
+			logger.error("InterruptedException, could not read the key.", e);
+			throw new IOException(e);
+		} catch (InterruptedException e) {
+			logger.error("InterruptedException, could not read the key.", e);
+			throw new IOException(e);
+		}
+	}
+	
+	
+	public byte[] tsRead(String key) throws IOException {
+		
+		String path = this.storageRoot + "/" + key;
+		try {
+			zk.sync(path, null, null);	// NOTE: There is no synchronous version of this ZK API 
 										// (https://issues.apache.org/jira/browse/ZOOKEEPER-1167ordering) 
 										// however, order guarantees among operations allow not to wait for asynchronous callback to be called
+			return zk.getData(path, false, new Stat());
+		} catch (KeeperException e) {	// XXX check how often / when it happens
 			
-			Stat stat = new Stat();
-			byte[] out = zk.getData(path, false, stat);
-			//System.out.println(stat);
-			return out;
-			//return new TsDir( zk.getData(path, false, stat) );
-		} catch (KeeperException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
-	
-	public void write(TsDir tsdir, byte[] hash) {
-		String znode = storageRoot + "/" + tsdir.getTs().getCid() + "/" + tsdir.getTs().getNum();
-		try {
-			zk.create(znode, hash, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-		} catch (KeeperException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-	
-	public byte[] read(TsDir tsdir) {
-		String znode = storageRoot + "/" + tsdir.getTs().getCid() + "/" + tsdir.getTs().getNum();
-		byte[] ret = null;
-		try {
-			ret = zk.getData(znode, false, stat);
-		} catch (KeeperException e) { 
-			if (e.code() == KeeperException.Code.NONODE) {
-				zk.sync(znode, null, null);
+			if (e.code() == KeeperException.Code.NONODE) {	// retry if node does not exist
+				logger.debug("Read failed because node didn't exist. Retrying.");
+				zk.sync(path, null, null);
 				try {
-					ret = zk.getData(znode, false, stat);
+					return zk.getData(path, false, new Stat());
 				} catch (KeeperException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
+					logger.error("KeeperException, could not read the key. " + e.getMessage(), e);
+					throw new IOException(e);
 				} catch (InterruptedException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
+					logger.error("InterruptedException, could not read the key.", e);
+					throw new IOException(e);
 				}
+			} else {
+				logger.error("KeeperException, could not read the key. " + e.getMessage(), e);
+				throw new IOException(e);
 			}
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			
+		} catch (InterruptedException e) {	// XXX check how often / when it happens
+			logger.error("InterruptedException, could not read the key.", e);
+			throw new IOException(e);
 		}
-		return ret;
 	}
 	
 	
-	public static void main(String[] args) {
-		MdStore mds = new MdStore("127.0.0.1:2181","/MdStore");
-		String output = new String(mds.tsRead("prova"));
+	public List<String> list(String key) throws IOException {
+		try {
+			return zk.getChildren(key, false);
+		} catch (KeeperException e) { 		// XXX check how often / when it happens
+			logger.error("KeeperException, could not list the children of key " + key, e);
+			throw new IOException(e);
+		} catch (InterruptedException e) {	// XXX check how often / when it happens
+			logger.error("InterruptedException, could not list the children of key " + key, e);
+			throw new IOException(e);
+		}
+	}
+	
+	
+	public void delete(String key) throws IOException {
+		try {
+			zk.delete(key, -1);		// delete no matter which version
+		} catch (KeeperException e) {		// XXX check how often / when it happens
+			logger.error("KeeperException, could not read the key. " + e.getMessage(), e);
+			throw new IOException(e);
+		} catch (InterruptedException e) {	// XXX check how often / when it happens
+			logger.error("InterruptedException, could not delete the key " + key, e);
+			throw new IOException(e);
+		}
+	}
+	
+	
+	/**
+	 * TODO TEMP for debugging purposes
+	 */
+	public static void main(String[] args) throws IOException {
+		MdStore mds = new MdStore(	Config.getInstance().getProperty(Config.ZK_ADDR),
+									Config.getInstance().getProperty(Config.ZK_ROOT)	);
+		ArrayList<String> replicas = new ArrayList<String>(Arrays.asList("Amazon", "Azure"));
+		mds.tsWrite("test_001", new TsDir(System.currentTimeMillis(), "hashvalue", replicas));
+		TsDir output = new TsDir(mds.tsRead("test_001"));
 		System.out.println("OUTPUT: " + output);
 	}
 }
