@@ -11,7 +11,7 @@ import org.apache.log4j.PropertyConfigurator;
  * @author p.viotti
  */
 public class Config {
-	
+    
     private static Config instance;
     private Properties hybrisProperties;
     
@@ -24,23 +24,23 @@ public class Config {
     public static String ZK_ROOT = "fr.eurecom.hybris.zk.root";
     
     private Config () {
-	    try {
-	    	hybrisProperties = new Properties();
-	    	hybrisProperties.load(new FileInputStream(generalConfFileName));
-	        PropertyConfigurator.configure(log4jConfFileName);
-	    } catch (Exception e) {
-	        System.err.println("FATAL: Could not find properties and/or log4j configuration files.");
-	        System.exit(-1);
-	    }
+        try {
+            hybrisProperties = new Properties();
+            hybrisProperties.load(new FileInputStream(generalConfFileName));
+            PropertyConfigurator.configure(log4jConfFileName);
+        } catch (Exception e) {
+            System.err.println("FATAL: Could not find properties and/or log4j configuration files.");
+            System.exit(-1);
+        }
     }
     
     public static Config getInstance () {
         if (instance == null)
-        	instance = new Config();
+            instance = new Config();
         return instance;
     }
     
     public String getProperty (String key) {
-    	return hybrisProperties.getProperty(key);
+        return hybrisProperties.getProperty(key);
     }
 }

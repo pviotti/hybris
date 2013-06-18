@@ -25,61 +25,61 @@ import fr.eurecom.hybris.Config;
  * @author p.viotti
  */
 public class KvStore {
-	
+    
     private static Logger logger = Logger.getLogger(Config.LOGGER_NAME);
     
     private Map<String, CloudProvider> providers;
     private List<CloudProvider> sortedProviders;      // storage providers sorted by cost and latency
     
-	private String rootContainer;
+    private String rootContainer;
 
-	
-	public KvStore(String rootContainer) {
-		
-		this.rootContainer = rootContainer;
-		
-		// TODO retrieve them from a configuration file
-		providers = Collections.synchronizedMap(new HashMap<String, CloudProvider>());
-		providers.put("aws-s3", new CloudProvider("aws-s3", System.getenv("s3user"), 
+    
+    public KvStore(String rootContainer) {
+        
+        this.rootContainer = rootContainer;
+        
+        // TODO retrieve them from a configuration file
+        providers = Collections.synchronizedMap(new HashMap<String, CloudProvider>());
+        providers.put("aws-s3", new CloudProvider("aws-s3", System.getenv("s3user"), 
                                                     System.getenv("s3pass"), true, 0));
-		providers.put("cloudfiles-us", new CloudProvider("cloudfiles-us", System.getenv("rackspaceuser"), 
-		                                                   System.getenv("rackspacepass"), true, 0));
-		providers.put("azureblob", new CloudProvider("azureblob", System.getenv("azureuser"), 
-		                                               System.getenv("azurepass"), true, 0));
-		//providers.put("hpcloud-objectstorage", new StorageProvider("hpcloud-objectstorage", System.getenv("hpclouduser"), 
-		                                   //System.getenv("hpcloudpass"), false, 0, 0));
-		
-		// Sort providers according to cost and latency
-		sortedProviders = new ArrayList<CloudProvider>(providers.values());
-		performLatencyTests();
-		Collections.sort(sortedProviders);
-		for(CloudProvider cloud : sortedProviders) System.out.println(cloud); // TODO TEMP
-	}
-	
-	// =======================================================================================
+        providers.put("cloudfiles-us", new CloudProvider("cloudfiles-us", System.getenv("rackspaceuser"), 
+                                                           System.getenv("rackspacepass"), true, 0));
+        providers.put("azureblob", new CloudProvider("azureblob", System.getenv("azureuser"), 
+                                                       System.getenv("azurepass"), true, 0));
+        //providers.put("hpcloud-objectstorage", new StorageProvider("hpcloud-objectstorage", System.getenv("hpclouduser"), 
+                                           //System.getenv("hpcloudpass"), false, 0, 0));
+        
+        // Sort providers according to cost and latency
+        sortedProviders = new ArrayList<CloudProvider>(providers.values());
+        performLatencyTests();
+        Collections.sort(sortedProviders);
+        for(CloudProvider cloud : sortedProviders) System.out.println(cloud); // TODO TEMP
+    }
+    
+    // =======================================================================================
     //                                      PUBLIC APIs
     // ---------------------------------------------------------------------------------------
-	
-	public List<String> put(String key, byte[] data) {
-		
-	    List<String> successSavedKvsLst = new ArrayList<String>();
-		
-		synchronized (providers) {
-		    for (CloudProvider provider : sortedProviders) {
-		        try {
-		            putInCloud(provider, key, data);		            
-    		        successSavedKvsLst.add(provider.getName());
-		        } catch (Exception e) {
-		            logger.error("error while storing " + key + " on " + provider.getName(), e);
-		        }
-		    }
+    
+    public List<String> put(String key, byte[] data) {
+        
+        List<String> successSavedKvsLst = new ArrayList<String>();
+        
+        synchronized (providers) {
+            for (CloudProvider provider : sortedProviders) {
+                try {
+                    putInCloud(provider, key, data);                    
+                    successSavedKvsLst.add(provider.getName());
+                } catch (Exception e) {
+                    logger.error("error while storing " + key + " on " + provider.getName(), e);
+                }
+            }
         }
-		return successSavedKvsLst;
-	}
-	
-	public byte[] getFromCloud(String provider, String key) {
-	    
-	    BlobStoreContext context = null; 
+        return successSavedKvsLst;
+    }
+    
+    public byte[] getFromCloud(String provider, String key) {
+        
+        BlobStoreContext context = null; 
         BlobStore storage = null; 
         Blob blob = null;
         
@@ -99,11 +99,11 @@ public class KvStore {
             if (context != null)
                 context.close();
         }
-	}
-	
-	public void deleteKeyFromCloud(String provider, String key) {
-	    
-	    BlobStoreContext context = null; 
+    }
+    
+    public void deleteKeyFromCloud(String provider, String key) {
+        
+        BlobStoreContext context = null; 
         BlobStore storage = null; 
         
         CloudProvider cloud = providers.get(provider);
@@ -122,19 +122,19 @@ public class KvStore {
             if (context != null)
                 context.close();
         }
-	}
-	
-	// =======================================================================================
-	//                                 PRIVATE METHODS
-	// ---------------------------------------------------------------------------------------
-	
-	private void putInCloud(CloudProvider provider, String key, byte[] data) throws Exception {
-	    
-	    BlobStoreContext context = null; 
-	    BlobStore storage = null; 
+    }
+    
+    // =======================================================================================
+    //                                 PRIVATE METHODS
+    // ---------------------------------------------------------------------------------------
+    
+    private void putInCloud(CloudProvider provider, String key, byte[] data) throws Exception {
+        
+        BlobStoreContext context = null; 
+        BlobStore storage = null; 
         Blob blob = null;
-	    
-	    context = ContextBuilder.newBuilder(provider.getName())
+        
+        context = ContextBuilder.newBuilder(provider.getName())
                                 .credentials(provider.getAccountName(), provider.getAccessKey())
                                 .buildView(BlobStoreContext.class);
         storage = context.getBlobStore();
@@ -147,20 +147,20 @@ public class KvStore {
         
         blob = storage.blobBuilder(key).payload(data).build();
         storage.putBlob(rootContainer, blob);
-	}
-	
-//	private void deleteContainerFromCloud(String provider, String container) {
-//	    // TODO
-//	}
-	
-	private void performLatencyTests() {
-	    
-	    byte[] testData = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM".getBytes();
-	    String testKey = "latency_test-" + (new Random()).nextInt(1000);
-	    long start, end = 0;
-	    
-	    // Perform write tests
-	    for (CloudProvider provider : sortedProviders) {
+    }
+    
+//    private void deleteContainerFromCloud(String provider, String container) {
+//        // TODO
+//    }
+    
+    private void performLatencyTests() {
+        
+        byte[] testData = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM".getBytes();
+        String testKey = "latency_test-" + (new Random()).nextInt(1000);
+        long start, end = 0;
+        
+        // Perform write tests
+        for (CloudProvider provider : sortedProviders) {
             try {
                 start = System.currentTimeMillis();
                 putInCloud(provider, testKey, testData);
@@ -171,8 +171,8 @@ public class KvStore {
                 provider.setWriteLatency(-1);
             }
         }
-	    
-	    // Perform read tests
+        
+        // Perform read tests
         for (CloudProvider provider : sortedProviders) {
             if (provider.getWriteLatency() == -1) continue;     // could not write, so do not perform reading test
             try {
@@ -195,14 +195,14 @@ public class KvStore {
             if (provider.getWriteLatency() == -1) continue;     // could not write, so do not perform cleaning up
             deleteKeyFromCloud(provider.getName(), testKey);
         }
-	}	
-	
-	/**
+    }    
+    
+    /**
      * TODO TEMP for dev purposes
      */
-	public static void main (String[] args){
-	    Config.getInstance();
-		KvStore kvs = new KvStore("hybrismytest");
-//		kvs.put("mykey", "blablabla".getBytes());
-	}
+    public static void main (String[] args){
+        Config.getInstance();
+        KvStore kvs = new KvStore("hybrismytest");
+//        kvs.put("mykey", "blablabla".getBytes());
+    }
 }
