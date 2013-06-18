@@ -41,19 +41,6 @@ Development tools:
      * Git guides: [starting guide][4], [Git vs SVN][5], [cheatsheet][6], [official docs][7]
      * Maven guides: [starting guide][8], [Introduction][9], [tutorials][10], [repository search engine][11]
      * Egit plugin guides: [guide 1][12], [guide 2][13]
-
-
-TODO
-----
-
- * cloud latency check and optimization
- * metadata layout on Zookeeper (simple, stupid)
-     * `` / Hybris / $key ``
-     * data stored on ZK: replicas reference list, timestamp, hash value
- * metadata serialization
-     * consider not to use default Java serialization: downsides about security and compatibility (among programming languages as well as different versions of serialized classes; [ref1][javaser1], [ref2][javaser2] pag. 312)
-     * other candidates: [protobuf][javaser3] by Google
- * data deduplication -> check student project (?)
  
 
  [1]: http://arxiv.org/abs/1305.4868            "BFT Storage with 2t+1 Data Replicas - C. Cachin, D. Dobre, M. Vukolic"
@@ -69,7 +56,3 @@ TODO
  [11]: http://mvnrepository.com/                "Maven repository search engine"
  [12]: http://wiki.eclipse.org/EGit/User_Guide  "Egit guide 1"
  [13]: http://www.vogella.com/articles/EGit/article.html  "Egit guide 2"
- 
- [javaser1]: http://en.wikipedia.org/wiki/Java_serialization#Java "Java ser1"
- [javaser2]: http://uet.vnu.edu.vn/~chauttm/e-books/java/Effective.Java.2nd.Edition.May.2008.3000th.Release.pdf "Java ser2"
- [javaser3]: http://code.google.com/p/protobuf/ "Java ser3 protobuffer"

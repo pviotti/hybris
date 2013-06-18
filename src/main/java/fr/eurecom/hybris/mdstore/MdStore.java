@@ -1,8 +1,6 @@
 package fr.eurecom.hybris.mdstore;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -51,6 +49,10 @@ public class MdStore extends SyncPrimitive {
 			throw new IOException(e);
 		}
 	}
+	
+	// =======================================================================================
+    //                                      PUBLIC APIs
+    // ---------------------------------------------------------------------------------------
 	
 	// TODO should we add a flag for explicitly overwriting existing nodes 
 	// (or, viceversa, for explicitly creating a new node)? 
@@ -140,11 +142,11 @@ public class MdStore extends SyncPrimitive {
 	
 	
 	/**
-	 * TODO TEMP for debugging purposes
+	 * TODO TEMP for dev purposes
 	 */
 	public static void main(String[] args) throws IOException {
 		MdStore mds = new MdStore(	Config.getInstance().getProperty(Config.ZK_ADDR),
-									Config.getInstance().getProperty(Config.ZK_ROOT)	);
+		                            Config.getInstance().getProperty(Config.ZK_ROOT)	);
 		ArrayList<String> replicas = new ArrayList<String>(Arrays.asList("Amazon", "Azure"));
 		mds.tsWrite("test_001", new TsDir(System.currentTimeMillis(), "hashvalue", replicas));
 		TsDir output = new TsDir(mds.tsRead("test_001"));

@@ -10,8 +10,8 @@ public class MdStoreTest {
 		TsDir tsdir;
 		int clientID = 100;
 		
-		mds = new MdStore("127.0.0.1:2181","/MDSdir");
-		mds.tsWrite(new TsDir(1,"1",null));
+//		mds = new MdStore("127.0.0.1:2181","/MDSdir");
+//		mds.tsWrite(new TsDir(1,"1",null));
 		/*tsdir = mds.tsRead("key");
 		System.out.println("Version: " + tsdir.getTs().getNum() + " " + tsdir.getTs().getCid());
 		tsdir.getTs().inc("100");
