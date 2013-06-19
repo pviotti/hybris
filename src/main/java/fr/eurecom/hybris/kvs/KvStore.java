@@ -27,30 +27,32 @@ import fr.eurecom.hybris.Config;
 public class KvStore {
     
     private static Logger logger = Logger.getLogger(Config.LOGGER_NAME);
+    private static Config config = Config.getInstance();
     
     private Map<String, CloudProvider> providers;
     private List<CloudProvider> sortedProviders;      // storage providers sorted by cost and latency
     
     private String rootContainer;
-
+    private int t;
     
     public KvStore(String rootContainer) {
         
         this.rootContainer = rootContainer;
-        
-        // TODO retrieve them from a configuration file
-        providers = Collections.synchronizedMap(new HashMap<String, CloudProvider>());
-        providers.put("aws-s3", new CloudProvider("aws-s3", System.getenv("s3user"), 
-                                                    System.getenv("s3pass"), true, 0));
-        providers.put("cloudfiles-us", new CloudProvider("cloudfiles-us", System.getenv("rackspaceuser"), 
-                                                           System.getenv("rackspacepass"), true, 0));
-        providers.put("azureblob", new CloudProvider("azureblob", System.getenv("azureuser"), 
-                                                       System.getenv("azurepass"), true, 0));
-        //providers.put("hpcloud-objectstorage", new StorageProvider("hpcloud-objectstorage", System.getenv("hpclouduser"), 
-                                           //System.getenv("hpcloudpass"), false, 0, 0));
+        this.t = Integer.parseInt(config.getProperty(Config.CONST_T));
+
+        this.providers = Collections.synchronizedMap(new HashMap<String, CloudProvider>());
+        String[] accountIds = config.getAccountsIds();
+        for (String accountId : accountIds) {
+            providers.put(accountId, 
+                    new CloudProvider(accountId, 
+                            config.getAccountsProperty( String.format(Config.C_AKEY, accountId) ), 
+                            config.getAccountsProperty( String.format(Config.C_SKEY, accountId) ),
+                            Boolean.parseBoolean( config.getAccountsProperty( String.format(Config.C_ENABLED, accountId)) ),
+                            Integer.parseInt( config.getAccountsProperty( String.format(Config.C_COST, accountId) ) )));
+        }
         
         // Sort providers according to cost and latency
-        sortedProviders = new ArrayList<CloudProvider>(providers.values());
+        this.sortedProviders = new ArrayList<CloudProvider>(providers.values());
         performLatencyTests();
         Collections.sort(sortedProviders);
         for(CloudProvider cloud : sortedProviders) System.out.println(cloud); // TODO TEMP
@@ -200,7 +202,6 @@ public class KvStore {
      * TODO TEMP for dev purposes
      */
     public static void main (String[] args){
-        Config.getInstance();
         KvStore kvs = new KvStore("hybrismytest");
 //        kvs.put("mykey", "blablabla".getBytes());
     }
