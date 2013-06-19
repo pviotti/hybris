@@ -68,9 +68,9 @@ public class KvStore {
             for (CloudProvider provider : sortedProviders) {
                 try {
                     putInCloud(provider, key, data);                    
-                    successSavedKvsLst.add(provider.getName());
+                    successSavedKvsLst.add(provider.getId());
                 } catch (Exception e) {
-                    logger.error("error while storing " + key + " on " + provider.getName(), e);
+                    logger.error("error while storing " + key + " on " + provider.getId(), e);
                 }
             }
         }
@@ -85,15 +85,15 @@ public class KvStore {
         
         CloudProvider cloud = providers.get(provider);
         try {
-            context = ContextBuilder.newBuilder(cloud.getName())
-                                    .credentials(cloud.getAccountName(), cloud.getAccessKey())
+            context = ContextBuilder.newBuilder(cloud.getId())
+                                    .credentials(cloud.getAccessKey(), cloud.getSecretKey())
                                     .buildView(BlobStoreContext.class);
             storage = context.getBlobStore();
             blob = storage.getBlob(rootContainer, key);
             // TODO check whether it throws an exception or return null in case of key not found
             return ByteStreams.toByteArray(blob.getPayload());
         } catch (Exception e) {
-            logger.error("error while retrieving " + key + " on " + cloud.getName(), e);
+            logger.error("error while retrieving " + key + " on " + cloud.getId(), e);
             return null;
         } finally {
             if (context != null)
@@ -108,9 +108,8 @@ public class KvStore {
         
         CloudProvider cloud = providers.get(provider);
         try {
-            context = ContextBuilder.newBuilder(cloud.getName())
-                                    .credentials(cloud.getAccountName(),
-                                                 cloud.getAccessKey())
+            context = ContextBuilder.newBuilder(cloud.getId())
+                                    .credentials(cloud.getAccessKey(), cloud.getSecretKey())
                                     .buildView(BlobStoreContext.class);
 
             storage = context.getBlobStore();
@@ -134,15 +133,15 @@ public class KvStore {
         BlobStore storage = null; 
         Blob blob = null;
         
-        context = ContextBuilder.newBuilder(provider.getName())
-                                .credentials(provider.getAccountName(), provider.getAccessKey())
+        context = ContextBuilder.newBuilder(provider.getId())
+                                .credentials(provider.getAccessKey(), provider.getSecretKey())
                                 .buildView(BlobStoreContext.class);
         storage = context.getBlobStore();
         
         if (!provider.isAlreadyUsed()) {
             storage.createContainerInLocation(null, rootContainer);
             provider.setAlreadyUsed(true);
-            logger.debug("created container " + rootContainer + " for provider " + provider.getName());
+            logger.debug("created container " + rootContainer + " for provider " + provider.getId());
         }
         
         blob = storage.blobBuilder(key).payload(data).build();
@@ -167,7 +166,7 @@ public class KvStore {
                 end = System.currentTimeMillis();
                 provider.setWriteLatency(end - start);
             } catch (Exception e) {
-                logger.error("error while storing " + testKey + " on " + provider.getName(), e);
+                logger.error("error while storing " + testKey + " on " + provider.getId(), e);
                 provider.setWriteLatency(-1);
             }
         }
@@ -177,7 +176,7 @@ public class KvStore {
             if (provider.getWriteLatency() == -1) continue;     // could not write, so do not perform reading test
             try {
                 start = System.currentTimeMillis();
-                byte[] retrieved = getFromCloud(provider.getName(), testKey);
+                byte[] retrieved = getFromCloud(provider.getId(), testKey);
                 end = System.currentTimeMillis();
                 if (!Arrays.equals(testData, retrieved)) {
                     logger.warn("retrieved blob does not match original data: " + new String(retrieved));
@@ -185,7 +184,7 @@ public class KvStore {
                 } else
                     provider.setReadLatency(end - start);
             } catch (Exception e) {
-                logger.error("error while retrieving " + testKey + " on " + provider.getName(), e);
+                logger.error("error while retrieving " + testKey + " on " + provider.getId(), e);
                 provider.setReadLatency(-1);
             }
         }
@@ -193,7 +192,7 @@ public class KvStore {
         // Clean up test data
         for (CloudProvider provider : sortedProviders) {
             if (provider.getWriteLatency() == -1) continue;     // could not write, so do not perform cleaning up
-            deleteKeyFromCloud(provider.getName(), testKey);
+            deleteKeyFromCloud(provider.getId(), testKey);
         }
     }    
     
