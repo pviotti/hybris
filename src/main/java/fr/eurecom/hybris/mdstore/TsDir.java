@@ -15,10 +15,10 @@ public class TsDir implements Serializable {
     private static final long serialVersionUID = -2127132184699014357L;
 
     private long ts;
-    private String hash;
+    private byte[] hash;
     private List<String> replicasLst;
     
-    public TsDir(long ts, String hash, List<String> replicas) {
+    public TsDir(long ts, byte[] hash, List<String> replicas) {
         this.ts = ts;
         this.hash = hash;
         this.replicasLst = replicas;
@@ -39,8 +39,8 @@ public class TsDir implements Serializable {
     public void setTs(long ts) { this.ts = ts;    }
     public List<String> getReplicasLst() { return replicasLst; }
     public void setReplicasLst(List<String> replicasLst) { this.replicasLst = replicasLst; }
-    public String getHash() { return hash; }
-    public void setHash(String hash) { this.hash = hash; }
+    public byte[] getHash() { return hash; }
+    public void setHash(byte[] hash) { this.hash = hash; }
     
     @Override
     public String toString() {

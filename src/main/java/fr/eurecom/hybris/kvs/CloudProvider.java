@@ -69,8 +69,8 @@ public class CloudProvider implements Comparable<CloudProvider> {
     
     @Override
     public String toString() {
-        return "CloudProvider [id=" + id + ", alreadyUsed=" + alreadyUsed
-                + ", enabled=" + enabled + ", writeLatency=" + writeLatency
-                + ", readLatency=" + readLatency + ", cost=" + cost + "]";
+        return "CloudProvider (" + id + ") [alreadyUsed=" + alreadyUsed + 
+                ", enabled=" + enabled + ", writeLatency=" + writeLatency +
+                ", readLatency=" + readLatency + ", cost=" + cost + "]";
     }
 }

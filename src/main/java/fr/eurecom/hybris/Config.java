@@ -27,6 +27,8 @@ public class Config {
     public static String ZK_ADDR = "fr.eurecom.hybris.zk.address";
     public static String ZK_ROOT = "fr.eurecom.hybris.zk.root";
     
+    public static String KVS_ROOT = "fr.eurecom.hybris.kvs.root";
+    
     private static String C_ACCOUNTS = "fr.eurecom.hybris.clouds";
     public static String C_AKEY = "fr.eurecom.hybris.clouds.%s.akey";
     public static String C_SKEY = "fr.eurecom.hybris.clouds.%s.skey";

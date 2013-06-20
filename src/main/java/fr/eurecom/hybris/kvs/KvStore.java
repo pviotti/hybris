@@ -8,11 +8,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import org.apache.log4j.Logger;
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.io.ByteStreams;
 
@@ -26,20 +27,22 @@ import fr.eurecom.hybris.Config;
  */
 public class KvStore {
     
-    private static Logger logger = Logger.getLogger(Config.LOGGER_NAME);
-    private static Config config = Config.getInstance();
+    private Config config = Config.getInstance();
+    private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
     
     private Map<String, CloudProvider> providers;
     private List<CloudProvider> sortedProviders;      // storage providers sorted by cost and latency
     
     private String rootContainer;
-    private int t;
+    private int quorum;
+    
+    private String TEST_KEY = "latency_test-";
+    private String TEST_VALUE = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM";
     
     public KvStore(String rootContainer) {
         
         this.rootContainer = rootContainer;
-        this.t = Integer.parseInt(config.getProperty(Config.CONST_T));
-
+        
         this.providers = Collections.synchronizedMap(new HashMap<String, CloudProvider>());
         String[] accountIds = config.getAccountsIds();
         for (String accountId : accountIds) {
@@ -51,32 +54,45 @@ public class KvStore {
                             Integer.parseInt( config.getAccountsProperty( String.format(Config.C_COST, accountId) ) )));
         }
         
+        
+        int t = Integer.parseInt(config.getProperty(Config.CONST_T));
+        this.quorum = t + 1;
+        
         // Sort providers according to cost and latency
         this.sortedProviders = new ArrayList<CloudProvider>(providers.values());
+        logger.info("Performing latency tests on cloud providers...");
         performLatencyTests();
         Collections.sort(sortedProviders);
-        for(CloudProvider cloud : sortedProviders) System.out.println(cloud); // TODO TEMP
-    }
-    
+        logger.debug("Clouds providers sorted by performance/cost metrics:");
+        for(CloudProvider cloud : sortedProviders) 
+            logger.debug("\t * " + cloud.toString());
+    }    
+
     // =======================================================================================
     //                                      PUBLIC APIs
     // ---------------------------------------------------------------------------------------
     
     public List<String> put(String key, byte[] data) {
         
-        List<String> successSavedKvsLst = new ArrayList<String>();
+        List<String> savedKvsLst = new ArrayList<String>();
         
         synchronized (providers) {
             for (CloudProvider provider : sortedProviders) {
                 try {
                     putInCloud(provider, key, data);                    
-                    successSavedKvsLst.add(provider.getId());
+                    savedKvsLst.add(provider.getId());
+                    if (savedKvsLst.size() >= this.quorum) break;
                 } catch (Exception e) {
                     logger.error("error while storing " + key + " on " + provider.getId(), e);
                 }
             }
         }
-        return successSavedKvsLst;
+        
+        if (savedKvsLst.size() < this.quorum) {
+            // TODO start a new thread to garbage collect the copies of the data on savedKvsLst
+            return null;
+        } else        
+            return savedKvsLst;
     }
     
     public byte[] getFromCloud(String provider, String key) {
@@ -118,7 +134,7 @@ public class KvStore {
             storage.removeBlob(rootContainer, key);
 
         } catch (Exception ex) {
-            logger.error("error while deleting " + key + " from " + provider);
+            logger.error("error while deleting {} from {}.", key, provider);
         } finally {
             if (context != null)
                 context.close();
@@ -143,7 +159,7 @@ public class KvStore {
         if (!provider.isAlreadyUsed()) {
             storage.createContainerInLocation(null, rootContainer);
             provider.setAlreadyUsed(true);
-            logger.debug("created container " + rootContainer + " for provider " + provider.getId());
+            logger.debug("created container {} for provider {}", rootContainer, provider.getId());
         }
         
         blob = storage.blobBuilder(key).payload(data).build();
@@ -156,8 +172,8 @@ public class KvStore {
     
     private void performLatencyTests() {
         
-        byte[] testData = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM".getBytes();
-        String testKey = "latency_test-" + (new Random()).nextInt(1000);
+        byte[] testData = TEST_VALUE.getBytes();
+        String testKey = TEST_KEY + (new Random()).nextInt(1000);
         long start, end = 0;
         
         // Perform write tests
@@ -170,6 +186,7 @@ public class KvStore {
             } catch (Exception e) {
                 logger.error("error while storing " + testKey + " on " + provider.getId(), e);
                 provider.setWriteLatency(-1);
+                //provider.setEnabled(false);
             }
         }
         
@@ -181,7 +198,7 @@ public class KvStore {
                 byte[] retrieved = getFromCloud(provider.getId(), testKey);
                 end = System.currentTimeMillis();
                 if (!Arrays.equals(testData, retrieved)) {
-                    logger.warn("retrieved blob does not match original data: " + new String(retrieved));
+                    logger.warn("retrieved blob does not match original data: {}", new String(retrieved));
                     provider.setReadLatency(-1);
                 } else
                     provider.setReadLatency(end - start);
@@ -197,6 +214,14 @@ public class KvStore {
             deleteKeyFromCloud(provider.getId(), testKey);
         }
     }    
+    
+    private int getAvailableProvidersCount() {
+        int c = 0;
+        for (CloudProvider cloud : providers.values())
+            if (cloud.isEnabled()) c++;
+        return c;
+    }
+    
     
     /**
      * TODO TEMP for dev purposes

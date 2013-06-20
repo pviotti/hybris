@@ -1,9 +1,10 @@
 package fr.eurecom.hibrys.test;
 
+import junit.framework.TestCase;
 import fr.eurecom.hybris.mdstore.MdStore;
 import fr.eurecom.hybris.mdstore.TsDir;
 
-public class MdStoreTest {
+public class MdStoreTest extends TestCase {
 
     public static void main(String[] args) {
         MdStore mds;
