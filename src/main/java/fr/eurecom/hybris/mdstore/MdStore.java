@@ -34,10 +34,10 @@ public class MdStore extends SyncPrimitive {
     public MdStore(String address, String storageRoot) throws IOException {
         
         super(address);
-        this.storageRoot = storageRoot;
+        this.storageRoot = "/" + storageRoot;
         
         try {
-            Stat stat = zk.exists(storageRoot, false);
+            Stat stat = zk.exists(this.storageRoot, false);
             if (stat == null) {
                 logger.debug("Creating root dir...");
                 zk.create(this.storageRoot, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
@@ -136,12 +136,12 @@ public class MdStore extends SyncPrimitive {
     /**
      * TODO TEMP for dev purposes
      */
-    public static void main(String[] args) throws IOException {
-        MdStore mds = new MdStore(    Config.getInstance().getProperty(Config.ZK_ADDR),
-                                    Config.getInstance().getProperty(Config.ZK_ROOT)    );
-        ArrayList<String> replicas = new ArrayList<String>(Arrays.asList("Amazon", "Azure"));
-        mds.tsWrite("test_001", new TsDir(System.currentTimeMillis(), "hashvalue".getBytes(), replicas));
-        TsDir output = new TsDir(mds.tsRead("test_001"));
-        System.out.println("OUTPUT: " + output);
-    }
+//    public static void main(String[] args) throws IOException {
+//        MdStore mds = new MdStore(    Config.getInstance().getProperty(Config.ZK_ADDR),
+//                                    Config.getInstance().getProperty(Config.ZK_ROOT)    );
+//        ArrayList<String> replicas = new ArrayList<String>(Arrays.asList("Amazon", "Azure"));
+//        mds.tsWrite("test_001", new TsDir(System.currentTimeMillis(), "hashvalue".getBytes(), replicas));
+//        TsDir output = new TsDir(mds.tsRead("test_001"));
+//        System.out.println("OUTPUT: " + output);
+//    }
 }

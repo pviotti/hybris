@@ -12,6 +12,7 @@ import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
+import org.jclouds.rest.AuthorizationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -185,8 +186,9 @@ public class KvStore {
                 provider.setWriteLatency(end - start);
             } catch (Exception e) {
                 logger.error("error while storing " + testKey + " on " + provider.getId(), e);
-                provider.setWriteLatency(-1);
-                //provider.setEnabled(false);
+                provider.setWriteLatency(999999);
+                if (e instanceof AuthorizationException)
+                    provider.setEnabled(false); // XXX or remove the provider?
             }
         }
         
@@ -198,13 +200,16 @@ public class KvStore {
                 byte[] retrieved = getFromCloud(provider.getId(), testKey);
                 end = System.currentTimeMillis();
                 if (!Arrays.equals(testData, retrieved)) {
-                    logger.warn("retrieved blob does not match original data: {}", new String(retrieved));
-                    provider.setReadLatency(-1);
+                    logger.warn("retrieved blob does not match original data: {}", 
+                                    retrieved == null ? "null" : new String(retrieved));
+                    provider.setReadLatency(999999);
                 } else
                     provider.setReadLatency(end - start);
             } catch (Exception e) {
                 logger.error("error while retrieving " + testKey + " on " + provider.getId(), e);
-                provider.setReadLatency(-1);
+                provider.setReadLatency(999999);
+                if (e instanceof AuthorizationException)
+                    provider.setEnabled(false);
             }
         }
         
@@ -226,8 +231,8 @@ public class KvStore {
     /**
      * TODO TEMP for dev purposes
      */
-    public static void main (String[] args){
-        KvStore kvs = new KvStore("hybrismytest");
+//    public static void main (String[] args){
+//        KvStore kvs = new KvStore("hybrismytest");
 //        kvs.put("mykey", "blablabla".getBytes());
-    }
+//    }
 }

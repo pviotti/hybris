@@ -83,7 +83,7 @@ public class Hybris {
         }
     }
     
-    public void gc() {
+    private void gc(String key) {
         // TODO
     }
     
