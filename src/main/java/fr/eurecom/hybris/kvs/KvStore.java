@@ -1,5 +1,6 @@
 package fr.eurecom.hybris.kvs;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -40,7 +41,7 @@ public class KvStore {
     private String TEST_KEY = "latency_test-";
     private String TEST_VALUE = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM";
     
-    public KvStore(String rootContainer) {
+    public KvStore(String rootContainer, boolean latencyTests) {
         
         this.rootContainer = rootContainer;
         
@@ -59,14 +60,15 @@ public class KvStore {
         int t = Integer.parseInt(config.getProperty(Config.CONST_T));
         this.quorum = t + 1;
         
-        // Sort providers according to cost and latency
         this.sortedProviders = new ArrayList<CloudProvider>(providers.values());
-        logger.info("Performing latency tests on cloud providers...");
-        performLatencyTests();
-        Collections.sort(sortedProviders);
-        logger.debug("Clouds providers sorted by performance/cost metrics:");
-        for(CloudProvider cloud : sortedProviders) 
-            logger.debug("\t * " + cloud.toString());
+        if (latencyTests) {
+            logger.info("Performing latency tests on cloud providers...");
+            performLatencyTests();
+            Collections.sort(sortedProviders);  // Sort providers according to cost and latency (see CloudProvider.compareTo())
+            logger.debug("Clouds providers sorted by performance/cost metrics:");
+            for(CloudProvider cloud : sortedProviders) 
+                logger.debug("\t * " + cloud.toString());
+        }
     }    
 
     // =======================================================================================
@@ -109,7 +111,7 @@ public class KvStore {
                                     .buildView(BlobStoreContext.class);
             storage = context.getBlobStore();
             blob = storage.getBlob(rootContainer, key);
-            // TODO check whether it throws an exception or return null in case of key not found
+            if (blob == null) throw new IOException(); // key not found
             return ByteStreams.toByteArray(blob.getPayload());
         } catch (Exception e) {
             logger.error("error while retrieving " + key + " on " + cloud.getId(), e);
@@ -120,7 +122,7 @@ public class KvStore {
         }
     }
     
-    public void deleteKeyFromCloud(String provider, String key) {
+    public void deleteKeyFromCloud(String provider, String key) throws IOException {
         
         BlobStoreContext context = null; 
         BlobStore storage = null; 
@@ -135,7 +137,7 @@ public class KvStore {
             storage.removeBlob(rootContainer, key);
 
         } catch (Exception ex) {
-            logger.error("error while deleting {} from {}.", key, provider);
+            throw new IOException(ex);
         } finally {
             if (context != null)
                 context.close();
@@ -216,7 +218,11 @@ public class KvStore {
         // Clean up test data
         for (CloudProvider provider : sortedProviders) {
             if (provider.getWriteLatency() == -1) continue;     // could not write, so do not perform cleaning up
-            deleteKeyFromCloud(provider.getId(), testKey);
+            try {
+                deleteKeyFromCloud(provider.getId(), testKey);
+            } catch (IOException e) {
+                logger.warn("Could not remove {} from {}.", testKey, provider.getId());
+            }
         }
     }    
     

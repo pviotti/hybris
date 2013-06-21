@@ -1,6 +1,7 @@
 package fr.eurecom.hybris.test;
 
-import junit.framework.TestCase;
+import java.math.BigInteger;
+import java.util.Arrays;
 
 import org.junit.After;
 import org.junit.Before;
@@ -10,11 +11,8 @@ import fr.eurecom.hybris.Hybris;
 import fr.eurecom.hybris.HybrisException;
 
 
-public class HybrisTest extends TestCase {
+public class HybrisTest extends HybrisAbstractTest {
 
-    private String BASIC_KEY = "mykey";
-    private String BASIC_VALUE = "my_value";
-    
     private Hybris hybris;
     
     @Before
@@ -27,8 +25,19 @@ public class HybrisTest extends TestCase {
 
     @Test
     public void testBasicWriteAndRead() throws HybrisException {
-        hybris.write(BASIC_KEY, BASIC_VALUE.getBytes());
-        String output = new String(hybris.read(BASIC_KEY));
-        assertEquals(BASIC_VALUE, output);
+        
+        String key = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        byte[] value = (new BigInteger(50, random).toString(32)).getBytes();
+        
+        hybris.write(key, value);
+        byte[] output = hybris.read(key);
+        assertTrue(Arrays.equals(value, output));
+        
+        hybris.gc(key);
+        
+        try {
+            hybris.read(key);
+            fail();     // should not reach this point 
+        } catch (HybrisException he) {  }
     }
 }

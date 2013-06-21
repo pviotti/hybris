@@ -1,8 +1,6 @@
 package fr.eurecom.hybris.mdstore;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import org.apache.zookeeper.CreateMode;
@@ -108,8 +106,10 @@ public class MdStore extends SyncPrimitive {
     
     
     public List<String> list(String key) throws IOException {
+        
+        String path = this.storageRoot + "/" + key;
         try {
-            return zk.getChildren(key, false);
+            return zk.getChildren(path, false);
         } catch (KeeperException e) {         // XXX check how often / when it happens
             logger.error("KeeperException, could not list the children of key " + key, e);
             throw new IOException(e);
@@ -121,8 +121,10 @@ public class MdStore extends SyncPrimitive {
     
     
     public void delete(String key) throws IOException {
+        
+        String path = this.storageRoot + "/" + key;
         try {
-            zk.delete(key, -1);        // delete no matter which version
+            zk.delete(path, -1);             // XXX delete no matter which version
         } catch (KeeperException e) {        // XXX check how often / when it happens
             logger.error("KeeperException, could not delete the key " + key, e);
             throw new IOException(e);

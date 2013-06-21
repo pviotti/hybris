@@ -27,7 +27,9 @@ public class Hybris {
             logger.error("Could not initialize the Zookeeper metadata store.", e);
             throw new HybrisException("Could not initialize the Zookeeper metadata store.");
         }
-        kvs = new KvStore(conf.getProperty(Config.KVS_ROOT));
+        
+        kvs = new KvStore(conf.getProperty(Config.KVS_ROOT), 
+                            Boolean.parseBoolean(conf.getProperty(Config.KVS_TESTSONSTARTUP)));
     }
     
    
@@ -76,15 +78,41 @@ public class Hybris {
             mds.tsWrite(key, new TsDir(ts, Utils.getHash(value), savedReplicasRef));
         } catch (IOException e) {
             logger.warn("Hybris could not manage to store metadata on Zookeeper for key {}.", key);
-            // clean up un-referenced data in the clouds
-            for (String cloud : savedReplicasRef)
-                kvs.deleteKeyFromCloud(cloud, key);            
+            kvsGc(key, savedReplicasRef);  // clean up un-referenced data in the clouds
             throw new HybrisException("Hybris could not manage to store the metadata on Zookeeper");
         }
     }
     
-    private void gc(String key) {
-        // TODO
+    public void gc(String key) {
+        
+        byte[] rawMetadataValue = mds.tsRead(key);
+        if (rawMetadataValue == null) {
+            logger.debug("Hybris could not find the metadata associated with key {}.", key);
+            return;
+        }
+        
+        TsDir tsdir = new TsDir(rawMetadataValue);
+        for (String cloud : tsdir.getReplicasLst())
+            try {
+                kvs.deleteKeyFromCloud(cloud, key);
+            } catch (IOException e) {
+                logger.warn("error while deleting {} from {}.", key, cloud);
+            }
+    }
+    
+    
+    // =======================================================================================
+    //                                 PRIVATE METHODS
+    // ---------------------------------------------------------------------------------------
+    
+    private void kvsGc(String key, List<String> replicas) {
+        
+        for (String cloud : replicas)
+            try {
+                kvs.deleteKeyFromCloud(cloud, key);
+            } catch (IOException e) {
+                logger.error("error while deleting {} from {}.", key, cloud);
+            }
     }
     
     

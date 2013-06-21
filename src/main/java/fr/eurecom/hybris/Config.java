@@ -28,6 +28,7 @@ public class Config {
     public static String ZK_ROOT = "fr.eurecom.hybris.zk.root";
     
     public static String KVS_ROOT = "fr.eurecom.hybris.kvs.root";
+    public static String KVS_TESTSONSTARTUP = "fr.eurecom.hybris.latencytestonstartup";
     
     private static String C_ACCOUNTS = "fr.eurecom.hybris.clouds";
     public static String C_AKEY = "fr.eurecom.hybris.clouds.%s.akey";
