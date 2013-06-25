@@ -67,7 +67,7 @@ public class KvStore {
             Collections.sort(sortedProviders);  // Sort providers according to cost and latency (see CloudProvider.compareTo())
             logger.debug("Clouds providers sorted by performance/cost metrics:");
             for(CloudProvider cloud : sortedProviders) 
-                logger.debug("\t * " + cloud.toString());
+                logger.debug("\t * {}", cloud.toString());
         }
     }    
 
@@ -93,6 +93,12 @@ public class KvStore {
         
         if (savedKvsLst.size() < this.quorum) {
             // TODO start a new thread to garbage collect the copies of the data on savedKvsLst
+            for (String provider : savedKvsLst)
+                try {
+                    deleteKeyFromCloud(provider, key);
+                } catch (IOException e) {
+                    logger.error("error while deleting {} from {}.", key, provider);
+                }
             return null;
         } else        
             return savedKvsLst;

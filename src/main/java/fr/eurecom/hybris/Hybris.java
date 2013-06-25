@@ -57,8 +57,8 @@ public class Hybris {
             }
         }
         
-        logger.warn("Hybris could not manage to retrieve the data from the clouds store.");
-        throw new HybrisException("Hybris could not manage to retrieve the data from the clouds store.");
+        logger.warn("Hybris could not manage to retrieve the data from cloud stores.");
+        throw new HybrisException("Hybris could not manage to retrieve the data from cloud stores.");
     }
 
     public void write(String key, byte[] value) throws HybrisException {
@@ -67,12 +67,12 @@ public class Hybris {
         
         List<String> savedReplicasRef = kvs.put(key, value);
         if (savedReplicasRef == null) {
-            logger.warn("Hybris could not manage to store data in the clouds for key {}.", key);
-            throw new HybrisException("Hybris could not manage to store the data in the clouds");
+            logger.warn("Hybris could not manage to store data in cloud stores for key {}.", key);
+            throw new HybrisException("Hybris could not manage to store data in cloud stores");
         }
         logger.debug("Data successfully saved on these clouds:");
         for (String cloud : savedReplicasRef)
-            logger.debug("\t * " + cloud);
+            logger.debug("\t * {}", cloud);
         
         try {
             mds.tsWrite(key, new TsDir(ts, Utils.getHash(value), savedReplicasRef));
