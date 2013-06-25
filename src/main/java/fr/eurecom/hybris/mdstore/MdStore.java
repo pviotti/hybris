@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import fr.eurecom.hybris.Config;
+import fr.eurecom.hybris.HybrisException;
 
 /**
  * Class that wraps the Zookeeper client.
@@ -56,7 +57,7 @@ public class MdStore extends SyncPrimitive {
     // TODO should we add a flag for explicitly overwriting existing nodes 
     // (or, viceversa, for explicitly creating a new node)? 
     // TODO should we care about ZK node version upon writing to existing node?    
-    public void tsWrite(String key, TsDir tsdir) throws IOException {
+    public void tsWrite(String key, TsDir tsdir) throws HybrisException {
         
         String path = this.storageRoot + "/" + key;
         try {
@@ -64,86 +65,104 @@ public class MdStore extends SyncPrimitive {
             Stat stat = zk.exists(path, false);
             if (stat == null) {
                 zk.create(path, tsdir.serialize(), Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                logger.debug("ZNode {} created.", key);
+                logger.debug("ZNode {} created.", path);
             } else {
-                zk.setData(path, tsdir.serialize(), -1);    // overwrite no matter which version
-                logger.debug("ZNode {} overwritten.", key);
+                zk.setData(path, tsdir.serialize(), tsdir.getTs().getNum());
+                logger.debug("ZNode {} overwritten.", path);
             }
                     
         } catch (KeeperException e) {
-            logger.error("InterruptedException, could not read the key.", e);
-            throw new IOException(e);
+            
+            if (e.code() == KeeperException.Code.BADVERSION) {
+                logger.warn("Write failed due to the wrong version ({}) of key {}", tsdir.getTs().getNum(), key);
+                
+                try {
+                    byte[] newValue = tsRead(key);
+                    if (newValue != null) {
+                        TsDir newtsdir = new TsDir(newValue);
+                        if (tsdir.getTs().isGreater(newtsdir.getTs())) {
+                            tsWrite(key, tsdir);
+                        } // XXX Wrong version but no need to retry
+                    }
+                } catch (HybrisException e1) {
+                    // TODO Auto-generated catch block
+                    e1.printStackTrace();
+                } 
+            }
+            // TODO Auto-generated catch block
+            else e.printStackTrace();
+            
+            logger.error("KeeperException, could not write the key.", e);
+            throw new HybrisException("KeeperException, could not write the key.", e);
         } catch (InterruptedException e) {
-            logger.error("InterruptedException, could not read the key.", e);
-            throw new IOException(e);
+            logger.error("InterruptedException, could not write the key.", e);
+            throw new HybrisException("InterruptedException, could not write the key. " + e.getMessage(), e);
         }
     }
     
     
-    public byte[] tsRead(String key) {
+    public byte[] tsRead(String key) throws HybrisException {
         
         String path = this.storageRoot + "/" + key;
         try {
             zk.sync(path, null, null);      // NOTE: There is no synchronous version of this ZK API 
                                             // (https://issues.apache.org/jira/browse/ZOOKEEPER-1167ordering) 
                                             // however, order guarantees among operations allow not to wait for asynchronous callback to be called
-            return zk.getData(path, false, new Stat());
-        } catch (KeeperException e) {    // XXX check how often / when it happens
+            return zk.getData(path, false, null);
+        } catch (KeeperException e) {
             
-            if (e.code() == KeeperException.Code.NONODE) {    // XXX implement a retry mechanisms if KeeperException.Code.NONODE ?
-                logger.warn("KeeperException, could not find the specified znode. " + e.getMessage(), e);
+            if (e.code() == KeeperException.Code.NONODE)
                 return null;
-            } else {
-                logger.error("KeeperException, could not read the key. " + e.getMessage(), e);
-                return null;
+            else {
+                logger.error("KeeperException, could not read the ZNode " + path, e);
+                throw new HybrisException("KeeperException, could not read the ZNode " + path, e);
             }
             
-        } catch (InterruptedException e) {    // XXX check how often / when it happens
-            logger.error("InterruptedException, could not read the key.", e);
-            return null;
+        } catch (InterruptedException e) {
+            logger.error("InterruptedException, could not read the ZNode " + path, e);
+            throw new HybrisException("InterruptedException, could not read the key. " + e.getMessage(), e);
         }
     }
     
     
-    public List<String> list(String key) throws IOException {
+    public List<String> list(String key) throws HybrisException {
         
         String path = this.storageRoot + "/" + key;
         try {
             return zk.getChildren(path, false);
-        } catch (KeeperException e) {         // XXX check how often / when it happens
-            logger.error("KeeperException, could not list the children of key " + key, e);
-            throw new IOException(e);
-        } catch (InterruptedException e) {    // XXX check how often / when it happens
-            logger.error("InterruptedException, could not list the children of key " + key, e);
-            throw new IOException(e);
+        } catch (KeeperException e) {
+            
+            if (e.code() == KeeperException.Code.NONODE)
+                return null;
+            else {
+                logger.error("KeeperException, could not list the children of ZNode " + path, e);
+                throw new HybrisException("KeeperException, could not list the children of ZNode " + path, e);
+            }
+            
+        } catch (InterruptedException e) {
+            logger.error("InterruptedException, could not list the children of ZNode " + path, e);
+            throw new HybrisException("InterruptedException, could not list the children of ZNode " + path, e);
         }
     }
     
     
-    public void delete(String key) throws IOException {
+    public void delete(String key) throws HybrisException {
         
         String path = this.storageRoot + "/" + key;
         try {
             zk.delete(path, -1);             // XXX delete no matter which version
-        } catch (KeeperException e) {        // XXX check how often / when it happens
-            logger.error("KeeperException, could not delete the key " + key, e);
-            throw new IOException(e);
-        } catch (InterruptedException e) {    // XXX check how often / when it happens
-            logger.error("InterruptedException, could not delete the key " + key, e);
-            throw new IOException(e);
+        } catch (KeeperException e) {
+            
+            if (e.code() == KeeperException.Code.NONODE)
+                return;
+            else {
+                logger.error("KeeperException, could not delete the ZNode " + path, e);
+                throw new HybrisException("KeeperException, could not list the children of ZNode " + path, e);
+            }
+            
+        } catch (InterruptedException e) {
+            logger.error("InterruptedException, could not delete the ZNode " + path, e);
+            throw new HybrisException("InterruptedException, could not delete the ZNode " + path, e);
         }
     }
-    
-    
-    /**
-     * TODO TEMP for dev purposes
-     */
-//    public static void main(String[] args) throws IOException {
-//        MdStore mds = new MdStore(    Config.getInstance().getProperty(Config.ZK_ADDR),
-//                                    Config.getInstance().getProperty(Config.ZK_ROOT)    );
-//        ArrayList<String> replicas = new ArrayList<String>(Arrays.asList("Amazon", "Azure"));
-//        mds.tsWrite("test_001", new TsDir(System.currentTimeMillis(), "hashvalue".getBytes(), replicas));
-//        TsDir output = new TsDir(mds.tsRead("test_001"));
-//        System.out.println("OUTPUT: " + output);
-//    }
 }

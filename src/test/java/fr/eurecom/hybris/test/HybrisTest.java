@@ -35,9 +35,6 @@ public class HybrisTest extends HybrisAbstractTest {
         
         hybris.gc(key);
         
-        try {
-            hybris.read(key);
-            fail();     // should not reach this point 
-        } catch (HybrisException he) {  }
+        assertNull(hybris.read(key));
     }
 }

@@ -6,7 +6,7 @@ public class HybrisException extends Exception {
 
     public HybrisException(String message){
         super(message);
-    }   
+    }
     
     public HybrisException(String message, Throwable t){
         super(message, t); 

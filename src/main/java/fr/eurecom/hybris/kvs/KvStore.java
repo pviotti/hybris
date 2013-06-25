@@ -38,8 +38,10 @@ public class KvStore {
     private String rootContainer;
     private int quorum;
     
-    private String TEST_KEY = "latency_test-";
-    private String TEST_VALUE = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM";
+    private static String TEST_KEY = "latency_test-";
+    private static String TEST_VALUE = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM";
+    
+    private static String KEY_NOT_FOUND_MSG = "Key not found";
     
     public KvStore(String rootContainer, boolean latencyTests) {
         
@@ -65,9 +67,10 @@ public class KvStore {
             logger.info("Performing latency tests on cloud providers...");
             performLatencyTests();
             Collections.sort(sortedProviders);  // Sort providers according to cost and latency (see CloudProvider.compareTo())
-            logger.debug("Clouds providers sorted by performance/cost metrics:");
+            StringBuilder strBld = new StringBuilder("Clouds providers sorted by performance/cost metrics:\n\t\t\t\t\t");
             for(CloudProvider cloud : sortedProviders) 
-                logger.debug("\t * {}", cloud.toString());
+                strBld.append(cloud.toString() + "\n\t\t\t\t\t");
+            logger.debug(strBld.toString().trim());
         }
     }    
 
@@ -79,17 +82,14 @@ public class KvStore {
         
         List<String> savedKvsLst = new ArrayList<String>();
         
-        synchronized (providers) {
-            for (CloudProvider provider : sortedProviders) {
-                try {
-                    putInCloud(provider, key, data);                    
-                    savedKvsLst.add(provider.getId());
-                    if (savedKvsLst.size() >= this.quorum) break;
-                } catch (Exception e) {
-                    logger.error("error while storing " + key + " on " + provider.getId(), e);
-                }
+        for (CloudProvider provider : sortedProviders)
+            try {   // TODO parallelize
+                putInCloud(provider, key, data);                    
+                savedKvsLst.add(provider.getId());
+                if (savedKvsLst.size() >= this.quorum) break;
+            } catch (Exception e) {
+                logger.warn("Error while storing " + key + " on " + provider.getId(), e);
             }
-        }
         
         if (savedKvsLst.size() < this.quorum) {
             // TODO start a new thread to garbage collect the copies of the data on savedKvsLst
@@ -97,10 +97,10 @@ public class KvStore {
                 try {
                     deleteKeyFromCloud(provider, key);
                 } catch (IOException e) {
-                    logger.error("error while deleting {} from {}.", key, provider);
+                    logger.warn("error while deleting {} from {}.", key, provider);
                 }
             return null;
-        } else        
+        } else
             return savedKvsLst;
     }
     
@@ -117,10 +117,13 @@ public class KvStore {
                                     .buildView(BlobStoreContext.class);
             storage = context.getBlobStore();
             blob = storage.getBlob(rootContainer, key);
-            if (blob == null) throw new IOException(); // key not found
+            if (blob == null) throw new IOException(KEY_NOT_FOUND_MSG);      // key not found
             return ByteStreams.toByteArray(blob.getPayload());
-        } catch (Exception e) {
-            logger.error("error while retrieving " + key + " on " + cloud.getId(), e);
+        } catch (IOException e) {
+            if (KEY_NOT_FOUND_MSG.equalsIgnoreCase(e.getMessage()))
+                logger.warn("Could not retrieve {} from {}", key, cloud.getId());
+            else
+                logger.error("Error while retrieving " + key + " from " + cloud.getId(), e);
             return null;
         } finally {
             if (context != null)
@@ -154,30 +157,35 @@ public class KvStore {
     //                                 PRIVATE METHODS
     // ---------------------------------------------------------------------------------------
     
-    private void putInCloud(CloudProvider provider, String key, byte[] data) throws Exception {
+    private void putInCloud(CloudProvider provider, String key, byte[] data) throws IOException {
         
         BlobStoreContext context = null; 
         BlobStore storage = null; 
         Blob blob = null;
         
-        context = ContextBuilder.newBuilder(provider.getId())
-                                .credentials(provider.getAccessKey(), provider.getSecretKey())
-                                .buildView(BlobStoreContext.class);
-        storage = context.getBlobStore();
-        
-        if (!provider.isAlreadyUsed()) {
-            storage.createContainerInLocation(null, rootContainer);
-            provider.setAlreadyUsed(true);
-            logger.debug("created container {} for provider {}", rootContainer, provider.getId());
+        try {
+            context = ContextBuilder.newBuilder(provider.getId())
+                                    .credentials(provider.getAccessKey(), provider.getSecretKey())
+                                    .buildView(BlobStoreContext.class);
+            storage = context.getBlobStore();
+            
+            if (!provider.isAlreadyUsed()) {
+                storage.createContainerInLocation(null, rootContainer);
+                provider.setAlreadyUsed(true);
+                logger.debug("Created container {} for provider {}", rootContainer, provider.getId());
+            }
+            
+            blob = storage.blobBuilder(key).payload(data).build();
+            storage.putBlob(rootContainer, blob);
+            
+        } catch (Exception ex) {
+            throw new IOException(ex);
+        } finally {
+            if (context != null)
+                context.close();
         }
-        
-        blob = storage.blobBuilder(key).payload(data).build();
-        storage.putBlob(rootContainer, blob);
     }
     
-//    private void deleteContainerFromCloud(String provider, String container) {
-//        // TODO
-//    }
     
     private void performLatencyTests() {
         
@@ -238,13 +246,4 @@ public class KvStore {
             if (cloud.isEnabled()) c++;
         return c;
     }
-    
-    
-    /**
-     * TODO TEMP for dev purposes
-     */
-//    public static void main (String[] args){
-//        KvStore kvs = new KvStore("hybrismytest");
-//        kvs.put("mykey", "blablabla".getBytes());
-//    }
 }
