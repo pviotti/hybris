@@ -11,8 +11,8 @@ import org.junit.Test;
 import fr.eurecom.hybris.HybrisException;
 import fr.eurecom.hybris.Utils;
 import fr.eurecom.hybris.mdstore.MdStore;
-import fr.eurecom.hybris.mdstore.TsDir;
-import fr.eurecom.hybris.mdstore.TsDir.Timestamp;
+import fr.eurecom.hybris.mdstore.Metadata;
+import fr.eurecom.hybris.mdstore.Metadata.Timestamp;
 
 
 public class MdStoreTest extends HybrisAbstractTest {
@@ -38,10 +38,10 @@ public class MdStoreTest extends HybrisAbstractTest {
         byte[] hash = (new BigInteger(50, random).toString(10)).getBytes();
         List<String> replicas = Arrays.asList("a","b","c");
         
-        TsDir tsdir = new TsDir(ts, hash, replicas); 
+        Metadata tsdir = new Metadata(ts, hash, replicas); 
         mds.tsWrite(key, tsdir);
         
-        tsdir = new TsDir(mds.tsRead(key));
+        tsdir = new Metadata(mds.tsRead(key));
         
         assertEquals(ts, tsdir.getTs());
         assertTrue(Arrays.equals(hash, tsdir.getHash()));

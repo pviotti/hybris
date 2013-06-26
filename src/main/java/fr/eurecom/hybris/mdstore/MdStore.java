@@ -57,7 +57,7 @@ public class MdStore extends SyncPrimitive {
     // TODO should we add a flag for explicitly overwriting existing nodes 
     // (or, viceversa, for explicitly creating a new node)? 
     // TODO should we care about ZK node version upon writing to existing node?    
-    public void tsWrite(String key, TsDir tsdir) throws HybrisException {
+    public void tsWrite(String key, Metadata tsdir) throws HybrisException {
         
         String path = this.storageRoot + "/" + key;
         try {
@@ -79,7 +79,7 @@ public class MdStore extends SyncPrimitive {
                 try {
                     byte[] newValue = tsRead(key);
                     if (newValue != null) {
-                        TsDir newtsdir = new TsDir(newValue);
+                        Metadata newtsdir = new Metadata(newValue);
                         if (tsdir.getTs().isGreater(newtsdir.getTs())) {
                             tsWrite(key, tsdir);
                         } // XXX Wrong version but no need to retry

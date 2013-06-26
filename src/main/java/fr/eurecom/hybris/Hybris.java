@@ -9,8 +9,8 @@ import org.slf4j.LoggerFactory;
 
 import fr.eurecom.hybris.kvs.KvStore;
 import fr.eurecom.hybris.mdstore.MdStore;
-import fr.eurecom.hybris.mdstore.TsDir;
-import fr.eurecom.hybris.mdstore.TsDir.Timestamp;
+import fr.eurecom.hybris.mdstore.Metadata;
+import fr.eurecom.hybris.mdstore.Metadata.Timestamp;
 
 public class Hybris {
 
@@ -46,7 +46,7 @@ public class Hybris {
             return null;
         }
         
-        TsDir tsdir = new TsDir(rawMetadataValue);
+        Metadata tsdir = new Metadata(rawMetadataValue);
         byte[] value = null; 
         for (String replica : tsdir.getReplicasLst()){     // for each replica
             
@@ -67,7 +67,7 @@ public class Hybris {
                 byte[] newRawMetadataValue = mds.tsRead(key);
                 if (newRawMetadataValue != null) {
                     
-                    TsDir newtsdir = new TsDir(newRawMetadataValue);
+                    Metadata newtsdir = new Metadata(newRawMetadataValue);
                     if (newtsdir.getTs().isGreater(tsdir.getTs())) {    // it's because of concurrent gc
                         logger.warn("Could not get the value of {} on replica {} because of concurrent gc. Restarting read.", 
                                     key, replica);
@@ -94,7 +94,7 @@ public class Hybris {
         if (rawMetadataValue == null) 
             ts = new Timestamp(0, Utils.getClientId());
         else 
-            ts = new TsDir(rawMetadataValue).getTs();
+            ts = new Metadata(rawMetadataValue).getTs();
         ts.inc( Utils.getClientId() );
         
         List<String> savedReplicasRef = kvs.put(Utils.getKvsKey(key, ts), value);
@@ -107,7 +107,7 @@ public class Hybris {
         logger.info(strBld.toString());
         
         try {
-            mds.tsWrite(key, new TsDir(ts, Utils.getHash(value), savedReplicasRef));
+            mds.tsWrite(key, new Metadata(ts, Utils.getHash(value), savedReplicasRef));
         } catch (HybrisException e) {
             logger.warn("Hybris could not manage to store metadata on Zookeeper for key {}.", key);
             kvsGc(Utils.getKvsKey(key, ts), savedReplicasRef);  // clean up un-referenced data in the clouds
@@ -123,7 +123,7 @@ public class Hybris {
             return;
         }
         
-        TsDir tsdir = new TsDir(rawMetadataValue);
+        Metadata tsdir = new Metadata(rawMetadataValue);
         for (String cloud : tsdir.getReplicasLst())
             try {
                 kvs.deleteKeyFromCloud(cloud, Utils.getKvsKey(key, tsdir.getTs())); // XXX and all the previous versions..?

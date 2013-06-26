@@ -6,7 +6,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
-import fr.eurecom.hybris.mdstore.TsDir.Timestamp;
+import fr.eurecom.hybris.mdstore.Metadata.Timestamp;
 
 public class Utils {
     
