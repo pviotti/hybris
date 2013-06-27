@@ -50,9 +50,9 @@ public class MdStore extends SyncPrimitive {
         }
     }
     
-    // =======================================================================================
-    //                                      PUBLIC APIs
-    // ---------------------------------------------------------------------------------------
+    /* ---------------------------------------------------------------------------------------
+                                            Public APIs
+       --------------------------------------------------------------------------------------- */
     
     // TODO should we add a flag for explicitly overwriting existing nodes 
     // (or, viceversa, for explicitly creating a new node)? 
@@ -74,7 +74,7 @@ public class MdStore extends SyncPrimitive {
         } catch (KeeperException e) {
             
             if (e.code() == KeeperException.Code.BADVERSION) {
-                logger.warn("Write failed due to the wrong version ({}) of key {}", tsdir.getTs().getNum(), key);
+                logger.warn("Write failed due to mismatching version ({}) of key {}", tsdir.getTs().getNum(), key);
                 
                 try {
                     byte[] newValue = tsRead(key);
@@ -105,8 +105,7 @@ public class MdStore extends SyncPrimitive {
         
         String path = this.storageRoot + "/" + key;
         try {
-            zk.sync(path, null, null);      // NOTE: There is no synchronous version of this ZK API 
-                                            // (https://issues.apache.org/jira/browse/ZOOKEEPER-1167ordering) 
+            zk.sync(path, null, null);      // NOTE: There is no synchronous version of this ZK API (https://issues.apache.org/jira/browse/ZOOKEEPER-1167ordering) 
                                             // however, order guarantees among operations allow not to wait for asynchronous callback to be called
             return zk.getData(path, false, null);
         } catch (KeeperException e) {

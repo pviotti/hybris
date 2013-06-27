@@ -2,6 +2,7 @@ package fr.eurecom.hybris.test;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -9,6 +10,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import fr.eurecom.hybris.kvs.CloudProvider;
 import fr.eurecom.hybris.kvs.KvStore;
 
 
@@ -32,18 +34,27 @@ public class KvStoreTest extends HybrisAbstractTest {
         String key = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
         byte[] value = (new BigInteger(50, random).toString(32)).getBytes();
         
-        List<String> replicas = kvs.put(key, value);
+        List<CloudProvider> replicas = new ArrayList<CloudProvider>();
+        synchronized(kvs.getProviders()) {
+            for (CloudProvider provider : kvs.getProviders())
+                try {
+                    kvs.put(provider, key, value);                    
+                    replicas.add(provider);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+        }
         assertTrue(replicas.size() > 0);
         
-        for(String provider : replicas) {
-            byte[] output = kvs.getFromCloud(provider, key);
+        for(CloudProvider replica : replicas) {
+            byte[] output = kvs.get(replica, key);
             assertTrue(Arrays.equals(output, value));
         }
         
-        for(String provider : replicas)
-            kvs.deleteKeyFromCloud(provider, key);
+        for(CloudProvider replica : replicas)
+            kvs.delete(replica, key);
         
-        for(String provider : replicas)
-            assertNull(kvs.getFromCloud(provider, key));
+        for(CloudProvider replica : replicas)
+            assertNull(kvs.get(replica, key));
     }
 }

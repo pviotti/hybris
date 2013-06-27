@@ -1,6 +1,7 @@
 package fr.eurecom.hybris.test;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -10,6 +11,7 @@ import org.junit.Test;
 
 import fr.eurecom.hybris.HybrisException;
 import fr.eurecom.hybris.Utils;
+import fr.eurecom.hybris.kvs.CloudProvider;
 import fr.eurecom.hybris.mds.MdStore;
 import fr.eurecom.hybris.mds.Metadata;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
@@ -36,7 +38,10 @@ public class MdStoreTest extends HybrisAbstractTest {
         String key = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
         Timestamp ts = new Timestamp(new BigInteger(10, random).intValue(), Utils.getClientId());
         byte[] hash = (new BigInteger(50, random).toString(10)).getBytes();
-        List<String> replicas = Arrays.asList("a","b","c");
+        List<CloudProvider> replicas = new ArrayList<CloudProvider>();
+        replicas.add(new CloudProvider("A", "A-accessKey", "A-secretKey", true, 0));
+        replicas.add(new CloudProvider("B", "B-accessKey", "B-secretKey", true, 0));
+        replicas.add(new CloudProvider("C", "C-accessKey", "C-secretKey", true, 0));
         
         Metadata tsdir = new Metadata(ts, hash, replicas); 
         mds.tsWrite(key, tsdir);

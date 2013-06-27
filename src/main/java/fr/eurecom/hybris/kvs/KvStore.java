@@ -4,9 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 
 import org.jclouds.ContextBuilder;
@@ -29,135 +27,54 @@ import fr.eurecom.hybris.Config;
  */
 public class KvStore {
     
-    private Config config = Config.getInstance();
+    private Config conf = Config.getInstance();
     private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
     
-    private Map<String, CloudProvider> providers;
-    private List<CloudProvider> sortedProviders;      // storage providers sorted by cost and latency
+    private List<CloudProvider> providers;      // storage providers sorted by cost and latency
     
     private String rootContainer;
-    private int quorum;
     
     private static String TEST_KEY = "latency_test-";
     private static String TEST_VALUE = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM";
     
     private static String KEY_NOT_FOUND_MSG = "Key not found";
     
-    public KvStore(String rootContainer, boolean latencyTests) {
+    public KvStore(String rootContainer, boolean testLatency) {
         
         this.rootContainer = rootContainer;
         
-        this.providers = Collections.synchronizedMap(new HashMap<String, CloudProvider>());
-        String[] accountIds = config.getAccountsIds();
+        this.providers = Collections.synchronizedList(new ArrayList<CloudProvider>());
+        String[] accountIds = conf.getAccountsIds();
         for (String accountId : accountIds) {
-            providers.put(accountId, 
-                    new CloudProvider(accountId, 
-                            config.getAccountsProperty( String.format(Config.C_AKEY, accountId) ), 
-                            config.getAccountsProperty( String.format(Config.C_SKEY, accountId) ),
-                            Boolean.parseBoolean( config.getAccountsProperty( String.format(Config.C_ENABLED, accountId)) ),
-                            Integer.parseInt( config.getAccountsProperty( String.format(Config.C_COST, accountId) ) )));
+            providers.add(new CloudProvider(accountId, 
+                            conf.getAccountsProperty( String.format(Config.C_AKEY, accountId) ), 
+                            conf.getAccountsProperty( String.format(Config.C_SKEY, accountId) ),
+                            Boolean.parseBoolean( conf.getAccountsProperty( String.format(Config.C_ENABLED, accountId)) ),
+                            Integer.parseInt( conf.getAccountsProperty( String.format(Config.C_COST, accountId) ) )));
         }
         
-        
-        int t = Integer.parseInt(config.getProperty(Config.CONST_T));
-        this.quorum = t + 1;
-        
-        this.sortedProviders = new ArrayList<CloudProvider>(providers.values());
-        if (latencyTests) {
+        if (testLatency) {
             logger.info("Performing latency tests on cloud providers...");
-            performLatencyTests();
-            Collections.sort(sortedProviders);  // Sort providers according to cost and latency (see CloudProvider.compareTo())
-            StringBuilder strBld = new StringBuilder("Clouds providers sorted by performance/cost metrics:\n\t\t\t\t\t");
-            for(CloudProvider cloud : sortedProviders) 
-                strBld.append(cloud.toString() + "\n\t\t\t\t\t");
-            logger.debug(strBld.toString().trim());
-        }
-    }    
-
-    // =======================================================================================
-    //                                      PUBLIC APIs
-    // ---------------------------------------------------------------------------------------
-    
-    public List<String> put(String key, byte[] data) {
-        
-        List<String> savedKvsLst = new ArrayList<String>();
-        
-        for (CloudProvider provider : sortedProviders)
-            try {   // TODO parallelize
-                putInCloud(provider, key, data);                    
-                savedKvsLst.add(provider.getId());
-                if (savedKvsLst.size() >= this.quorum) break;
-            } catch (Exception e) {
-                logger.warn("Error while storing " + key + " on " + provider.getId(), e);
+            testLatency();
+            Collections.sort(this.providers);  // Sort providers according to cost and latency (see CloudProvider.compareTo())
+            logger.debug("Cloud providers sorted by performance/cost metrics:");
+            synchronized (this.providers) {
+                for(CloudProvider provider : this.providers) 
+                    logger.debug("\t* " + provider.toString());
             }
-        
-        if (savedKvsLst.size() < this.quorum) {
-            // TODO start a new thread to garbage collect the copies of the data on savedKvsLst
-            for (String provider : savedKvsLst)
-                try {
-                    deleteKeyFromCloud(provider, key);
-                } catch (IOException e) {
-                    logger.warn("error while deleting {} from {}.", key, provider);
-                }
-            return null;
-        } else
-            return savedKvsLst;
-    }
-    
-    public byte[] getFromCloud(String provider, String key) {
-        
-        BlobStoreContext context = null; 
-        BlobStore storage = null; 
-        Blob blob = null;
-        
-        CloudProvider cloud = providers.get(provider);
-        try {
-            context = ContextBuilder.newBuilder(cloud.getId())
-                                    .credentials(cloud.getAccessKey(), cloud.getSecretKey())
-                                    .buildView(BlobStoreContext.class);
-            storage = context.getBlobStore();
-            blob = storage.getBlob(rootContainer, key);
-            if (blob == null) throw new IOException(KEY_NOT_FOUND_MSG);      // key not found
-            return ByteStreams.toByteArray(blob.getPayload());
-        } catch (IOException e) {
-            if (KEY_NOT_FOUND_MSG.equalsIgnoreCase(e.getMessage()))
-                logger.warn("Could not retrieve {} from {}", key, cloud.getId());
-            else
-                logger.error("Error while retrieving " + key + " from " + cloud.getId(), e);
-            return null;
-        } finally {
-            if (context != null)
-                context.close();
         }
     }
     
-    public void deleteKeyFromCloud(String provider, String key) throws IOException {
-        
-        BlobStoreContext context = null; 
-        BlobStore storage = null; 
-        
-        CloudProvider cloud = providers.get(provider);
-        try {
-            context = ContextBuilder.newBuilder(cloud.getId())
-                                    .credentials(cloud.getAccessKey(), cloud.getSecretKey())
-                                    .buildView(BlobStoreContext.class);
-
-            storage = context.getBlobStore();
-            storage.removeBlob(rootContainer, key);
-
-        } catch (Exception ex) {
-            throw new IOException(ex);
-        } finally {
-            if (context != null)
-                context.close();
-        }
-    }
     
-    // =======================================================================================
-    //                                 PRIVATE METHODS
-    // ---------------------------------------------------------------------------------------
+    public List<CloudProvider> getProviders()   { return providers; }
+
     
-    private void putInCloud(CloudProvider provider, String key, byte[] data) throws IOException {
+    /* ---------------------------------------------------------------------------------------
+                                            Public APIs
+       --------------------------------------------------------------------------------------- */
+    
+
+   public void put(CloudProvider provider, String key, byte[] data) throws IOException {
         
         BlobStoreContext context = null; 
         BlobStore storage = null; 
@@ -172,7 +89,7 @@ public class KvStore {
             if (!provider.isAlreadyUsed()) {
                 storage.createContainerInLocation(null, rootContainer);
                 provider.setAlreadyUsed(true);
-                logger.debug("Created container {} for provider {}", rootContainer, provider.getId());
+                logger.debug("Created container {} for {}", rootContainer, provider.getId());
             }
             
             blob = storage.blobBuilder(key).payload(data).build();
@@ -185,65 +102,103 @@ public class KvStore {
                 context.close();
         }
     }
+
+
+    public byte[] get(CloudProvider provider, String key) {
+        
+        BlobStoreContext context = null; 
+        BlobStore storage = null; 
+        Blob blob = null;
+        
+        try {
+            context = ContextBuilder.newBuilder(provider.getId())
+                                    .credentials(provider.getAccessKey(), provider.getSecretKey())
+                                    .buildView(BlobStoreContext.class);
+            storage = context.getBlobStore();
+            blob = storage.getBlob(rootContainer, key);
+            if (blob == null) throw new IOException(KEY_NOT_FOUND_MSG);      // key not found
+            return ByteStreams.toByteArray(blob.getPayload());
+        } catch (IOException e) {
+            if (KEY_NOT_FOUND_MSG.equalsIgnoreCase(e.getMessage()))
+                logger.warn("Could not find key {} in {}", key, provider.getId());
+            else
+                logger.error("Error while retrieving " + key + " from " + provider.getId(), e);
+            return null;
+        } finally {
+            if (context != null)
+                context.close();
+        }
+    }
+
+
+    public void delete(CloudProvider provider, String key) throws IOException {
+        
+        BlobStoreContext context = null; 
+        BlobStore storage = null; 
+        
+        try {
+            context = ContextBuilder.newBuilder(provider.getId())
+                                    .credentials(provider.getAccessKey(), provider.getSecretKey())
+                                    .buildView(BlobStoreContext.class);
+
+            storage = context.getBlobStore();
+            storage.removeBlob(rootContainer, key);
+
+        } catch (Exception ex) {
+            throw new IOException(ex);
+        } finally {
+            if (context != null)
+                context.close();
+        }
+    }
+
+
+    /* ---------------------------------------------------------------------------------------
+                                        Private methods
+       --------------------------------------------------------------------------------------- */
     
-    
-    private void performLatencyTests() {
+
+    private void testLatency() {
         
         byte[] testData = TEST_VALUE.getBytes();
         String testKey = TEST_KEY + (new Random()).nextInt(1000);
         long start, end = 0;
         
         // Perform write tests
-        for (CloudProvider provider : sortedProviders) {
-            try {
-                start = System.currentTimeMillis();
-                putInCloud(provider, testKey, testData);
-                end = System.currentTimeMillis();
-                provider.setWriteLatency(end - start);
-            } catch (Exception e) {
-                logger.error("error while storing " + testKey + " on " + provider.getId(), e);
-                provider.setWriteLatency(999999);
-                if (e instanceof AuthorizationException)
-                    provider.setEnabled(false); // XXX or remove the provider?
-            }
-        }
         
-        // Perform read tests
-        for (CloudProvider provider : sortedProviders) {
-            if (provider.getWriteLatency() == -1) continue;     // could not write, so do not perform reading test
-            try {
+        synchronized(this.providers){
+            for (CloudProvider provider : this.providers) {
+                
+                // write
+                try {
+                    start = System.currentTimeMillis();
+                    put(provider, testKey, testData);
+                    end = System.currentTimeMillis();
+                    provider.setWriteLatency(end - start);
+                } catch (Exception e) {
+                    logger.error("error while storing " + testKey + " on " + provider.getId(), e);
+                    provider.setWriteLatency(Integer.MAX_VALUE);
+                    if (e instanceof AuthorizationException)
+                        provider.setEnabled(false);
+                    continue;
+                }
+                
+                // read
                 start = System.currentTimeMillis();
-                byte[] retrieved = getFromCloud(provider.getId(), testKey);
+                byte[] retrieved = get(provider, testKey);
                 end = System.currentTimeMillis();
-                if (!Arrays.equals(testData, retrieved)) {
-                    logger.warn("retrieved blob does not match original data: {}", 
-                                    retrieved == null ? "null" : new String(retrieved));
-                    provider.setReadLatency(999999);
+                if ((retrieved == null) || (!Arrays.equals(testData, retrieved))) {
+                    provider.setReadLatency(Integer.MAX_VALUE);
                 } else
                     provider.setReadLatency(end - start);
-            } catch (Exception e) {
-                logger.error("error while retrieving " + testKey + " on " + provider.getId(), e);
-                provider.setReadLatency(999999);
-                if (e instanceof AuthorizationException)
-                    provider.setEnabled(false);
-            }
-        }
-        
-        // Clean up test data
-        for (CloudProvider provider : sortedProviders) {
-            if (provider.getWriteLatency() == -1) continue;     // could not write, so do not perform cleaning up
-            try {
-                deleteKeyFromCloud(provider.getId(), testKey);
-            } catch (IOException e) {
-                logger.warn("Could not remove {} from {}.", testKey, provider.getId());
+                
+                // clean up
+                try {
+                    delete(provider, testKey);
+                } catch (IOException e) {
+                    logger.warn("Could not remove {} from {}.", testKey, provider.getId());
+                }
             }
         }
     }    
-    
-    private int getAvailableProvidersCount() {
-        int c = 0;
-        for (CloudProvider cloud : providers.values())
-            if (cloud.isEnabled()) c++;
-        return c;
-    }
 }
