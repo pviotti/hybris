@@ -8,9 +8,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import fr.eurecom.hybris.kvs.KvStore;
-import fr.eurecom.hybris.mdstore.MdStore;
-import fr.eurecom.hybris.mdstore.Metadata;
-import fr.eurecom.hybris.mdstore.Metadata.Timestamp;
+import fr.eurecom.hybris.mds.MdStore;
+import fr.eurecom.hybris.mds.Metadata;
+import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 public class Hybris {
 

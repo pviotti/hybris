@@ -10,9 +10,9 @@ import org.junit.Test;
 
 import fr.eurecom.hybris.HybrisException;
 import fr.eurecom.hybris.Utils;
-import fr.eurecom.hybris.mdstore.MdStore;
-import fr.eurecom.hybris.mdstore.Metadata;
-import fr.eurecom.hybris.mdstore.Metadata.Timestamp;
+import fr.eurecom.hybris.mds.MdStore;
+import fr.eurecom.hybris.mds.Metadata;
+import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 
 public class MdStoreTest extends HybrisAbstractTest {

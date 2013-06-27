@@ -1,4 +1,4 @@
-package fr.eurecom.hybris.mdstore;
+package fr.eurecom.hybris.mds;
 
 import java.io.IOException;
 import java.util.List;
