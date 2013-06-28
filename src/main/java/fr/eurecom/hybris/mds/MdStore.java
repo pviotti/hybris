@@ -54,9 +54,6 @@ public class MdStore extends SyncPrimitive {
                                             Public APIs
        --------------------------------------------------------------------------------------- */
     
-    // TODO should we add a flag for explicitly overwriting existing nodes 
-    // (or, viceversa, for explicitly creating a new node)? 
-    // TODO should we care about ZK node version upon writing to existing node?    
     public void tsWrite(String key, Metadata tsdir) throws HybrisException {
         
         String path = this.storageRoot + "/" + key;
@@ -67,32 +64,38 @@ public class MdStore extends SyncPrimitive {
                 zk.create(path, tsdir.serialize(), Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                 logger.debug("ZNode {} created.", path);
             } else {
-                zk.setData(path, tsdir.serialize(), tsdir.getTs().getNum());
+                zk.setData(path, tsdir.serialize(), tsdir.getTs().getNum() -1);
                 logger.debug("ZNode {} overwritten.", path);
             }
                     
         } catch (KeeperException e) {
             
             if (e.code() == KeeperException.Code.BADVERSION) {
-                logger.warn("Write failed due to mismatching version ({}) of key {}", tsdir.getTs().getNum(), key);
+                //logger.warn("Write failed due to mismatching version ({}) of key {}", tsdir.getTs().getNum(), key);
                 
                 try {
                     byte[] newValue = tsRead(key);
                     if (newValue != null) {
                         Metadata newtsdir = new Metadata(newValue);
-                        if (tsdir.getTs().isGreater(newtsdir.getTs())) {
-                            tsWrite(key, tsdir);
-                        } // XXX Wrong version but no need to retry
+                        if (tsdir.getTs().isGreater(newtsdir.getTs())) {    // XXX in which case it could happen? when there's need of sync within zk
+                            logger.debug("Version mismatch on writing {}, found previous version ({}): retrying.", key, newtsdir.getTs());
+                            zk.sync(path, null, null);
+                            tsWrite(key, tsdir);                            // XXX why would it make sense to retry? XXX check for infinite recursive calls
+                            return;
+                        } else // Wrong version but no need to retry
+                            logger.debug("Version mismatch on writing {}, found more recent version ({}): failing.", key, newtsdir.getTs());
+                    } else {
+                        logger.debug("Version mismatch on writing {}, but value deleted by concurrent gc: retrying.", key);
+                        tsWrite(key, tsdir); 
+                        return;
                     }
                 } catch (HybrisException e1) {
-                    // TODO Auto-generated catch block
-                    e1.printStackTrace();
+                    logger.error("KeeperException, could not write the key.", e);
+                    throw new HybrisException("KeeperException, could not write the key.", e);
                 } 
-            }
-            // TODO Auto-generated catch block
-            else e.printStackTrace();
+            } else            
+                logger.error("KeeperException, could not write the key.", e);
             
-            logger.error("KeeperException, could not write the key.", e);
             throw new HybrisException("KeeperException, could not write the key.", e);
         } catch (InterruptedException e) {
             logger.error("InterruptedException, could not write the key.", e);
@@ -149,7 +152,7 @@ public class MdStore extends SyncPrimitive {
         
         String path = this.storageRoot + "/" + key;
         try {
-            zk.delete(path, -1);             // XXX delete no matter which version
+            zk.delete(path, -1);             // Notice: delete no matter which version
         } catch (KeeperException e) {
             
             if (e.code() == KeeperException.Code.NONODE)

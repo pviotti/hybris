@@ -1,6 +1,7 @@
 package fr.eurecom.hybris.mds;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.commons.lang3.SerializationUtils;
 
@@ -48,9 +49,31 @@ public class Metadata implements Serializable {
         }
 
         @Override
+        public int hashCode() {
+            final int prime = 31;
+            int result = 1;
+            result = prime * result + ((cid == null) ? 0 : cid.hashCode());
+            result = prime * result + num;
+            return result;
+        }
+
+        @Override
         public boolean equals(Object obj) {
-            Timestamp ts = (Timestamp) obj;
-            return ( (this.cid.equals(ts.getCid())) && (this.num == ts.getNum()) );
+            if (this == obj)
+                return true;
+            if (obj == null)
+                return false;
+            if (getClass() != obj.getClass())
+                return false;
+            Timestamp other = (Timestamp) obj;
+            if (cid == null) {
+                if (other.cid != null)
+                    return false;
+            } else if (!cid.equals(other.cid))
+                return false;
+            if (num != other.num)
+                return false;
+            return true;
         }
     }
 
@@ -93,5 +116,40 @@ public class Metadata implements Serializable {
                 strBld.append(str.getId() + ",");
         strBld.append("}]");
         return strBld.toString();
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + Arrays.hashCode(hash);
+        result = prime * result
+                + ((replicasLst == null) ? 0 : replicasLst.hashCode());
+        result = prime * result + ((ts == null) ? 0 : ts.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        Metadata other = (Metadata) obj;
+        if (!Arrays.equals(hash, other.hash))
+            return false;
+        if (replicasLst == null) {
+            if (other.replicasLst != null)
+                return false;
+        } else if (!replicasLst.equals(other.replicasLst))
+            return false;
+        if (ts == null) {
+            if (other.ts != null)
+                return false;
+        } else if (!ts.equals(other.ts))
+            return false;
+        return true;
     }
 }

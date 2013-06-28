@@ -9,6 +9,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import fr.eurecom.hybris.Config;
 import fr.eurecom.hybris.HybrisException;
 import fr.eurecom.hybris.Utils;
 import fr.eurecom.hybris.kvs.CloudProvider;
@@ -27,6 +28,7 @@ public class MdStoreTest extends HybrisAbstractTest {
     @Before
     public void setUp() throws Exception {  
         mds = new MdStore(MDS_ADDRESS, MDS_ROOT);
+        // TODO clean up test container
     }
 
     @After
@@ -42,8 +44,8 @@ public class MdStoreTest extends HybrisAbstractTest {
         replicas.add(new CloudProvider("A", "A-accessKey", "A-secretKey", true, 0));
         replicas.add(new CloudProvider("B", "B-accessKey", "B-secretKey", true, 0));
         replicas.add(new CloudProvider("C", "C-accessKey", "C-secretKey", true, 0));
+        Metadata tsdir = new Metadata(ts, hash, replicas);
         
-        Metadata tsdir = new Metadata(ts, hash, replicas); 
         mds.tsWrite(key, tsdir);
         
         tsdir = new Metadata(mds.tsRead(key));
@@ -53,6 +55,55 @@ public class MdStoreTest extends HybrisAbstractTest {
         
         mds.delete(key);
         assertNull(mds.tsRead(key));
+    }
+    
+    @Test
+    public void testOverwrite() throws HybrisException {
+        
+        Config.getInstance();
+        String key = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        List<CloudProvider> replicas = new ArrayList<CloudProvider>();
+        replicas.add(new CloudProvider("A", "A-accessKey", "A-secretKey", true, 0));
+        byte[] hash = (new BigInteger(50, random).toString(10)).getBytes();
+        String cid = Utils.getClientId();
+        
+        // XXX this causes infinite recursion 
+//        mds.tsWrite(key, new Metadata(new Timestamp(0, cid), hash, replicas)); // [-1: write anyway] znode does not exist, create version 0
+//        mds.tsWrite(key, new Metadata(new Timestamp(2, cid), hash, replicas)); // check for 1, but version is 0: retry
+        
+        mds.tsWrite(key, new Metadata(new Timestamp(0, cid), hash, replicas)); // znode does not exist, create version 0
+        mds.tsWrite(key, new Metadata(new Timestamp(1, cid), hash, replicas)); // check for 1, but version is 0: retry
+        mds.tsWrite(key, new Metadata(new Timestamp(2, cid), hash, replicas)); // check for 1, but version is 0: retry
+        
+        Metadata retrieved = new Metadata(mds.tsRead(key));
+        assertEquals(2, retrieved.getTs().getNum());
+    }
+    
+    @Test
+    public void testDeleteNotExistingKey() {
+        
+        String key = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        try {
+            mds.delete(key);
+        } catch (HybrisException e) {
+            e.printStackTrace();
+            fail();
+        }
+    }
+    
+    @Test
+    public void testReadNotExistingKey() {
+        
+        String key = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        byte[] value = null;
+        
+        try {
+            value = mds.tsRead(key);
+            assertNull(value);
+        } catch (HybrisException e) {
+            e.printStackTrace();
+            fail();
+        }
     }
     
     @Test
@@ -107,5 +158,12 @@ public class MdStoreTest extends HybrisAbstractTest {
         
         mds.delete(key);
         assertNull(mds.tsRead(key));
+    }
+    
+    // TODO TEMP
+    public static void main(String[] args) throws Exception {
+        MdStoreTest t = new MdStoreTest();
+        t.setUp();
+        t.testOverwrite();
     }
 }
