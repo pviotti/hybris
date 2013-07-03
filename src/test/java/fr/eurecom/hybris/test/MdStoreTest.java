@@ -72,8 +72,22 @@ public class MdStoreTest extends HybrisAbstractTest {
 //        mds.tsWrite(key, new Metadata(new Timestamp(2, cid), hash, replicas)); // check for 1, but version is 0: retry
         
         mds.tsWrite(key, new Metadata(new Timestamp(0, cid), hash, replicas)); // znode does not exist, create version 0
-        mds.tsWrite(key, new Metadata(new Timestamp(1, cid), hash, replicas)); // check for 1, but version is 0: retry
-        mds.tsWrite(key, new Metadata(new Timestamp(2, cid), hash, replicas)); // check for 1, but version is 0: retry
+        mds.tsWrite(key, new Metadata(new Timestamp(1, cid), hash, replicas)); // check for version 0: OK, set version 1
+        mds.tsWrite(key, new Metadata(new Timestamp(2, cid), hash, replicas)); // check for version 1: OK, set version 2
+        try{
+            mds.tsWrite(key, new Metadata(new Timestamp(1, cid), hash, replicas)); // check for version 0: fails
+            fail();
+        } catch(HybrisException e) {
+            
+        }
+        try{
+            mds.tsWrite(key, new Metadata(new Timestamp(2, cid), hash, replicas)); // check for version 1: fails
+            fail();
+        } catch(HybrisException e) {
+            
+        }
+        
+        mds.tsWrite(key, new Metadata(new Timestamp(5, cid), hash, replicas)); // check for version 4: fails
         
         Metadata retrieved = new Metadata(mds.tsRead(key));
         assertEquals(2, retrieved.getTs().getNum());

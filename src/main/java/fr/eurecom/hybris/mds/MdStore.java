@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import fr.eurecom.hybris.Config;
 import fr.eurecom.hybris.HybrisException;
+import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 /**
  * Class that wraps the Zookeeper client.
@@ -53,50 +54,64 @@ public class MdStore extends SyncPrimitive {
     /* ---------------------------------------------------------------------------------------
                                             Public APIs
        --------------------------------------------------------------------------------------- */
-    
-    public void tsWrite(String key, Metadata tsdir) throws HybrisException {
+
+    public void tsWrite(String key, Metadata md) throws HybrisException {
         
         String path = this.storageRoot + "/" + key;
         try {
             
-            Stat stat = zk.exists(path, false);
-            if (stat == null) {
-                zk.create(path, tsdir.serialize(), Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                logger.debug("ZNode {} created.", path);
-            } else {
-                zk.setData(path, tsdir.serialize(), tsdir.getTs().getNum() -1);
-                logger.debug("ZNode {} overwritten.", path);
-            }
-                    
+            zk.setData(path, md.serialize(), md.getTs().getNum() - 1);
+            return;
+            
         } catch (KeeperException e) {
             
-            if (e.code() == KeeperException.Code.BADVERSION) {
-                //logger.warn("Write failed due to mismatching version ({}) of key {}", tsdir.getTs().getNum(), key);
+            if (e.code() == KeeperException.Code.NONODE) {              // the znode does not exist: let's create it
                 
                 try {
-                    byte[] newValue = tsRead(key);
-                    if (newValue != null) {
-                        Metadata newtsdir = new Metadata(newValue);
-                        if (tsdir.getTs().isGreater(newtsdir.getTs())) {    // XXX in which case it could happen? when there's need of sync within zk
-                            logger.debug("Version mismatch on writing {}, found previous version ({}): retrying.", key, newtsdir.getTs());
-                            zk.sync(path, null, null);
-                            tsWrite(key, tsdir);                            // XXX why would it make sense to retry? XXX check for infinite recursive calls
-                            return;
-                        } else // Wrong version but no need to retry
-                            logger.debug("Version mismatch on writing {}, found more recent version ({}): failing.", key, newtsdir.getTs());
-                    } else {
+                    zk.create(path, md.serialize(), Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                    logger.debug("ZNode {} created.", path);
+                    return;
+                } catch (KeeperException e1) {
+                    throw new HybrisException(e1);                      // the node already exist, concurrently created by someone else
+                } catch (InterruptedException e1) {
+                    throw new HybrisException(e1);
+                }
+                
+            } else if (e.code() == KeeperException.Code.BADVERSION) {   // the znode version does not match 
+                
+                Stat stat = new Stat();
+                byte[] newValue = null;
+                try {
+                    newValue = zk.getData(path, false, stat);           // XXX does it need to sync before
+                } catch (KeeperException e1) {
+                    
+                    if (e.code() != KeeperException.Code.NONODE) {  // FIXME should not happen: 
+                                                                    // tomb stone value instead of deleting the znode when gc
                         logger.debug("Version mismatch on writing {}, but value deleted by concurrent gc: retrying.", key);
-                        tsWrite(key, tsdir); 
+                        tsWrite(key, md);       
                         return;
-                    }
-                } catch (HybrisException e1) {
-                    logger.error("KeeperException, could not write the key.", e);
+                    } else 
+                        throw new HybrisException(e1);
+                    
+                } catch (InterruptedException e1) {
+                    throw new HybrisException(e1);
+                }
+                
+                Metadata newmd = new Metadata(newValue);
+                if (md.getTs().isGreater(newmd.getTs())) {      // Concurrent clients trying to overwrite the same version
+                    logger.debug("Version mismatch on writing {}, found previous version ({}): retrying.", key, newmd.getTs());
+                    md.setTs(new Timestamp(stat.getVersion() + 1, md.getTs().getCid()));
+                    tsWrite(key, md);
+                    return;
+                } else {                                        // The version which I'm trying to overwrite is obsolete: fail
+                    logger.debug("Version mismatch on writing {}, found more recent version ({}): failing.", key, newmd.getTs());
                     throw new HybrisException("KeeperException, could not write the key.", e);
-                } 
-            } else            
+                }
+                
+            } else {
                 logger.error("KeeperException, could not write the key.", e);
-            
-            throw new HybrisException("KeeperException, could not write the key.", e);
+                throw new HybrisException("KeeperException, could not write the key.", e);
+            }
         } catch (InterruptedException e) {
             logger.error("InterruptedException, could not write the key.", e);
             throw new HybrisException("InterruptedException, could not write the key. " + e.getMessage(), e);

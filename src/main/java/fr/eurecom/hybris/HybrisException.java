@@ -11,4 +11,8 @@ public class HybrisException extends Exception {
     public HybrisException(String message, Throwable t){
         super(message, t); 
     }
+    
+    public HybrisException(Exception e) {
+        super(e);
+    }
 }

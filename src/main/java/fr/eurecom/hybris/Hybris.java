@@ -52,9 +52,10 @@ public class Hybris {
         byte[] rawMetadataValue = mds.tsRead(key);
         if (rawMetadataValue == null) 
             ts = new Timestamp(0, Utils.getClientId());
-        else 
+        else {
             ts = new Metadata(rawMetadataValue).getTs();
-        ts.inc( Utils.getClientId() );
+            ts.inc( Utils.getClientId() );
+        }
         
         List<CloudProvider> savedReplicasLst = new ArrayList<CloudProvider>();
         String kvsKey = Utils.getKvsKey(key, ts);
@@ -108,7 +109,12 @@ public class Hybris {
                 if (!tsdir.getReplicasLst().contains(provider)) 
                     continue;
                 
-                value = kvs.get(provider, kvsKey);
+                try {
+                    value = kvs.get(provider, kvsKey);
+                } catch (IOException e) {
+                    logger.warn("Error while trying to retrieve " + key + " from " + provider.getId(), e);
+                    continue;
+                }
                 
                 if (value != null) {
                     if (Arrays.equals(tsdir.getHash(), Utils.getHash(value))) {
@@ -119,9 +125,7 @@ public class Hybris {
                 } else {        // this could be due to:
                                 // a. byzantine replicas 
                                 // b. concurrent gc 
-                                // c. replica's cloud provider is not available
                     byte[] newRawMetadataValue = mds.tsRead(key);
-                    
                     if (newRawMetadataValue != null) {
                         Metadata newtsdir = new Metadata(newRawMetadataValue);
                         if (newtsdir.getTs().isGreater(tsdir.getTs())) {    // it's because of concurrent gc
@@ -129,7 +133,7 @@ public class Hybris {
                                         key, provider.getId());
                             return read(key);                               // trigger recursive read
                         } else
-                            continue;                                       // otherwise it's because of b. or c.: let's try with the other ones
+                            continue;                                       // otherwise it's because of b.: let's try with the other ones
                     } else {                                                // the value does not exist anymore because of concurrent gc
                         logger.warn("Hybris could not find the metadata associated with key {}.", key);
                         return null;

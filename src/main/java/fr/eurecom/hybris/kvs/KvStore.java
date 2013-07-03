@@ -105,7 +105,7 @@ public class KvStore {
     }
 
 
-    public byte[] get(CloudProvider provider, String key) {
+    public byte[] get(CloudProvider provider, String key) throws IOException {
         
         BlobStoreContext context = null; 
         BlobStore storage = null; 
@@ -119,12 +119,12 @@ public class KvStore {
             blob = storage.getBlob(rootContainer, key);
             if (blob == null) throw new IOException(KEY_NOT_FOUND_MSG);      // key not found
             return ByteStreams.toByteArray(blob.getPayload());
-        } catch (IOException e) {
-            if (KEY_NOT_FOUND_MSG.equalsIgnoreCase(e.getMessage()))
+        } catch (Exception e) {
+            if (KEY_NOT_FOUND_MSG.equalsIgnoreCase(e.getMessage())) {
                 logger.warn("Could not find key {} in {}", key, provider.getId());
-            else
-                logger.error("Error while retrieving " + key + " from " + provider.getId(), e);
-            return null;
+                return null;
+            } else
+                throw new IOException();
         } finally {
             if (context != null)
                 context.close();
@@ -165,8 +165,6 @@ public class KvStore {
         String testKey = TEST_KEY + (new Random()).nextInt(1000);
         long start, end = 0;
         
-        // Perform write tests
-        
         synchronized(this.providers){
             for (CloudProvider provider : this.providers) {
                 
@@ -185,9 +183,17 @@ public class KvStore {
                 }
                 
                 // read
-                start = System.currentTimeMillis();
-                byte[] retrieved = get(provider, testKey);
-                end = System.currentTimeMillis();
+                byte[] retrieved = null;
+                try {
+                    start = System.currentTimeMillis();
+                    retrieved = get(provider, testKey);
+                    end = System.currentTimeMillis();
+                } catch (Exception e) {
+                    logger.error("error while reading " + testKey + " on " + provider.getId(), e);
+                    provider.setReadLatency(Integer.MAX_VALUE);
+                    if (e instanceof AuthorizationException)
+                        provider.setEnabled(false);
+                }
                 if ((retrieved == null) || (!Arrays.equals(testData, retrieved))) {
                     provider.setReadLatency(Integer.MAX_VALUE);
                 } else
