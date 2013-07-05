@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,13 +50,17 @@ public class Hybris {
     public void write(String key, byte[] value) throws HybrisException {
         
         Timestamp ts;
-        byte[] rawMetadataValue = mds.tsRead(key);
-        if (rawMetadataValue == null) 
+        int znodeVersion;
+        Stat stat = new Stat();
+        stat.setVersion(MdStore.NONODE);    // if it stays unchanged after the read, the znode does not exist
+        Metadata md = mds.tsRead(key, stat);
+        if (md == null)
             ts = new Timestamp(0, Utils.getClientId());
         else {
-            ts = new Metadata(rawMetadataValue).getTs();
+            ts = md.getTs();
             ts.inc( Utils.getClientId() );
         }
+        znodeVersion = stat.getVersion();
         
         List<CloudProvider> savedReplicasLst = new ArrayList<CloudProvider>();
         String kvsKey = Utils.getKvsKey(key, ts);
@@ -78,7 +83,7 @@ public class Hybris {
         } 
                
         try {
-            mds.tsWrite(key, new Metadata(ts, Utils.getHash(value), savedReplicasLst));
+            mds.tsWrite(key, new Metadata(ts, Utils.getHash(value), savedReplicasLst), znodeVersion);
         } catch (HybrisException e) {
             kvsGc(kvsKey, savedReplicasLst);                    // TODO make asynchronous
             logger.warn("Hybris could not manage to store metadata on Zookeeper for key {}.", key);
@@ -93,20 +98,19 @@ public class Hybris {
 
     public byte[] read(String key) throws HybrisException {
         
-        byte[] rawMetadataValue = mds.tsRead(key);
-        if (rawMetadataValue == null) {
+        Metadata md = mds.tsRead(key, null);
+        if (md == null) {
             logger.warn("Hybris could not find metadata associated with key {}.", key);
             return null;
         }
         
-        Metadata tsdir = new Metadata(rawMetadataValue);
         byte[] value = null;
-        String kvsKey = Utils.getKvsKey(key, tsdir.getTs());
+        String kvsKey = Utils.getKvsKey(key, md.getTs());
         
         synchronized(kvs.getProviders()) {
             for (CloudProvider provider : kvs.getProviders()) {
                 
-                if (!tsdir.getReplicasLst().contains(provider)) 
+                if (!md.getReplicasLst().contains(provider)) 
                     continue;
                 
                 try {
@@ -117,7 +121,7 @@ public class Hybris {
                 }
                 
                 if (value != null) {
-                    if (Arrays.equals(tsdir.getHash(), Utils.getHash(value))) {
+                    if (Arrays.equals(md.getHash(), Utils.getHash(value))) {
                         logger.info("Value successfully retrieved from provider {}", provider.getId());
                         return value;
                     } else      // the hash doesn't match: byzantine fault: let's try with the other ones
@@ -125,10 +129,9 @@ public class Hybris {
                 } else {        // this could be due to:
                                 // a. byzantine replicas 
                                 // b. concurrent gc 
-                    byte[] newRawMetadataValue = mds.tsRead(key);
-                    if (newRawMetadataValue != null) {
-                        Metadata newtsdir = new Metadata(newRawMetadataValue);
-                        if (newtsdir.getTs().isGreater(tsdir.getTs())) {    // it's because of concurrent gc
+                    Metadata newMd = mds.tsRead(key, null);
+                    if (newMd != null) {
+                        if (newMd.getTs().isGreater(md.getTs())) {    // it's because of concurrent gc
                             logger.warn("Could not get the value of {} from replica {} because of concurrent gc. Restarting read.", 
                                         key, provider.getId());
                             return read(key);                               // trigger recursive read
@@ -147,20 +150,19 @@ public class Hybris {
     }
 
     
-    public void gc(String key) throws HybrisException {
+    public void delete(String key) throws HybrisException {
         
-        byte[] rawMetadataValue = mds.tsRead(key);
-        if (rawMetadataValue == null) {
+        Metadata md = mds.tsRead(key, null);
+        if (md == null) {
             logger.debug("Hybris could not find the metadata associated with key {}.", key);
             return;
         }
         
-        Metadata tsdir = new Metadata(rawMetadataValue);
-        String kvsKey = Utils.getKvsKey(key, tsdir.getTs());
+        String kvsKey = Utils.getKvsKey(key, md.getTs());
         synchronized(kvs.getProviders()) {
             for (CloudProvider provider : kvs.getProviders()) {
                 
-                if (!tsdir.getReplicasLst().contains(provider)) 
+                if (!md.getReplicasLst().contains(provider)) 
                     continue;
                 
                 try {

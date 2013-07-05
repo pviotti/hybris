@@ -33,7 +33,7 @@ public class HybrisTest extends HybrisAbstractTest {
         byte[] output = hybris.read(key);
         assertTrue(Arrays.equals(value, output));
         
-        hybris.gc(key);
+        hybris.delete(key);
         
         assertNull(hybris.read(key));
     }

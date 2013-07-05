@@ -8,7 +8,7 @@ import org.apache.commons.lang3.SerializationUtils;
 import fr.eurecom.hybris.kvs.CloudProvider;
 
 /**
- * Timestamped directory class.
+ * Class representing timestamped metadata.
  * Holds the timestamped reference to the cloud replicas.
  * @author p.viotti
  */
@@ -91,14 +91,24 @@ public class Metadata implements Serializable {
     }
     
     public Metadata(byte[] raw) {
-        Metadata tsdir = (Metadata) SerializationUtils.deserialize(raw);
-        this.ts = tsdir.ts;
-        this.replicasLst = tsdir.replicasLst;
-        this.hash = tsdir.getHash();
+        Metadata md;
+        if (raw == null)
+            md = new Metadata(null, null, null);
+        else
+            md = (Metadata) SerializationUtils.deserialize(raw);
+        this.ts = md.ts;
+        this.replicasLst = md.replicasLst;
+        this.hash = md.getHash();
     }
     
     public byte[] serialize() {
         return SerializationUtils.serialize(this);    
+    }
+    
+    public boolean isTombstone() {
+        return ((this.hash == null) && 
+                (this.replicasLst == null) && 
+                (this.ts == null));
     }
     
     public Timestamp getTs() { return ts; }

@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 
 import fr.eurecom.hybris.Config;
 import fr.eurecom.hybris.HybrisException;
-import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 /**
  * Class that wraps the Zookeeper client.
@@ -24,6 +23,7 @@ public class MdStore extends SyncPrimitive {
     private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
     
     private String storageRoot;
+    public static int NONODE = -1;      // integer marker to tell whether a znode has to be created 
     
     /**
      * Constructs a new MdStore.
@@ -55,77 +55,82 @@ public class MdStore extends SyncPrimitive {
                                             Public APIs
        --------------------------------------------------------------------------------------- */
 
-    public void tsWrite(String key, Metadata md) throws HybrisException {
+    /**
+     * Timestamped write on metadata storage.
+     * @param key - the key
+     * @param md - the metadata to be written
+     * @param zkVersion - the znode version expected to be overwritten; -1 when the znode does not exist
+     * @throws HybrisException
+     */
+    public void tsWrite(String key, Metadata md, int zkVersion) throws HybrisException {
         
         String path = this.storageRoot + "/" + key;
         try {
+            if (zkVersion == NONODE){
+                zk.create(path, md.serialize(), Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                logger.debug("ZNode {} created.", path);
+                return;
+            } else {
+                zk.setData(path, md.serialize(), zkVersion);
+                logger.debug("ZNode {} modified.", path);
+                return;
+            }
+        } catch (KeeperException e) {       // NONODE exception should not happen since we set a tombstone value upon deletion
             
-            zk.setData(path, md.serialize(), md.getTs().getNum() - 1);
-            return;
-            
-        } catch (KeeperException e) {
-            
-            if (e.code() == KeeperException.Code.NONODE) {              // the znode does not exist: let's create it
-                
-                try {
-                    zk.create(path, md.serialize(), Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                    logger.debug("ZNode {} created.", path);
-                    return;
-                } catch (KeeperException e1) {
-                    throw new HybrisException(e1);                      // the node already exist, concurrently created by someone else
-                } catch (InterruptedException e1) {
-                    throw new HybrisException(e1);
-                }
-                
-            } else if (e.code() == KeeperException.Code.BADVERSION) {   // the znode version does not match 
-                
+            if ((e.code() == KeeperException.Code.NODEEXISTS) ||            // multiple clients tried to create
+                    (e.code() == KeeperException.Code.BADVERSION)) {        // or modify the same znode concurrently 
+          
                 Stat stat = new Stat();
                 byte[] newValue = null;
                 try {
-                    newValue = zk.getData(path, false, stat);           // XXX does it need to sync before
+                    newValue = zk.getData(path, false, stat);
                 } catch (KeeperException e1) {
-                    
-                    if (e.code() != KeeperException.Code.NONODE) {  // FIXME should not happen: 
-                                                                    // tomb stone value instead of deleting the znode when gc
-                        logger.debug("Version mismatch on writing {}, but value deleted by concurrent gc: retrying.", key);
-                        tsWrite(key, md);       
-                        return;
-                    } else 
-                        throw new HybrisException(e1);
-                    
+                    throw new HybrisException(e1);
                 } catch (InterruptedException e1) {
                     throw new HybrisException(e1);
                 }
-                
+      
                 Metadata newmd = new Metadata(newValue);
-                if (md.getTs().isGreater(newmd.getTs())) {      // Concurrent clients trying to overwrite the same version
-                    logger.debug("Version mismatch on writing {}, found previous version ({}): retrying.", key, newmd.getTs());
-                    md.setTs(new Timestamp(stat.getVersion() + 1, md.getTs().getCid()));
-                    tsWrite(key, md);
+                if (md.getTs().isGreater(newmd.getTs())) {
+                    logger.debug("Found smaller version ({}) writing {}: retrying.", newmd.getTs(), key);
+                    tsWrite(key, md, stat.getVersion());
                     return;
-                } else {                                        // The version which I'm trying to overwrite is obsolete: fail
-                    logger.debug("Version mismatch on writing {}, found more recent version ({}): failing.", key, newmd.getTs());
+                } else {
+                    logger.debug("Found greater version ({}) writing {}: failing.", newmd.getTs(), key);
                     throw new HybrisException("KeeperException, could not write the key.", e);
                 }
-                
-            } else {
-                logger.error("KeeperException, could not write the key.", e);
-                throw new HybrisException("KeeperException, could not write the key.", e);
-            }
+              
+          } else {
+              logger.error("KeeperException, could not write the key.", e);
+              throw new HybrisException("KeeperException, could not write the key.", e);
+          }
+        
         } catch (InterruptedException e) {
             logger.error("InterruptedException, could not write the key.", e);
             throw new HybrisException("InterruptedException, could not write the key. " + e.getMessage(), e);
         }
     }
     
-    
-    public byte[] tsRead(String key) throws HybrisException {
+    /**
+     * Timestamped read from metadata storage.
+     * @param key the key to read
+     * @param stat the Stat Zookeeper object to be written with znode details
+     * @return Metadata object 
+     *              or null in case the znode does not exist or there is a tombstone Metadata object
+     *              (to distinguish these two cases one must use the Stat object)
+     * @throws HybrisException
+     */
+    public Metadata tsRead(String key, Stat stat) throws HybrisException {
         
         String path = this.storageRoot + "/" + key;
         try {
             zk.sync(path, null, null);      // NOTE: There is no synchronous version of this ZK API (https://issues.apache.org/jira/browse/ZOOKEEPER-1167ordering) 
                                             // however, order guarantees among operations allow not to wait for asynchronous callback to be called
-            return zk.getData(path, false, null);
+            byte[] rawMd = zk.getData(path, false, stat);
+            Metadata md = new Metadata(rawMd);
+            if (!md.isTombstone())
+                return md;
+            return null;
         } catch (KeeperException e) {
             
             if (e.code() == KeeperException.Code.NONODE)
@@ -167,7 +172,8 @@ public class MdStore extends SyncPrimitive {
         
         String path = this.storageRoot + "/" + key;
         try {
-            zk.delete(path, -1);             // Notice: delete no matter which version
+            Metadata tombstoneMd = new Metadata(null, null, null);
+            zk.setData(path, tombstoneMd.serialize(), -1);
         } catch (KeeperException e) {
             
             if (e.code() == KeeperException.Code.NONODE)
@@ -180,6 +186,51 @@ public class MdStore extends SyncPrimitive {
         } catch (InterruptedException e) {
             logger.error("InterruptedException, could not delete the ZNode " + path, e);
             throw new HybrisException("InterruptedException, could not delete the ZNode " + path, e);
+        }
+    }
+    
+    
+    public void emptyStorageRoot() throws HybrisException {
+        
+        String path = this.storageRoot;
+        try {
+            Stat s = zk.exists(path, false);
+            if (s != null) {
+                List<String> children = zk.getChildren(path, false);
+                for (String child : children) {
+                    String node = path + "/" + child;
+                    recursiveDelete(node);
+                }
+            }
+        } catch (KeeperException e) {
+            logger.warn("KeeperException, could not delete the ZNode " + path, e);
+            throw new HybrisException("KeeperException, could not list the children of ZNode " + path, e);
+        } catch (InterruptedException e) {
+            logger.warn("InterruptedException, could not delete the ZNode " + path, e);
+            throw new HybrisException("InterruptedException, could not delete the ZNode " + path, e);
+        }
+    }
+    
+    
+    /* ---------------------------------------------------------------------------------------
+                                        Private methods
+       --------------------------------------------------------------------------------------- */
+    
+    
+    private void recursiveDelete(String key) throws KeeperException, InterruptedException {
+        
+        try {
+            Stat s = zk.exists(key, false);
+            if (s != null) {
+                List<String> children = zk.getChildren(key, false);
+                for (String child : children) {
+                    String node = key + "/" + child;
+                    recursiveDelete(node);
+                }
+                zk.delete(key, -1);         // delete no matter which version
+            }
+        } catch (KeeperException | InterruptedException e) {
+            throw e;
         }
     }
 }

@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.zookeeper.data.Stat;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -22,13 +23,15 @@ public class MdStoreTest extends HybrisAbstractTest {
     
     private MdStore mds;
     
-    private String MDS_ROOT = "mdstest-root";
+    private String MDS_TEST_ROOT = "mdstest-root";
     private String MDS_ADDRESS = "localhost:2181";
 
+    // Executed before each test
     @Before
-    public void setUp() throws Exception {  
-        mds = new MdStore(MDS_ADDRESS, MDS_ROOT);
-        // TODO clean up test container
+    public void setUp() throws Exception {
+        Config.getInstance();
+        mds = new MdStore(MDS_ADDRESS, MDS_TEST_ROOT);
+        mds.emptyStorageRoot();
     }
 
     @After
@@ -44,17 +47,17 @@ public class MdStoreTest extends HybrisAbstractTest {
         replicas.add(new CloudProvider("A", "A-accessKey", "A-secretKey", true, 0));
         replicas.add(new CloudProvider("B", "B-accessKey", "B-secretKey", true, 0));
         replicas.add(new CloudProvider("C", "C-accessKey", "C-secretKey", true, 0));
-        Metadata tsdir = new Metadata(ts, hash, replicas);
+        Metadata md = new Metadata(ts, hash, replicas);
         
-        mds.tsWrite(key, tsdir);
+        mds.tsWrite(key, md, -1);
         
-        tsdir = new Metadata(mds.tsRead(key));
-        assertEquals(ts, tsdir.getTs());
-        assertTrue(Arrays.equals(hash, tsdir.getHash()));
-        assertTrue(Arrays.equals(replicas.toArray(), tsdir.getReplicasLst().toArray()));
+        md = mds.tsRead(key, null);
+        assertEquals(ts, md.getTs());
+        assertTrue(Arrays.equals(hash, md.getHash()));
+        assertTrue(Arrays.equals(replicas.toArray(), md.getReplicasLst().toArray()));
         
         mds.delete(key);
-        assertNull(mds.tsRead(key));
+        assertNull(mds.tsRead(key, null));
     }
     
     @Test
@@ -65,32 +68,44 @@ public class MdStoreTest extends HybrisAbstractTest {
         List<CloudProvider> replicas = new ArrayList<CloudProvider>();
         replicas.add(new CloudProvider("A", "A-accessKey", "A-secretKey", true, 0));
         byte[] hash = (new BigInteger(50, random).toString(10)).getBytes();
-        String cid = Utils.getClientId();
+        Stat stat = new Stat();
+        Metadata retrieved;
+        String cid1 = "ZZZ";
+        String cid2 = "AAA";
         
-        // XXX this causes infinite recursion 
-//        mds.tsWrite(key, new Metadata(new Timestamp(0, cid), hash, replicas)); // [-1: write anyway] znode does not exist, create version 0
-//        mds.tsWrite(key, new Metadata(new Timestamp(2, cid), hash, replicas)); // check for 1, but version is 0: retry
+        mds.tsWrite(key, new Metadata(new Timestamp(0, cid1), hash, replicas), -1);  // znode does not exist, create hver. 0, zkver. 0
+        mds.tsWrite(key, new Metadata(new Timestamp(0, cid2), hash, replicas), -1);  // NODEEXISTS retries because AAA > ZZZ, write hver. 0, zkver. 1
         
-        mds.tsWrite(key, new Metadata(new Timestamp(0, cid), hash, replicas)); // znode does not exist, create version 0
-        mds.tsWrite(key, new Metadata(new Timestamp(1, cid), hash, replicas)); // check for version 0: OK, set version 1
-        mds.tsWrite(key, new Metadata(new Timestamp(2, cid), hash, replicas)); // check for version 1: OK, set version 2
-        try{
-            mds.tsWrite(key, new Metadata(new Timestamp(1, cid), hash, replicas)); // check for version 0: fails
+        retrieved = mds.tsRead(key, stat);
+        assertEquals(0, retrieved.getTs().getNum());
+        assertEquals(cid2, retrieved.getTs().getCid());
+        assertEquals(1, stat.getVersion());
+        
+        mds.tsWrite(key, new Metadata(new Timestamp(1, cid1), hash, replicas), 1);   // write hver. 1, zkver. 2
+        
+        mds.tsWrite(key, new Metadata(new Timestamp(2, cid1), hash, replicas), 2);   // write hver. 2, zkver. 3
+        try {
+            mds.tsWrite(key, new Metadata(new Timestamp(2, cid1), hash, replicas), 2);   // BADVERSION, fails because cids are equals
             fail();
-        } catch(HybrisException e) {
-            
-        }
-        try{
-            mds.tsWrite(key, new Metadata(new Timestamp(2, cid), hash, replicas)); // check for version 1: fails
-            fail();
-        } catch(HybrisException e) {
-            
-        }
+        } catch(HybrisException e) {  }
+        mds.tsWrite(key, new Metadata(new Timestamp(2, cid2), hash, replicas), 2);       // BADVERSION, retries because AAA > ZZZ, write hver. 2, zkver. 4
         
-        mds.tsWrite(key, new Metadata(new Timestamp(5, cid), hash, replicas)); // check for version 4: fails
-        
-        Metadata retrieved = new Metadata(mds.tsRead(key));
+        retrieved = mds.tsRead(key, stat);
         assertEquals(2, retrieved.getTs().getNum());
+        assertEquals(cid2, retrieved.getTs().getCid());
+        assertEquals(4, stat.getVersion());
+        
+        try{
+            mds.tsWrite(key, new Metadata(new Timestamp(0, cid1), hash, replicas), 0);  // BADVERSION, fails because hver is smaller
+            fail();
+        } catch(HybrisException e) {  }
+
+        mds.tsWrite(key, new Metadata(new Timestamp(3, cid1), hash, replicas), 1);  // BADVERSION, retries because 3 > 2, write hver. 3, zkver. 5
+        
+        retrieved = mds.tsRead(key, stat);
+        assertEquals(3, retrieved.getTs().getNum());
+        assertEquals(cid1, retrieved.getTs().getCid());
+        assertEquals(5, stat.getVersion());
     }
     
     @Test
@@ -109,11 +124,14 @@ public class MdStoreTest extends HybrisAbstractTest {
     public void testReadNotExistingKey() {
         
         String key = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
-        byte[] value = null;
+        Metadata value = null;
         
         try {
-            value = mds.tsRead(key);
+            Stat stat = new Stat();
+            stat.setVersion(-1);
+            value = mds.tsRead(key, stat);
             assertNull(value);
+            assertEquals(-1, stat.getVersion()); // in case of not existent znode, stat will remain unmodified
         } catch (HybrisException e) {
             e.printStackTrace();
             fail();
@@ -154,9 +172,9 @@ public class MdStoreTest extends HybrisAbstractTest {
         replicas.add(new CloudProvider("C", "C-accessKey", "C-secretKey", true, 30));
         
         Metadata tsdir = new Metadata(ts, hash, replicas); 
-        mds.tsWrite(key, tsdir);
+        mds.tsWrite(key, tsdir, -1);
         
-        tsdir = new Metadata(mds.tsRead(key));
+        tsdir = mds.tsRead(key, null);
         for(CloudProvider provider : tsdir.getReplicasLst()) {
             assertNotNull(provider.getId());
             assertEquals(replicas.get( tsdir.getReplicasLst().indexOf(provider) ), provider);
@@ -171,13 +189,13 @@ public class MdStoreTest extends HybrisAbstractTest {
         }
         
         mds.delete(key);
-        assertNull(mds.tsRead(key));
+        assertNull(mds.tsRead(key, null));
     }
     
     // TODO TEMP
     public static void main(String[] args) throws Exception {
         MdStoreTest t = new MdStoreTest();
         t.setUp();
-        t.testOverwrite();
+        t.testReadNotExistingKey();
     }
 }
