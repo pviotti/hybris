@@ -90,7 +90,7 @@ public class KvStore {
                 boolean created = storage.createContainerInLocation(null, rootContainer);
                 provider.setAlreadyUsed(true);
                 if (created)
-                    logger.debug("Created container {} for {}", rootContainer, provider.getId());
+                    logger.debug("Created root data container \"{}\" for {}", rootContainer, provider.getId());
             }
             
             blob = storage.blobBuilder(key).payload(data).build();

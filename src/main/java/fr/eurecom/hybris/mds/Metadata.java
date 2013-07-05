@@ -3,8 +3,10 @@ package fr.eurecom.hybris.mds;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+
 import org.apache.commons.lang3.SerializationUtils;
 
+import fr.eurecom.hybris.Utils;
 import fr.eurecom.hybris.kvs.CloudProvider;
 
 /**
@@ -32,8 +34,8 @@ public class Metadata implements Serializable {
         public void setCid(String cid)  { this.cid = cid; }
 
         public boolean isGreater(Timestamp ts) {
-            if ((this.num > ts.num) || 
-                    ((this.num == ts.num) && (this.cid.compareTo(ts.cid)) < 0)) 
+            if ((ts == null) || (this.num > ts.num) || 
+                ((this.num == ts.num) && (this.cid.compareTo(ts.cid)) < 0)) 
                 return true;
             return false;   
         }
@@ -120,10 +122,11 @@ public class Metadata implements Serializable {
     
     @Override
     public String toString() {
-        StringBuilder strBld = new StringBuilder("TsDir [ts=" + ts + ", hash=" + hash + ", replicasLst={");
+        StringBuilder strBld = new StringBuilder("Timestamp [ts=" + ts + ", "
+                                                    + "hash=" + Utils.byteArrayToHexString(hash) + ", replicasLst={");
         if (replicasLst != null)
-            for (CloudProvider str : replicasLst)
-                strBld.append(str.getId() + ",");
+            for (CloudProvider replica : replicasLst)
+                strBld.append(replica.getId() + ",");
         strBld.append("}]");
         return strBld.toString();
     }

@@ -3,7 +3,9 @@ package fr.eurecom.hybris.test;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.zookeeper.data.Stat;
 import org.junit.After;
@@ -31,7 +33,7 @@ public class MdStoreTest extends HybrisAbstractTest {
     public void setUp() throws Exception {
         Config.getInstance();
         mds = new MdStore(MDS_ADDRESS, MDS_TEST_ROOT);
-        mds.emptyStorageRoot();
+        mds.emptyStorageContainer();
     }
 
     @After
@@ -49,7 +51,7 @@ public class MdStoreTest extends HybrisAbstractTest {
         replicas.add(new CloudProvider("C", "C-accessKey", "C-secretKey", true, 0));
         Metadata md = new Metadata(ts, hash, replicas);
         
-        mds.tsWrite(key, md, -1);
+        mds.tsWrite(key, md, MdStore.NONODE);
         
         md = mds.tsRead(key, null);
         assertEquals(ts, md.getTs());
@@ -128,10 +130,10 @@ public class MdStoreTest extends HybrisAbstractTest {
         
         try {
             Stat stat = new Stat();
-            stat.setVersion(-1);
+            stat.setVersion(MdStore.NONODE);
             value = mds.tsRead(key, stat);
             assertNull(value);
-            assertEquals(-1, stat.getVersion()); // in case of not existent znode, stat will remain unmodified
+            assertEquals(MdStore.NONODE, stat.getVersion()); // in case of not existent znode, stat will remain unmodified
         } catch (HybrisException e) {
             e.printStackTrace();
             fail();
@@ -171,13 +173,13 @@ public class MdStoreTest extends HybrisAbstractTest {
         replicas.add(new CloudProvider("B", "B-accessKey", "B-secretKey", true, 20));
         replicas.add(new CloudProvider("C", "C-accessKey", "C-secretKey", true, 30));
         
-        Metadata tsdir = new Metadata(ts, hash, replicas); 
-        mds.tsWrite(key, tsdir, -1);
+        Metadata md = new Metadata(ts, hash, replicas); 
+        mds.tsWrite(key, md, MdStore.NONODE);
         
-        tsdir = mds.tsRead(key, null);
-        for(CloudProvider provider : tsdir.getReplicasLst()) {
+        md = mds.tsRead(key, null);
+        for(CloudProvider provider : md.getReplicasLst()) {
             assertNotNull(provider.getId());
-            assertEquals(replicas.get( tsdir.getReplicasLst().indexOf(provider) ), provider);
+            assertEquals(replicas.get( md.getReplicasLst().indexOf(provider) ), provider);
             
             assertFalse(provider.isAlreadyUsed());
             assertFalse(provider.isEnabled());
@@ -192,10 +194,140 @@ public class MdStoreTest extends HybrisAbstractTest {
         assertNull(mds.tsRead(key, null));
     }
     
+    @Test
+    public void testList() throws HybrisException {
+        
+        String key1 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        String key2 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        String key3 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        String key4 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        String key5 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        List<String> keys = new LinkedList<String>();
+        keys.add(key1); keys.add(key2); keys.add(key3); keys.add(key4); keys.add(key5);
+        Timestamp ts = new Timestamp(new BigInteger(10, random).intValue(), Utils.getClientId());
+        byte[] hash = (new BigInteger(50, random).toString(10)).getBytes();
+        List<CloudProvider> replicas = new ArrayList<CloudProvider>();
+        replicas.add(new CloudProvider("A", "A-accessKey", "A-secretKey", true, 10));
+        replicas.add(new CloudProvider("B", "B-accessKey", "B-secretKey", true, 20));
+        
+        Metadata md = new Metadata(ts, hash, replicas);
+        
+        mds.tsWrite(key1, md, MdStore.NONODE);
+        mds.tsWrite(key2, md, MdStore.NONODE);
+        mds.tsWrite(key3, md, MdStore.NONODE);
+        mds.tsWrite(key4, md, MdStore.NONODE);
+        mds.tsWrite(key5, md, MdStore.NONODE);
+        
+        List<String> listedKeys = mds.list();
+        assertEquals(5, listedKeys.size());
+        for (String k : keys)
+            assertTrue(listedKeys.contains(k));
+        
+        ts.inc(Utils.getClientId());
+        md = new Metadata(ts, (new BigInteger(50, random).toString(10)).getBytes(), replicas);
+        mds.tsWrite(key4, md, MdStore.NONODE);  // overwrites a key
+        listedKeys = mds.list();
+        assertEquals(5, listedKeys.size());
+        Stat stat = new Stat();
+        Metadata newMd = mds.tsRead(key4, stat);
+        assertFalse(Arrays.equals(newMd.getHash(), hash));
+        assertEquals(1, stat.getVersion());
+        
+        mds.delete(key3);               // remove a key
+        listedKeys = mds.list();
+        assertEquals(4, listedKeys.size());
+        for (String k : keys)
+            if (!k.equals(key3))
+                assertTrue(listedKeys.contains(k));
+            else
+                assertFalse(listedKeys.contains(k));
+        
+        for (String k : keys)           // remove all keys
+            mds.delete(k);
+        listedKeys = mds.list();
+        assertEquals(0, listedKeys.size());
+        
+        ts.inc(Utils.getClientId());    // add a key previously removed
+        md = new Metadata(ts, (new BigInteger(50, random).toString(10)).getBytes(), replicas);
+        mds.tsWrite(key2, md, -1);
+        listedKeys = mds.list();
+        assertEquals(1, listedKeys.size());
+        assertEquals(key2, listedKeys.get(0));
+    }
+    
+    @Test
+    public void testGetAll() throws HybrisException {
+        
+        String key1 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        String key2 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        String key3 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        String key4 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        String key5 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        List<String> keys = new LinkedList<String>();
+        keys.add(key1); keys.add(key2); keys.add(key3); keys.add(key4); keys.add(key5);
+        Timestamp ts = new Timestamp(new BigInteger(10, random).intValue(), Utils.getClientId());
+        byte[] hash = (new BigInteger(50, random).toString(10)).getBytes();
+        List<CloudProvider> replicas = new ArrayList<CloudProvider>();
+        replicas.add(new CloudProvider("A", "A-accessKey", "A-secretKey", true, 10));
+        replicas.add(new CloudProvider("B", "B-accessKey", "B-secretKey", true, 20));
+        
+        Metadata md = new Metadata(ts, hash, replicas);
+        
+        mds.tsWrite(key1, md, MdStore.NONODE);
+        mds.tsWrite(key2, md, MdStore.NONODE);
+        mds.tsWrite(key3, md, MdStore.NONODE);
+        mds.tsWrite(key4, md, MdStore.NONODE);
+        mds.tsWrite(key5, md, MdStore.NONODE);
+        
+        Map<String, Metadata> allMd = mds.getAll();
+        assertEquals(5, allMd.size());
+        for (String k : keys) {
+            assertTrue(allMd.keySet().contains(k));
+            assertFalse(allMd.get(k).isTombstone());
+            assertTrue(allMd.get(k).equals(md));
+        }
+        
+        Timestamp ts4 = new Timestamp(ts.getNum() +1, Utils.getClientId());
+        Metadata md4 = new Metadata(ts4, (new BigInteger(50, random).toString(10)).getBytes(), replicas);
+        mds.tsWrite(key4, md4, MdStore.NONODE);  // overwrites a key
+        allMd = mds.getAll();
+        assertEquals(5, allMd.size());
+        Stat stat = new Stat();
+        Metadata newMd = mds.tsRead(key4, stat);
+        assertFalse(Arrays.equals(newMd.getHash(), hash));
+        assertEquals(1, stat.getVersion());
+        
+        mds.delete(key3);                       // remove a key
+        allMd = mds.getAll();
+        assertEquals(4, allMd.size());
+        for (String k : keys)
+            if (!k.equals(key3)) {
+                assertTrue(allMd.keySet().contains(k));
+                assertFalse(allMd.get(k).isTombstone());
+                if (k.equals(key4))
+                    assertEquals(md4, allMd.get(k));
+                else
+                    assertEquals(md, allMd.get(k));
+            } else
+                assertFalse(allMd.keySet().contains(k));
+        
+        for (String k : keys)                   // remove all keys
+            mds.delete(k);
+        allMd = mds.getAll();
+        assertEquals(0, allMd.size());
+        
+        ts.inc(Utils.getClientId());            // add a key previously removed
+        md = new Metadata(ts, (new BigInteger(50, random).toString(10)).getBytes(), replicas);
+        mds.tsWrite(key2, md, -1);
+        allMd = mds.getAll();
+        assertEquals(1, allMd.size());
+        assertEquals(md, allMd.get(key2));
+    }
+    
     // TODO TEMP
     public static void main(String[] args) throws Exception {
         MdStoreTest t = new MdStoreTest();
         t.setUp();
-        t.testReadNotExistingKey();
+        t.testGetAll();
     }
 }

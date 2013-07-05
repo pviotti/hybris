@@ -11,8 +11,6 @@ public class SyncPrimitive implements Watcher {
     protected static ZooKeeper zk = null;
     static Integer mutex;
 
-    String root;
-
     protected SyncPrimitive(String address) throws IOException {
         if(zk == null){
             try {

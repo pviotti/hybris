@@ -1,7 +1,10 @@
 package fr.eurecom.hybris.mds;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -39,8 +42,8 @@ public class MdStore extends SyncPrimitive {
         try {
             Stat stat = zk.exists(this.storageRoot, false);
             if (stat == null) {
-                logger.debug("Creating root dir...");
                 zk.create(this.storageRoot, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                logger.debug("Created root metadata container \"{}\".", this.storageRoot);
             }
         } catch (KeeperException e) {
             logger.error("KeeperException, could not initialize the Zookeeper client. " + e.getMessage(), e);
@@ -111,6 +114,7 @@ public class MdStore extends SyncPrimitive {
         }
     }
     
+    
     /**
      * Timestamped read from metadata storage.
      * @param key the key to read
@@ -147,27 +151,75 @@ public class MdStore extends SyncPrimitive {
     }
     
     
-    public List<String> list(String key) throws HybrisException {
+    /**
+     * Get all the stored metadata (filtering out tombstone values).
+     * @return a map of keys (String) and Metadata objects
+     * @throws HybrisException
+     */
+    public Map<String, Metadata> getAll() throws HybrisException {
         
-        String path = this.storageRoot + "/" + key;
+        List<String> znodes;
         try {
-            return zk.getChildren(path, false);
-        } catch (KeeperException e) {
-            
-            if (e.code() == KeeperException.Code.NONODE)
-                return null;
-            else {
-                logger.error("KeeperException, could not list the children of ZNode " + path, e);
-                throw new HybrisException("KeeperException, could not list the children of ZNode " + path, e);
-            }
-            
-        } catch (InterruptedException e) {
-            logger.error("InterruptedException, could not list the children of ZNode " + path, e);
-            throw new HybrisException("InterruptedException, could not list the children of ZNode " + path, e);
+            znodes = zk.getChildren(this.storageRoot, false);
+        } catch (KeeperException | InterruptedException e1) {
+            logger.error("Could not list the children of znode " + this.storageRoot, e1);
+            throw new HybrisException(e1);
         }
+        
+        HashMap<String, Metadata> retMap = new HashMap<String, Metadata>();
+        for (String znode : znodes) {
+            String znodePath = this.storageRoot + "/" + znode;
+            byte[] rawMd = null;
+            try {
+                rawMd = zk.getData(znodePath, false, null);
+            } catch (KeeperException | InterruptedException e) {
+                logger.warn("Could not read metadata for key " + znodePath, e);
+            }
+            Metadata md = new Metadata(rawMd);
+            if (!md.isTombstone())
+                retMap.put(znode, md);
+        }
+        return retMap;
     }
     
     
+    /**
+     * Get the list of metadata keys stored (filtering out tombstone values).
+     * @return the list of metadata keys stored in the 
+     * @throws HybrisException
+     */
+    public List<String> list() throws HybrisException {
+        
+        List<String> znodes;
+        try {
+            znodes = zk.getChildren(this.storageRoot, false);
+        } catch (KeeperException | InterruptedException e1) {
+            logger.error("Could not list the children of znode " + this.storageRoot, e1);
+            throw new HybrisException(e1);
+        }
+        
+        for (Iterator<String> it = znodes.iterator(); it.hasNext(); ) {
+            String znode = it.next();
+            String znodePath = this.storageRoot + "/" + znode;
+            byte[] rawMd = null;
+            try {
+                rawMd = zk.getData(znodePath, false, null);
+            } catch (KeeperException | InterruptedException e) {
+                logger.warn("Could not read metadata for key " + znodePath, e);
+            }
+            Metadata md = new Metadata(rawMd);
+            if (md.isTombstone())
+                it.remove();
+        }
+        return znodes;
+    }
+    
+
+    /**
+     * Mark a key as deleted (write a tombstone value).
+     * @param key
+     * @throws HybrisException
+     */
     public void delete(String key) throws HybrisException {
         
         String path = this.storageRoot + "/" + key;
@@ -190,7 +242,12 @@ public class MdStore extends SyncPrimitive {
     }
     
     
-    public void emptyStorageRoot() throws HybrisException {
+    /**
+     * Empty the metadata storage root container.
+     * ATTENTION: it erases all metadata stored in the root container!
+     * @throws HybrisException
+     */
+    public void emptyStorageContainer() throws HybrisException {
         
         String path = this.storageRoot;
         try {
@@ -218,19 +275,14 @@ public class MdStore extends SyncPrimitive {
     
     
     private void recursiveDelete(String key) throws KeeperException, InterruptedException {
-        
-        try {
-            Stat s = zk.exists(key, false);
-            if (s != null) {
-                List<String> children = zk.getChildren(key, false);
-                for (String child : children) {
-                    String node = key + "/" + child;
-                    recursiveDelete(node);
-                }
-                zk.delete(key, -1);         // delete no matter which version
+        Stat s = zk.exists(key, false);
+        if (s != null) {
+            List<String> children = zk.getChildren(key, false);
+            for (String child : children) {
+                String node = key + "/" + child;
+                recursiveDelete(node);
             }
-        } catch (KeeperException | InterruptedException e) {
-            throw e;
+            zk.delete(key, -1);         // delete no matter which version
         }
     }
 }

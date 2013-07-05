@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -50,7 +51,6 @@ public class Hybris {
     public void write(String key, byte[] value) throws HybrisException {
         
         Timestamp ts;
-        int znodeVersion;
         Stat stat = new Stat();
         stat.setVersion(MdStore.NONODE);    // if it stays unchanged after the read, the znode does not exist
         Metadata md = mds.tsRead(key, stat);
@@ -60,7 +60,6 @@ public class Hybris {
             ts = md.getTs();
             ts.inc( Utils.getClientId() );
         }
-        znodeVersion = stat.getVersion();
         
         List<CloudProvider> savedReplicasLst = new ArrayList<CloudProvider>();
         String kvsKey = Utils.getKvsKey(key, ts);
@@ -83,7 +82,7 @@ public class Hybris {
         } 
                
         try {
-            mds.tsWrite(key, new Metadata(ts, Utils.getHash(value), savedReplicasLst), znodeVersion);
+            mds.tsWrite(key, new Metadata(ts, Utils.getHash(value), savedReplicasLst), stat.getVersion());
         } catch (HybrisException e) {
             kvsGc(kvsKey, savedReplicasLst);                    // TODO make asynchronous
             logger.warn("Hybris could not manage to store metadata on Zookeeper for key {}.", key);
@@ -93,6 +92,11 @@ public class Hybris {
         StringBuilder strBld = new StringBuilder("Data successfully stored to these replicas: ");
         for (CloudProvider cloud : savedReplicasLst) strBld.append(cloud.getId() + " ");
         logger.info(strBld.toString());
+    }
+    
+    
+    public void write(String key, byte[] value, int version) throws HybrisException {
+        // TODO conditional write
     }
     
 
@@ -174,6 +178,16 @@ public class Hybris {
         }
         
         mds.delete(key);
+    }
+    
+    
+    public List<String> list() throws HybrisException {
+        return mds.list();
+    }
+
+    
+    public Map<String, Metadata> getAllMetadata() throws HybrisException {
+        return mds.getAll();
     }
     
     
