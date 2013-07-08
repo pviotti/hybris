@@ -8,6 +8,9 @@ import java.util.Map;
 
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -21,10 +24,11 @@ import fr.eurecom.hybris.HybrisException;
  * Provides r&w access to the metadata storage.
  * @author p.viotti
  */
-public class MdStore extends SyncPrimitive {
+public class MdStore implements Watcher {
     
     private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
     
+    private ZooKeeper zk;
     private String storageRoot;
     public static int NONODE = -1;      // integer marker to tell whether a znode has to be created 
     
@@ -36,10 +40,10 @@ public class MdStore extends SyncPrimitive {
      */
     public MdStore(String address, String storageRoot) throws IOException {
         
-        super(address);
         this.storageRoot = "/" + storageRoot;
         
         try {
+            zk = new ZooKeeper(address, 3000, this);
             Stat stat = zk.exists(this.storageRoot, false);
             if (stat == null) {
                 zk.create(this.storageRoot, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
@@ -268,6 +272,11 @@ public class MdStore extends SyncPrimitive {
         }
     }
     
+    
+    @Override
+    public void process(WatchedEvent event) {
+        // XXX Auto-generated method stub
+    }
     
     /* ---------------------------------------------------------------------------------------
                                         Private methods

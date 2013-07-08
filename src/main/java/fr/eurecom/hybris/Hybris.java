@@ -42,6 +42,21 @@ public class Hybris {
         this.quorum = t + 1;
     }
     
+    public Hybris(String zkAddress, String zkRoot, String kvsRoot, 
+                    boolean kvsTestOnStartup, int t) throws HybrisException {
+        
+        try {
+            mds = new MdStore(zkAddress, zkRoot);
+        } catch (IOException e) {
+            logger.error("Could not initialize the Zookeeper metadata store.", e);
+            throw new HybrisException("Could not initialize the Zookeeper metadata store.");
+        }
+        
+        kvs = new KvStore(zkRoot, kvsTestOnStartup);
+        
+        this.quorum = t + 1;
+    }
+    
    
     /* ---------------------------------------------------------------------------------------
                                             Public APIs

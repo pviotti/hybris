@@ -10,6 +10,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import fr.eurecom.hybris.Config;
 import fr.eurecom.hybris.kvs.CloudProvider;
 import fr.eurecom.hybris.kvs.KvStore;
 
@@ -20,9 +21,18 @@ public class KvStoreTest extends HybrisAbstractTest {
     
     private String KVS_ROOT = "kvstest-root";
     
-    @Before
-    public void setUp() throws Exception {  
+    public KvStoreTest () {
+        Config.getInstance();
         kvs = new KvStore(KVS_ROOT, false);
+    }
+    
+    // Executed before each test
+    @Before
+    public void setUp() throws Exception {
+        synchronized(kvs.getProviders()) {
+            for (CloudProvider provider : kvs.getProviders())
+                kvs.emptyStorageContainer(provider);
+        }
     }
 
     @After
@@ -114,5 +124,83 @@ public class KvStoreTest extends HybrisAbstractTest {
                     fail();
                 }
         }
+    }
+    
+    @Test
+    public void testPutGetDeleteList() throws IOException {
+        
+        String key1 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        String key2 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        String key3 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        String key4 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        byte[] value1 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".getBytes();
+        byte[] value2 = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB".getBytes();
+        byte[] value3 = "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC".getBytes();
+        byte[] value4 = "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD".getBytes();
+        
+        List<CloudProvider> replicas = new ArrayList<CloudProvider>();
+        synchronized(kvs.getProviders()) {
+            for (CloudProvider provider : kvs.getProviders())
+                try {
+                    kvs.put(provider, key1, value1);
+                    kvs.put(provider, key2, value2);
+                    kvs.put(provider, key3, value3);
+                    kvs.put(provider, key4, value4);
+                    replicas.add(provider);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+        }
+        assertTrue(replicas.size() > 0);
+        
+        List<String> keysLst;
+        for(CloudProvider replica : replicas) {
+            keysLst = kvs.list(replica);
+            assertTrue(keysLst.size() > 3);
+            assertTrue(keysLst.contains(key1));
+            assertTrue(keysLst.contains(key2));
+            assertTrue(keysLst.contains(key3));
+            assertTrue(keysLst.contains(key4));
+        }
+        
+        byte[] output;
+        for(CloudProvider replica : replicas) {
+            output = kvs.get(replica, key1);
+            assertTrue(Arrays.equals(output, value1));
+            output = kvs.get(replica, key2);
+            assertTrue(Arrays.equals(output, value2));
+            output = kvs.get(replica, key3);
+            assertTrue(Arrays.equals(output, value3));
+            output = kvs.get(replica, key4);
+            assertTrue(Arrays.equals(output, value4));
+        }
+        
+        for(CloudProvider replica : replicas){
+            kvs.delete(replica, key1);
+            kvs.delete(replica, key2);
+            kvs.delete(replica, key3);
+        }
+        
+        for(CloudProvider replica : replicas) {
+            assertNull(kvs.get(replica, key1));
+            assertNull(kvs.get(replica, key2));
+            assertNull(kvs.get(replica, key3));
+            assertNotNull(kvs.get(replica, key4));
+        }
+        
+        for(CloudProvider replica : replicas) {
+            keysLst = kvs.list(replica);
+            assertFalse(keysLst.contains(key1));
+            assertFalse(keysLst.contains(key2));
+            assertFalse(keysLst.contains(key3));
+            assertTrue(keysLst.contains(key4));
+        }
+    }
+
+    // TODO TEMP
+    public static void main(String[] args) throws Exception {
+        KvStoreTest kvs = new KvStoreTest();
+        kvs.setUp();
+        kvs.testPutGetDeleteList();
     }
 }

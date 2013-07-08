@@ -1,5 +1,6 @@
 package fr.eurecom.hybris.test;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,12 +28,15 @@ public class MdStoreTest extends HybrisAbstractTest {
     
     private String MDS_TEST_ROOT = "mdstest-root";
     private String MDS_ADDRESS = "localhost:2181";
+    
+    public MdStoreTest () throws IOException {
+        Config.getInstance();
+        mds = new MdStore(MDS_ADDRESS, MDS_TEST_ROOT);
+    }
 
     // Executed before each test
     @Before
     public void setUp() throws Exception {
-        Config.getInstance();
-        mds = new MdStore(MDS_ADDRESS, MDS_TEST_ROOT);
         mds.emptyStorageContainer();
     }
 

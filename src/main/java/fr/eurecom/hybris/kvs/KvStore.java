@@ -11,6 +11,7 @@ import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
+import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.rest.AuthorizationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,7 +153,48 @@ public class KvStore {
                 context.close();
         }
     }
+    
+    
+    public List<String> list(CloudProvider provider) throws IOException {
+        
+        BlobStoreContext context = null; 
+        BlobStore storage = null; 
+        List<String> keys = new ArrayList<String>();
+        
+        try {
+            context = ContextBuilder.newBuilder(provider.getId())
+                                    .credentials(provider.getAccessKey(), provider.getSecretKey())
+                                    .buildView(BlobStoreContext.class);
 
+            storage = context.getBlobStore();
+            for (StorageMetadata resourceMd : storage.list(rootContainer))
+                keys.add(resourceMd.getName());
+            return keys;
+        } catch (Exception ex) {
+            throw new IOException(ex);
+        } finally {
+            if (context != null)
+                context.close();
+        }
+    }
+    
+    
+    /**
+     * Empty the data storage root container.
+     * ATTENTION: it erases all data stored in the root container!
+     * @param provider the cloud storage provider
+     * @throws IOException 
+     */
+    public void emptyStorageContainer(CloudProvider provider) throws IOException {
+        
+        try {
+            List<String> keys = this.list(provider);
+            for (String key : keys)
+                this.delete(provider, key);
+        } catch (IOException e) {
+            throw new IOException(e);
+        }
+    }
 
     /* ---------------------------------------------------------------------------------------
                                         Private methods
@@ -194,9 +236,9 @@ public class KvStore {
                     if (e instanceof AuthorizationException)
                         provider.setEnabled(false);
                 }
-                if ((retrieved == null) || (!Arrays.equals(testData, retrieved))) {
+                if ((retrieved == null) || (!Arrays.equals(testData, retrieved)))
                     provider.setReadLatency(Integer.MAX_VALUE);
-                } else
+                else
                     provider.setReadLatency(end - start);
                 
                 // clean up
