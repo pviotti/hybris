@@ -51,4 +51,13 @@ public class Utils {
     public static String getKvsKey(String key, Timestamp ts) {
         return key + KVS_KEY_SEPARATOR + ts;
     }
+    
+    public static String getKeyFromKvsKey(String kvsKey) {
+        return kvsKey.split(KVS_KEY_SEPARATOR)[0];
+    }
+    
+    public static Timestamp getTimestampfromKvsKey(String kvsKey) {
+        String tsStr = kvsKey.split(KVS_KEY_SEPARATOR)[1];
+        return Timestamp.parseString(tsStr);
+    }
 }

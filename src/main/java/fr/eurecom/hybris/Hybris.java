@@ -206,6 +206,52 @@ public class Hybris {
     }
     
     
+    /**
+     * Delete all the keys on KVS which are not present on MDS or obsolete or malformed.
+     * @throws HybrisException
+     */
+    public void gc() throws HybrisException {
+        
+        Map<String, Metadata> mdMap = mds.getAll();
+        
+        synchronized(kvs.getProviders()) {
+            for (CloudProvider provider : kvs.getProviders()) {
+                
+                List<String> kvsKeys;
+                try {
+                    kvsKeys = kvs.list(provider);
+                } catch (IOException e) {
+                    logger.warn("GC: Could not list {} container", provider.getId());
+                    continue;
+                }
+                
+                for (String kvsKey : kvsKeys) {
+                    
+                    String key = ""; Timestamp kvTs = null; 
+                    boolean malformedKey = false;
+                    try {
+                        key = Utils.getKeyFromKvsKey(kvsKey);
+                        kvTs = Utils.getTimestampfromKvsKey(kvsKey);
+                    } catch(IndexOutOfBoundsException e) {
+                        malformedKey = true;
+                    }
+                    
+                    if ( (malformedKey) || (!mdMap.keySet().contains(key)) ||
+                           (mdMap.get(key).getTs().isGreater(kvTs))) {
+                        try {
+                            kvs.delete(provider, kvsKey);
+                        } catch (IOException e) {
+                            logger.warn("GC: Could not delete {} from {}", kvsKey, provider.getId());
+                            continue;
+                        }
+                        logger.debug("GC: deleted {} from {}", kvsKey, provider.getId());
+                    }
+                }
+            }
+        }
+    }
+    
+    
     /* --------------------------------------------------------------------------------------- 
                                        Private methods
        --------------------------------------------------------------------------------------- */
@@ -228,8 +274,9 @@ public class Hybris {
      */
     public static void main(String[] args) throws HybrisException {
         Hybris hybris = new Hybris();
-        hybris.write("mykey", "my_value".getBytes());
-        String value = new String(hybris.read("mykey"));
-        System.out.println("Read output: " + value);
+        hybris.gc();
+//        hybris.write("mykey", "my_value".getBytes());
+//        String value = new String(hybris.read("mykey"));
+//        System.out.println("Read output: " + value);
     }
 }

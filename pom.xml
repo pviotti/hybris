@@ -35,7 +35,7 @@
         </exclusions>
 	</dependency>
 	
-	<dependency>
+    <dependency>
         <groupId>org.jclouds</groupId>
         <artifactId>jclouds-all</artifactId>
         <version>1.6.0</version>

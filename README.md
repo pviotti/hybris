@@ -17,11 +17,6 @@ and coordinates the two modules in order to achieve these general goals:
  * byzantine fault tolerance
  * vendor lock-in avoidance
 
-Notice that other security aspects such as authentication and data confidentiality
-are now out of scope: the first and very purpose of Hybris is implementing
-and testing a cross- cloud providers storage system which is designed to
-ensure byzantine fault tolerance at a relatively low cost.  
-
 For information about technical requirements and development please refer to the [development info wiki page][2].
 
 

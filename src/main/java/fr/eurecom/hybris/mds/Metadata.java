@@ -27,7 +27,14 @@ public class Metadata implements Serializable {
             this.num = n;
             this.cid = c;
         }
-
+        
+        public static Timestamp parseString(String tsStr) {
+            String[] tsParts = tsStr.split("_");
+            int n =Integer.parseInt(tsParts[0]);
+            String cid = tsParts[1];
+            return new Timestamp(n, cid);            
+        }
+        
         public int getNum()             { return num; }
         public void setNum(int num)     { this.num = num; }
         public String getCid()          { return cid; }
