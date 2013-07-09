@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.Callable;
 
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
@@ -33,16 +34,16 @@ public class KvStore {
     
     private List<CloudProvider> providers;      // storage providers sorted by cost and latency
     
-    private String rootContainer;
+    private static String rootContainer;
     
     private static String TEST_KEY = "latency_test-";
     private static String TEST_VALUE = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM";
     
     private static String KEY_NOT_FOUND_MSG = "Key not found";
     
-    public KvStore(String rootContainer, boolean testLatency) {
+    public KvStore(String container, boolean testLatency) {
         
-        this.rootContainer = rootContainer;
+        rootContainer = container;
         
         this.providers = Collections.synchronizedList(new ArrayList<CloudProvider>());
         String[] accountIds = conf.getAccountsIds();
@@ -68,6 +69,54 @@ public class KvStore {
     
     
     public List<CloudProvider> getProviders()   { return providers; }
+    
+    
+    public static class KvsPutWorker implements Callable<CloudProvider> {
+        
+        private CloudProvider provider;
+        private String key;
+        private byte[] value;
+        
+        public KvsPutWorker(CloudProvider provider, String key, byte[] value) {
+            super();
+            this.provider = provider;
+            this.key = key;
+            this.value = value;
+        }
+
+        @Override
+        public CloudProvider call() throws Exception {
+            BlobStoreContext context = null; 
+            BlobStore storage = null; 
+            Blob blob = null;
+            
+            try {
+                context = ContextBuilder.newBuilder(provider.getId())
+                                        .credentials(provider.getAccessKey(), provider.getSecretKey())
+                                        .buildView(BlobStoreContext.class);
+                storage = context.getBlobStore();
+                
+                if (!provider.isAlreadyUsed()) {
+                    boolean created = storage.createContainerInLocation(null, rootContainer);
+                    provider.setAlreadyUsed(true);
+                    if (created)
+                        logger.debug("Created root data container \"{}\" for {}", rootContainer, provider.getId());
+                }
+                
+                logger.debug("Storing {} on {}...", key, provider.getId());
+                blob = storage.blobBuilder(key).payload(value).build();
+                storage.putBlob(rootContainer, blob);
+                logger.debug("Finished storing {} on {}.", key, provider.getId());
+                return provider;
+            } catch (Exception ex) {
+                logger.warn("Could not put " + key + " on " + provider.getId(), ex);
+                return null;
+            } finally {
+                if (context != null)
+                    context.close();
+            }
+        }
+    }
 
     
     /* ---------------------------------------------------------------------------------------
@@ -249,5 +298,5 @@ public class KvStore {
                 }
             }
         }
-    }    
+    }
 }

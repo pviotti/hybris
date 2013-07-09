@@ -5,6 +5,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -12,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import fr.eurecom.hybris.kvs.CloudProvider;
 import fr.eurecom.hybris.kvs.KvStore;
+import fr.eurecom.hybris.kvs.KvStore.KvsPutWorker;
 import fr.eurecom.hybris.mds.MdStore;
 import fr.eurecom.hybris.mds.Metadata;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
@@ -42,8 +47,8 @@ public class Hybris {
         this.quorum = t + 1;
     }
     
-    public Hybris(String zkAddress, String zkRoot, String kvsRoot, 
-                    boolean kvsTestOnStartup, int t) throws HybrisException {
+    public Hybris(String zkAddress, String zkRoot, 
+                    String kvsRoot, boolean kvsTestOnStartup, int t) throws HybrisException {
         
         try {
             mds = new MdStore(zkAddress, zkRoot);
@@ -53,7 +58,6 @@ public class Hybris {
         }
         
         kvs = new KvStore(zkRoot, kvsTestOnStartup);
-        
         this.quorum = t + 1;
     }
     
@@ -63,6 +67,71 @@ public class Hybris {
        --------------------------------------------------------------------------------------- */
 
 
+    public void writeParallel(String key, byte[] value) throws HybrisException {
+        
+        Timestamp ts;
+        Stat stat = new Stat();
+        stat.setVersion(MdStore.NONODE);    // if it stays unchanged after the read, the znode does not exist
+        Metadata md = mds.tsRead(key, stat);
+        if (md == null)
+            ts = new Timestamp(0, Utils.getClientId());
+        else {
+            ts = md.getTs();
+            ts.inc( Utils.getClientId() );
+        }
+        
+        List<CloudProvider> savedReplicasLst = new ArrayList<CloudProvider>();
+        String kvsKey = Utils.getKvsKey(key, ts);
+        ExecutorService executor = Executors.newFixedThreadPool(this.quorum);
+        List<Future<CloudProvider>> futureLst = new ArrayList<Future<CloudProvider>>(this.quorum);
+        int idxFrom = 0; int idxTo = this.quorum;
+        do {
+            synchronized(kvs.getProviders()) {
+                for (CloudProvider provider : kvs.getProviders().subList(idxFrom, idxTo))
+                    futureLst.add(executor.submit(new KvsPutWorker(provider, kvsKey, value)));
+            }
+            
+            CloudProvider savedReplica = null;
+            for (Future<CloudProvider> future : futureLst)
+                try {
+                    savedReplica = future.get();
+                    if (savedReplica != null) {
+                        logger.debug("Data stored in {}", savedReplica.getId());
+                        savedReplicasLst.add(savedReplica);
+                    }
+                    if (savedReplicasLst.size() >= this.quorum)
+                        break;
+                } catch (InterruptedException | ExecutionException e1) {
+                    logger.warn("Exception on the parallel task execution", e1);
+                }
+            
+            idxFrom = idxTo;
+            idxTo = kvs.getProviders().size() > idxTo + this.quorum ? 
+                        idxTo + this.quorum : kvs.getProviders().size();
+        
+        } while (savedReplicasLst.size() < this.quorum && idxTo < kvs.getProviders().size());
+        executor.shutdown();
+        
+        if (savedReplicasLst.size() < this.quorum) {
+            kvsGc(kvsKey, savedReplicasLst);                    // TODO make asynchronous
+            logger.warn("Hybris could not manage to store data in cloud stores for key {}.", key);
+            throw new HybrisException("Hybris could not manage to store data in cloud stores");
+        } 
+               
+        try {
+            mds.tsWrite(key, new Metadata(ts, Utils.getHash(value), savedReplicasLst), stat.getVersion());
+        } catch (HybrisException e) {
+            kvsGc(kvsKey, savedReplicasLst);                    // TODO make asynchronous
+            logger.warn("Hybris could not manage to store metadata on Zookeeper for key {}.", key);
+            throw new HybrisException("Hybris could not manage to store the metadata on Zookeeper");
+        }
+        
+        StringBuilder strBld = new StringBuilder("Data successfully stored to these replicas: ");
+        for (CloudProvider cloud : savedReplicasLst) strBld.append(cloud.getId() + " ");
+        logger.info(strBld.toString());
+    }
+    
+    
     public void write(String key, byte[] value) throws HybrisException {
         
         Timestamp ts;
@@ -82,7 +151,9 @@ public class Hybris {
         synchronized(kvs.getProviders()) {
             for (CloudProvider provider : kvs.getProviders())
                 try {                                           // TODO parallelize
-                    kvs.put(provider, kvsKey, value);                    
+                    logger.debug("Storing {} on {}...", key, provider.getId());
+                    kvs.put(provider, kvsKey, value);
+                    logger.debug("Finished storing {} on {}.", key, provider.getId());
                     savedReplicasLst.add(provider);
                     if (savedReplicasLst.size() >= this.quorum) break;
                 } catch (Exception e) {
@@ -185,7 +256,7 @@ public class Hybris {
                     continue;
                 
                 try {
-                    kvs.delete(provider, kvsKey);  // XXX what about the previous versions?
+                    kvs.delete(provider, kvsKey);
                 } catch (IOException e) {
                     logger.warn("error while deleting {} from {}.", key, provider.getId());
                 }
@@ -210,9 +281,9 @@ public class Hybris {
      * Delete all the keys on KVS which are not present on MDS or obsolete or malformed.
      * @throws HybrisException
      */
-    public void gc() throws HybrisException {
+    public void batchGc() throws HybrisException {
         
-        Map<String, Metadata> mdMap = mds.getAll();
+        Map<String, Metadata> mdMap = mds.getAll();     // !! heavy operation
         
         synchronized(kvs.getProviders()) {
             for (CloudProvider provider : kvs.getProviders()) {
@@ -274,7 +345,7 @@ public class Hybris {
      */
     public static void main(String[] args) throws HybrisException {
         Hybris hybris = new Hybris();
-        hybris.gc();
+        hybris.batchGc();
 //        hybris.write("mykey", "my_value".getBytes());
 //        String value = new String(hybris.read("mykey"));
 //        System.out.println("Read output: " + value);

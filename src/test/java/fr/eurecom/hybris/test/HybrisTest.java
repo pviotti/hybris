@@ -37,4 +37,48 @@ public class HybrisTest extends HybrisAbstractTest {
         
         assertNull(hybris.read(key));
     }
+    
+    @Test
+    public void testParallelWrite() throws HybrisException {
+        
+        String key1 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        String key2 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
+        byte[] value1 = generatePayload(10493000, (byte) 'x'); // 2 MB = 2097152, 5MB = 5.243e+6
+        byte[] value2 = generatePayload(10493000, (byte) 'y'); // 2 MB = 2097152, 5MB = 5.243e+6
+        
+        long start = 0, end = 0;
+        
+        start = System.currentTimeMillis();
+        hybris.writeParallel(key1, value1);
+        end = System.currentTimeMillis();
+        System.out.println("Parallel write: " + (end - start) + " ms");
+        
+        byte[] output = hybris.read(key1);
+        assertTrue(Arrays.equals(value1, output));
+        hybris.delete(key1);
+        assertNull(hybris.read(key1));
+        
+        start = System.currentTimeMillis();
+        hybris.write(key2, value2);
+        end = System.currentTimeMillis();
+        System.out.println("Serial write: " + (end - start) + " ms");
+        
+        output = hybris.read(key2);
+        assertTrue(Arrays.equals(value2, output));
+        hybris.delete(key2);
+        assertNull(hybris.read(key2));      
+    }
+    
+    private byte[] generatePayload(int size, byte b) {
+        byte[] array = new byte[size];
+        Arrays.fill(array, b);
+        return array;
+    }
+    
+    // XXX TEMP
+    public static void main(String[] args) throws Exception {
+        HybrisTest ht = new HybrisTest();
+        ht.setUp();
+        ht.testParallelWrite();
+    }
 }
