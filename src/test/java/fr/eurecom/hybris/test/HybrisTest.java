@@ -13,12 +13,14 @@ import fr.eurecom.hybris.HybrisException;
 
 public class HybrisTest extends HybrisAbstractTest {
 
-    private Hybris hybris;
+    protected Hybris hybris;
     
-    @Before
-    public void setUp() throws Exception {
+    public HybrisTest () throws HybrisException {
         hybris = new Hybris();
     }
+    
+    @Before
+    public void setUp() throws Exception {  }
 
     @After
     public void tearDown() throws Exception {  }

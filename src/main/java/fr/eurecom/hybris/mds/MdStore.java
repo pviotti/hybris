@@ -127,6 +127,7 @@ public class MdStore implements Watcher {
                 path = gcStaleDir + "/" + key;
                 try {
                     zk.create(path, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                    logger.debug("GcMarker: marked {} as stale", path);
                 } catch (KeeperException e){
                     if (e.code() != KeeperException.Code.NODEEXISTS)
                         logger.warn("GcMarker: could not create stale node " + path, e);
@@ -140,6 +141,7 @@ public class MdStore implements Watcher {
                 byte[] value = (new Metadata(ts, null, replicas)).serialize();
                 try {
                     zk.create(path, value, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                    logger.debug("GcMarker: marked {} as orphan", path);
                 } catch (KeeperException e){
                     if (e.code() != KeeperException.Code.NODEEXISTS)
                         logger.warn("GcMarker: could not create orphan node " + path, e);

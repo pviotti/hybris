@@ -44,6 +44,8 @@ public class Hybris {
     private int TIMEOUT_WRITE;
     private int TIMEOUT_READ;
     
+    private boolean gcEnabled;
+    
     public Hybris() throws HybrisException {
         try {
             mds = new MdStore(conf.getProperty(Config.ZK_ADDR), 
@@ -56,15 +58,16 @@ public class Hybris {
         kvs = new KvStore(conf.getProperty(Config.KVS_ROOT), 
                             Boolean.parseBoolean(conf.getProperty(Config.KVS_TESTSONSTARTUP)));
         
-        int t = Integer.parseInt(conf.getProperty(Config.CONST_T));
+        int t = Integer.parseInt(conf.getProperty(Config.HS_T));
         this.quorum = t + 1;
-        this.TIMEOUT_WRITE = Integer.parseInt(conf.getProperty(Config.CONST_TO_WRITE));
-        this.TIMEOUT_READ = Integer.parseInt(conf.getProperty(Config.CONST_TO_READ));
+        this.TIMEOUT_WRITE = Integer.parseInt(conf.getProperty(Config.HS_TO_WRITE));
+        this.TIMEOUT_READ = Integer.parseInt(conf.getProperty(Config.HS_TO_READ));
+        this.gcEnabled = Boolean.parseBoolean(conf.getProperty(Config.HS_GC));
     }
     
     public Hybris(String zkAddress, String zkRoot, String kvsRoot, 
                     boolean kvsTestOnStartup, int t, int writeTimeout, 
-                        int readTimeout) throws HybrisException {
+                        int readTimeout, boolean gcEnabled) throws HybrisException {
         
         try {
             mds = new MdStore(zkAddress, zkRoot);
@@ -77,6 +80,7 @@ public class Hybris {
         this.quorum = t + 1;
         this.TIMEOUT_WRITE = writeTimeout;
         this.TIMEOUT_READ = readTimeout;
+        this.gcEnabled = gcEnabled;
     }
     
    
@@ -136,7 +140,7 @@ public class Hybris {
         executor.shutdown();
         
         if (savedReplicasLst.size() < this.quorum) {
-            (mds.new GcMarker(key, ts, savedReplicasLst)).start();
+            if (gcEnabled) (mds.new GcMarker(key, ts, savedReplicasLst)).start();
             logger.warn("Hybris could not manage to store data in cloud stores for key {}.", key);
             throw new HybrisException("Hybris could not manage to store data in cloud stores");
         } 
@@ -145,13 +149,12 @@ public class Hybris {
         try {
             modified = mds.tsWrite(key, new Metadata(ts, Utils.getHash(value), savedReplicasLst), stat.getVersion());
         } catch (HybrisException e) {
-            (mds.new GcMarker(key, ts, savedReplicasLst)).start();
+            if (gcEnabled) (mds.new GcMarker(key, ts, savedReplicasLst)).start();
             logger.warn("Hybris could not manage to store metadata on Zookeeper for key {}.", key);
             throw new HybrisException("Hybris could not manage to store the metadata on Zookeeper");
         }
         
-        if (modified)
-            (mds.new GcMarker(key)).start();
+        if (gcEnabled && modified) (mds.new GcMarker(key)).start();
         
         StringBuilder strBld = new StringBuilder("Data successfully stored on these replicas: ");
         for (CloudProvider cloud : savedReplicasLst) strBld.append(cloud.getId() + " ");
@@ -195,18 +198,22 @@ public class Hybris {
         }
         
         if (savedReplicasLst.size() < this.quorum) {
-            (mds.new GcMarker(key, ts, savedReplicasLst)).start();
+            if (gcEnabled) (mds.new GcMarker(key, ts, savedReplicasLst)).start();
             logger.warn("Hybris could not manage to store data in cloud stores for key {}.", key);
             throw new HybrisException("Hybris could not manage to store data in cloud stores");
         } 
         
+        boolean modified = false;
         try {
-            mds.tsWrite(key, new Metadata(ts, Utils.getHash(value), savedReplicasLst), stat.getVersion());
+            modified = mds.tsWrite(key, new Metadata(ts, Utils.getHash(value), savedReplicasLst), stat.getVersion());
         } catch (HybrisException e) {
-            (mds.new GcMarker(key, ts, savedReplicasLst)).start();
+            if (gcEnabled) (mds.new GcMarker(key, ts, savedReplicasLst)).start();
             logger.warn("Hybris could not manage to store metadata on Zookeeper for key {}.", key);
             throw new HybrisException("Hybris could not manage to store the metadata on Zookeeper");
         }
+        
+        if (gcEnabled && modified)
+            (mds.new GcMarker(key)).start();
         
         StringBuilder strBld = new StringBuilder("Data successfully stored to these replicas: ");
         for (CloudProvider cloud : savedReplicasLst) strBld.append(cloud.getId() + " ");
@@ -341,8 +348,7 @@ public class Hybris {
                 }
             }
             
-            if (error)
-                it.remove();
+            if (error) it.remove();
         }
         mds.removeOrphanKeys(orphanKeys);
         
