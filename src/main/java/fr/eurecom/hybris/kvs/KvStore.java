@@ -103,10 +103,10 @@ public class KvStore {
                         logger.debug("Created root data container \"{}\" for {}", rootContainer, provider.getId());
                 }
                 
-                logger.debug("Storing {} on {}...", key, provider.getId());
+                //logger.debug("Storing {} on {}...", key, provider.getId());
                 blob = storage.blobBuilder(key).payload(value).build();
                 storage.putBlob(rootContainer, blob);
-                logger.debug("Finished storing {} on {}.", key, provider.getId());
+                //logger.debug("Finished storing {} on {}.", key, provider.getId());
                 return provider;
             } catch (Exception ex) {
                 logger.warn("Could not put " + key + " on " + provider.getId(), ex);
@@ -216,7 +216,7 @@ public class KvStore {
                                     .buildView(BlobStoreContext.class);
 
             storage = context.getBlobStore();
-            for (StorageMetadata resourceMd : storage.list(rootContainer))
+            for (StorageMetadata resourceMd : storage.list(rootContainer))  // TODO this list might just be a partial PageSet
                 keys.add(resourceMd.getName());
             return keys;
         } catch (Exception ex) {

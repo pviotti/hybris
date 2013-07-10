@@ -49,7 +49,7 @@ public class HybrisTest extends HybrisAbstractTest {
         long start = 0, end = 0;
         
         start = System.currentTimeMillis();
-        hybris.writeParallel(key1, value1);
+        hybris.write(key1, value1);
         end = System.currentTimeMillis();
         System.out.println("Parallel write: " + (end - start) + " ms");
         
@@ -59,7 +59,7 @@ public class HybrisTest extends HybrisAbstractTest {
         assertNull(hybris.read(key1));
         
         start = System.currentTimeMillis();
-        hybris.write(key2, value2);
+        hybris.writeSerial(key2, value2);
         end = System.currentTimeMillis();
         System.out.println("Serial write: " + (end - start) + " ms");
         

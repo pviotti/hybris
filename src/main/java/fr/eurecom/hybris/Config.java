@@ -23,6 +23,8 @@ public class Config {
     public static String LOGGER_NAME = "hybrisLogger";
     
     public static String CONST_T = "fr.eurecom.hybris.t";
+    public static String CONST_TO_WRITE = "fr.eurecom.hybris.timeoutwrite";
+    public static String CONST_TO_READ = "fr.eurecom.hybris.timeoutread";
     
     public static String ZK_ADDR = "fr.eurecom.hybris.zk.address";
     public static String ZK_ROOT = "fr.eurecom.hybris.zk.root";

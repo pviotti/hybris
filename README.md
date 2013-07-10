@@ -6,7 +6,7 @@ hybrid cloud based data storage described in [\[1\]][1].
 
 Hybris code base is composed by two main modules: MdStore and KvStore, 
 the first being a thin wrapper layer of the metadata storage engine (i.e. Zookeeper),
-while the latter implements the storage primitives towards the API of the main 
+while the latter implements the storage primitives towards the APIs of the main 
 public cloud storage services.  
 
 In this context, the Hybris library exposes a simple set of APIs 
