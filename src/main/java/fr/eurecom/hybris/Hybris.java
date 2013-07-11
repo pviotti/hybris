@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
 
 import fr.eurecom.hybris.kvs.CloudProvider;
 import fr.eurecom.hybris.kvs.KvStore;
-import fr.eurecom.hybris.kvs.KvStore.KvsPutWorker;
 import fr.eurecom.hybris.mds.MdStore;
 import fr.eurecom.hybris.mds.Metadata;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
@@ -32,8 +31,8 @@ import fr.eurecom.hybris.mds.Metadata.Timestamp;
  */
 public class Hybris {
 
-    private Config conf = Config.getInstance();
     private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
+    private Config conf;
     
     private MdStore mds;
     private KvStore kvs;
@@ -48,15 +47,15 @@ public class Hybris {
     
     public Hybris() throws HybrisException {
         try {
+            conf = Config.getInstance();
             mds = new MdStore(conf.getProperty(Config.ZK_ADDR), 
                                 conf.getProperty(Config.ZK_ROOT));
+            kvs = new KvStore(conf.getProperty(Config.KVS_ROOT), 
+                    Boolean.parseBoolean(conf.getProperty(Config.KVS_TESTSONSTARTUP)));
         } catch (IOException e) {
             logger.error("Could not initialize the Zookeeper metadata store.", e);
             throw new HybrisException("Could not initialize the Zookeeper metadata store.");
         }
-        
-        kvs = new KvStore(conf.getProperty(Config.KVS_ROOT), 
-                            Boolean.parseBoolean(conf.getProperty(Config.KVS_TESTSONSTARTUP)));
         
         int t = Integer.parseInt(conf.getProperty(Config.HS_T));
         this.quorum = t + 1;
@@ -67,16 +66,16 @@ public class Hybris {
     
     public Hybris(String zkAddress, String zkRoot, String kvsRoot, 
                     boolean kvsTestOnStartup, int t, int writeTimeout, 
-                        int readTimeout, boolean gcEnabled) throws HybrisException {
-        
+                    int readTimeout, boolean gcEnabled) throws HybrisException {
         try {
+            conf = Config.getInstance();
             mds = new MdStore(zkAddress, zkRoot);
+            kvs = new KvStore(zkRoot, kvsTestOnStartup);
         } catch (IOException e) {
             logger.error("Could not initialize the Zookeeper metadata store.", e);
             throw new HybrisException("Could not initialize the Zookeeper metadata store.");
         }
         
-        kvs = new KvStore(zkRoot, kvsTestOnStartup);
         this.quorum = t + 1;
         this.TIMEOUT_WRITE = writeTimeout;
         this.TIMEOUT_READ = readTimeout;
@@ -115,7 +114,7 @@ public class Hybris {
         do {
             synchronized(kvs.getProviders()) {
                 for (CloudProvider provider : kvs.getProviders().subList(idxFrom, idxTo))
-                    futureLst.add(executor.submit(new KvsPutWorker(provider, kvsKey, value)));
+                    futureLst.add(executor.submit(kvs.new KvsPutWorker(provider, kvsKey, value)));
             }
             
             CloudProvider savedReplica = null;

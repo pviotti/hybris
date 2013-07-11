@@ -1,6 +1,7 @@
 package fr.eurecom.hybris;
 
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.Properties;
 
 import org.apache.log4j.PropertyConfigurator;
@@ -39,7 +40,7 @@ public class Config {
     public static String C_ENABLED = "fr.eurecom.hybris.clouds.%s.enabled";
     public static String C_COST = "fr.eurecom.hybris.clouds.%s.cost";
     
-    private Config () {
+    private Config () throws IOException {
         try {
             hybrisProperties = new Properties();
             hybrisProperties.load(new FileInputStream(generalConfFileName));
@@ -48,13 +49,13 @@ public class Config {
             accountsProperties.load(new FileInputStream(accountsConfFileName));
             
             PropertyConfigurator.configure(log4jConfFileName);
-        } catch (Exception e) {
+        } catch (IOException e) {
             System.err.println("FATAL: Could not find properties and/or log4j configuration files.");
-            System.exit(-1);
+            throw e;
         }
     }
     
-    public static Config getInstance () {
+    public static Config getInstance () throws IOException {
         if (instance == null)
             instance = new Config();
         return instance;

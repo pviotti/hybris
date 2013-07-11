@@ -45,20 +45,20 @@ public class MdStore implements Watcher {
     
     /**
      * Constructs a new MdStore.
-     * @param address the address of ZK server
-     * @param storageRoot the hybris metadata root folder
+     * @param zkAddress the address of ZK server
+     * @param zkRoot the hybris metadata root folder
      * @throws IOException thrown in case of error while initializing the ZK client
      */
-    public MdStore(String address, String storageRoot) throws IOException {
+    public MdStore(String zkAddress, String zkRoot) throws IOException {
         
-        storageRoot = "/" + storageRoot;
+        storageRoot = "/" + zkRoot;
         
-        gcRoot = "/" + storageRoot + "-gc";
+        gcRoot = storageRoot + "-gc";
         gcStaleDir = gcRoot + "/stale";
         gcOrphansDir = gcRoot + "/orphans";
         
         try {
-            zk = new ZooKeeper(address, 5000, this);
+            zk = new ZooKeeper(zkAddress, 5000, this);
             
             Stat stat = zk.exists(this.storageRoot, false);
             if (stat == null) {
@@ -83,7 +83,7 @@ public class MdStore implements Watcher {
                 zk.create(gcOrphansDir, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                 logger.debug("Created GC orphans container \"{}\".", gcOrphansDir);
             }
-        } catch (KeeperException e) {
+        } catch (KeeperException | IOException e) {
             logger.error("KeeperException, could not initialize the Zookeeper client. " + e.getMessage(), e);
             throw new IOException(e);
         } catch (InterruptedException e) {

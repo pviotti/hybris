@@ -24,7 +24,6 @@ public class CloudProvider implements Comparable<CloudProvider>, Serializable {
 
     public CloudProvider(String id, String accessKey, String secretKey,
                             boolean enabled, int cost) {
-        super();
         this.id = id;
         this.accessKey = accessKey;
         this.secretKey = secretKey;

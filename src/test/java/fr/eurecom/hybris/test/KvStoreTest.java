@@ -21,7 +21,7 @@ public class KvStoreTest extends HybrisAbstractTest {
     
     private String KVS_ROOT = "kvstest-root";
     
-    public KvStoreTest () {
+    public KvStoreTest () throws IOException {
         Config.getInstance();
         kvs = new KvStore(KVS_ROOT, false);
     }

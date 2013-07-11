@@ -29,7 +29,7 @@ import fr.eurecom.hybris.Config;
  */
 public class KvStore {
     
-    private Config conf = Config.getInstance();
+    private Config conf;
     private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
     
     private List<CloudProvider> providers;      // storage providers sorted by cost and latency
@@ -41,7 +41,9 @@ public class KvStore {
     
     private static String KEY_NOT_FOUND_MSG = "Key not found";
     
-    public KvStore(String container, boolean testLatency) {
+    public KvStore(String container, boolean testLatency) throws IOException {
+        
+        conf = Config.getInstance();
         
         rootContainer = container;
         
@@ -71,7 +73,12 @@ public class KvStore {
     public List<CloudProvider> getProviders()   { return providers; }
     
     
-    public static class KvsPutWorker implements Callable<CloudProvider> {
+    /**
+     * Worker thread class in charge of asynchronously performing 
+     * write operation on cloud stores. 
+     * @author p.viotti
+     */
+    public class KvsPutWorker implements Callable<CloudProvider> {
         
         private CloudProvider provider;
         private String key;
@@ -85,35 +92,13 @@ public class KvStore {
         }
 
         @Override
-        public CloudProvider call() throws Exception {
-            BlobStoreContext context = null; 
-            BlobStore storage = null; 
-            Blob blob = null;
-            
+        public CloudProvider call() {
             try {
-                context = ContextBuilder.newBuilder(provider.getId())
-                                        .credentials(provider.getAccessKey(), provider.getSecretKey())
-                                        .buildView(BlobStoreContext.class);
-                storage = context.getBlobStore();
-                
-                if (!provider.isAlreadyUsed()) {
-                    boolean created = storage.createContainerInLocation(null, rootContainer);
-                    provider.setAlreadyUsed(true);
-                    if (created)
-                        logger.debug("Created root data container \"{}\" for {}", rootContainer, provider.getId());
-                }
-                
-                //logger.debug("Storing {} on {}...", key, provider.getId());
-                blob = storage.blobBuilder(key).payload(value).build();
-                storage.putBlob(rootContainer, blob);
-                //logger.debug("Finished storing {} on {}.", key, provider.getId());
+                put(provider, key, value);
                 return provider;
-            } catch (Exception ex) {
-                logger.warn("Could not put " + key + " on " + provider.getId(), ex);
+            } catch (Exception e) {
+                logger.warn("Could not put " + key + " on " + provider.getId(), e);
                 return null;
-            } finally {
-                if (context != null)
-                    context.close();
             }
         }
     }
@@ -143,8 +128,10 @@ public class KvStore {
                     logger.debug("Created root data container \"{}\" for {}", rootContainer, provider.getId());
             }
             
+            // logger.debug("Storing {} on {}...", key, provider.getId());
             blob = storage.blobBuilder(key).payload(data).build();
             storage.putBlob(rootContainer, blob);
+            // logger.debug("Finished storing {} on {}.", key, provider.getId());
             
         } catch (Exception ex) {
             throw new IOException(ex);

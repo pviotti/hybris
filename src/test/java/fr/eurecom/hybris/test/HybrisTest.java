@@ -81,6 +81,6 @@ public class HybrisTest extends HybrisAbstractTest {
     public static void main(String[] args) throws Exception {
         HybrisTest ht = new HybrisTest();
         ht.setUp();
-        ht.testParallelWrite();
+        ht.testBasicWriteAndRead();
     }
 }

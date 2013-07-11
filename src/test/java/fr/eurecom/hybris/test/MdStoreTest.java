@@ -69,7 +69,6 @@ public class MdStoreTest extends HybrisAbstractTest {
     @Test
     public void testOverwrite() throws HybrisException {
         
-        Config.getInstance();
         String key = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
         List<CloudProvider> replicas = new ArrayList<CloudProvider>();
         replicas.add(new CloudProvider("A", "A-accessKey", "A-secretKey", true, 0));
