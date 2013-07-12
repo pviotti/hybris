@@ -1,10 +1,13 @@
 package fr.eurecom.hybris.test;
 
+import static org.junit.Assert.*;
+
 import java.math.BigInteger;
 import java.util.Arrays;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import fr.eurecom.hybris.Hybris;
@@ -13,9 +16,10 @@ import fr.eurecom.hybris.HybrisException;
 
 public class HybrisTest extends HybrisAbstractTest {
 
-    protected Hybris hybris;
+    protected static Hybris hybris;
     
-    public HybrisTest () throws HybrisException {
+    @BeforeClass
+    public static void beforeClassSetup() throws HybrisException {
         hybris = new Hybris();
     }
     
@@ -36,7 +40,6 @@ public class HybrisTest extends HybrisAbstractTest {
         assertTrue(Arrays.equals(value, output));
         
         hybris.delete(key);
-        
         assertNull(hybris.read(key));
     }
     
@@ -75,12 +78,5 @@ public class HybrisTest extends HybrisAbstractTest {
         byte[] array = new byte[size];
         Arrays.fill(array, b);
         return array;
-    }
-    
-    // XXX TEMP
-    public static void main(String[] args) throws Exception {
-        HybrisTest ht = new HybrisTest();
-        ht.setUp();
-        ht.testBasicWriteAndRead();
     }
 }

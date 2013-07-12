@@ -352,21 +352,20 @@ public class MdStore implements Watcher {
     
     
     /**
-     * Delete the set of stale keys passed as argument.
+     * Delete the key passed as argument from the list of keys 
+     * to be checked as outdated for gc.
      * @param staleKeys
      */
-    public void removeStaleKeys(List<String> staleKeys) {
+    public void removeStaleKey(String staleKey) {
         
-        for (String key : staleKeys) {
-            String znodePath = gcStaleDir + "/" + key;
-            try {
-                zk.delete(znodePath, -1);
-            } catch (InterruptedException e) {
+        String znodePath = gcStaleDir + "/" + staleKey;
+        try {
+            zk.delete(znodePath, -1);
+        } catch (InterruptedException e) {
+            logger.warn("Could not delete orphan key " + znodePath, e);
+        } catch (KeeperException e) {
+            if (e.code() != KeeperException.Code.NONODE)
                 logger.warn("Could not delete orphan key " + znodePath, e);
-            } catch (KeeperException e) {
-                if (e.code() != KeeperException.Code.NONODE)
-                    logger.warn("Could not delete orphan key " + znodePath, e);
-            }
         }
     }
     
@@ -431,31 +430,42 @@ public class MdStore implements Watcher {
     
     
     /**
+     * Empty stale and orphan keys containers.
+     * @throws HybrisException
+     */
+    public void emptyStaleAndOrphansContainers() throws HybrisException {
+        
+        try {
+            for (String path : new String[]{gcOrphansDir, gcStaleDir})
+                emptyContainer(path);
+        } catch (KeeperException e) {
+            logger.warn("KeeperException, could not empty the container", e);
+            throw new HybrisException("KeeperException, could not empty the container", e);
+        } catch (InterruptedException e) {
+            logger.warn("InterruptedException, could not empty the container", e);
+            throw new HybrisException("InterruptedException, could not empty the container", e);
+        }
+    }
+    
+    
+    /**
      * Empty the metadata storage root container.
      * ATTENTION: it erases all metadata stored in the root container!
      * @throws HybrisException
      */
-    public void emptyStorageContainer() throws HybrisException {
+    public void emptyMetadataContainer() throws HybrisException {
         
-        String path = storageRoot;
         try {
-            Stat s = zk.exists(path, false);
-            if (s != null) {
-                List<String> children = zk.getChildren(path, false);
-                for (String child : children) {
-                    String node = path + "/" + child;
-                    recursiveDelete(node);
-                }
-            }
+            emptyContainer(storageRoot);
         } catch (KeeperException e) {
-            logger.warn("KeeperException, could not empty the storage container " + path, e);
-            throw new HybrisException("KeeperException, could not empty the storage container " + path, e);
+            logger.warn("KeeperException, could not empty the container", e);
+            throw new HybrisException("KeeperException, could not empty the container", e);
         } catch (InterruptedException e) {
-            logger.warn("InterruptedException, could not empty the storage container " + path, e);
-            throw new HybrisException("InterruptedException, could not empty the storage container " + path, e);
+            logger.warn("InterruptedException, could not empty the container", e);
+            throw new HybrisException("InterruptedException, could not empty the container", e);
         }
     }
-    
+
     
     @Override
     public void process(WatchedEvent event) {
@@ -466,6 +476,17 @@ public class MdStore implements Watcher {
                                         Private methods
        --------------------------------------------------------------------------------------- */
     
+    
+    private void emptyContainer(String path) throws KeeperException, InterruptedException {
+        Stat s = zk.exists(path, false);
+        if (s != null) {
+            List<String> children = zk.getChildren(path, false);
+            for (String child : children) {
+                String node = path + "/" + child;
+                recursiveDelete(node);
+            }
+        }
+    }
     
     private void recursiveDelete(String key) throws KeeperException, InterruptedException {
         Stat s = zk.exists(key, false);

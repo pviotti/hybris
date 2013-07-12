@@ -66,7 +66,8 @@ public class HybrisTestCli implements Runnable {
                 } else
                     System.out.println("* Unknown command.");
             }
-        } catch (IOException ioe) {
+            hybris.gc();
+        } catch (IOException | HybrisException ioe) {
            ioe.printStackTrace();
            System.exit(1);
         }

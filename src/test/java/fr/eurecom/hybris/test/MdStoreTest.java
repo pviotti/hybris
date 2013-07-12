@@ -1,5 +1,7 @@
 package fr.eurecom.hybris.test;
 
+import static org.junit.Assert.*;
+
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -11,6 +13,7 @@ import java.util.Map;
 import org.apache.zookeeper.data.Stat;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import fr.eurecom.hybris.Config;
@@ -24,12 +27,13 @@ import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 public class MdStoreTest extends HybrisAbstractTest {
     
-    private MdStore mds;
+    private static MdStore mds;
     
-    private String MDS_TEST_ROOT = "mdstest-root";
-    private String MDS_ADDRESS = "localhost:2181";
+    private static String MDS_TEST_ROOT = "mdstest-root";
+    private static String MDS_ADDRESS = "localhost:2181";
     
-    public MdStoreTest () throws IOException {
+    @BeforeClass
+    public static void beforeClassSetup() throws IOException {
         Config.getInstance();
         mds = new MdStore(MDS_ADDRESS, MDS_TEST_ROOT);
     }
@@ -37,7 +41,8 @@ public class MdStoreTest extends HybrisAbstractTest {
     // Executed before each test
     @Before
     public void setUp() throws Exception {
-        mds.emptyStorageContainer();
+        mds.emptyMetadataContainer();
+        mds.emptyStaleAndOrphansContainers();
     }
 
     @After
@@ -325,12 +330,5 @@ public class MdStoreTest extends HybrisAbstractTest {
         allMd = mds.getAll();
         assertEquals(1, allMd.size());
         assertEquals(md, allMd.get(key2));
-    }
-    
-    // TODO TEMP
-    public static void main(String[] args) throws Exception {
-        MdStoreTest t = new MdStoreTest();
-        t.setUp();
-        t.testGetAll();
     }
 }

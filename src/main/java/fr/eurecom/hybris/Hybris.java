@@ -142,18 +142,18 @@ public class Hybris {
             if (gcEnabled) (mds.new GcMarker(key, ts, savedReplicasLst)).start();
             logger.warn("Hybris could not manage to store data in cloud stores for key {}.", key);
             throw new HybrisException("Hybris could not manage to store data in cloud stores");
-        } 
+        }
         
-        boolean modified = false;
+        boolean overwritten = false;
         try {
-            modified = mds.tsWrite(key, new Metadata(ts, Utils.getHash(value), savedReplicasLst), stat.getVersion());
+            overwritten = mds.tsWrite(key, new Metadata(ts, Utils.getHash(value), savedReplicasLst), stat.getVersion());
         } catch (HybrisException e) {
             if (gcEnabled) (mds.new GcMarker(key, ts, savedReplicasLst)).start();
             logger.warn("Hybris could not manage to store metadata on Zookeeper for key {}.", key);
             throw new HybrisException("Hybris could not manage to store the metadata on Zookeeper");
         }
         
-        if (gcEnabled && modified) (mds.new GcMarker(key)).start();
+        if (gcEnabled && overwritten) (mds.new GcMarker(key)).start();
         
         StringBuilder strBld = new StringBuilder("Data successfully stored on these replicas: ");
         for (CloudProvider cloud : savedReplicasLst) strBld.append(cloud.getId() + " ");
@@ -255,9 +255,10 @@ public class Hybris {
                         return value;
                     } else      // the hash doesn't match: byzantine fault: let's try with the other ones
                         continue;
-                } else {        // this could be due to:
-                                // a. byzantine replicas 
-                                // b. concurrent gc 
+                } else {        /* this could be due to:
+                                 * a. byzantine replicas 
+                                 * b. concurrent gc
+                                 */ 
                     Metadata newMd = mds.tsRead(key, null);
                     if (newMd != null) {
                         if (newMd.getTs().isGreater(md.getTs())) {    // it's because of concurrent gc
@@ -353,16 +354,13 @@ public class Hybris {
         
         // Stale
         List<String> staleKeys = mds.getStaleKeys();
-        for (Iterator<String> it = staleKeys.iterator(); it.hasNext();) {
-            String key = it.next();
+        for (String key : staleKeys) {
             try {
                 gc(key);
             } catch (HybrisException e) {
                 logger.warn("GC: could not gc key {}", key);
-                it.remove();
             }
         }
-        mds.removeStaleKeys(staleKeys);
     }
     
     
@@ -413,6 +411,8 @@ public class Hybris {
                 }
             }
         }
+        
+        mds.removeStaleKey(key);
     }
     
     
@@ -461,6 +461,9 @@ public class Hybris {
                 }
             }
         }
+        
+        mds.emptyStaleAndOrphansContainers();   // XXX this should set a lock in order to be sure to not
+                                                // delete reference to stale or orphans created concurrently 
     }
 
     

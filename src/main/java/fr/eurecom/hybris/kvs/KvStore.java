@@ -39,8 +39,6 @@ public class KvStore {
     private static String TEST_KEY = "latency_test-";
     private static String TEST_VALUE = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM";
     
-    private static String KEY_NOT_FOUND_MSG = "Key not found";
-    
     public KvStore(String container, boolean testLatency) throws IOException {
         
         conf = Config.getInstance();
@@ -85,7 +83,6 @@ public class KvStore {
         private byte[] value;
         
         public KvsPutWorker(CloudProvider provider, String key, byte[] value) {
-            super();
             this.provider = provider;
             this.key = key;
             this.value = value;
@@ -154,14 +151,13 @@ public class KvStore {
                                     .buildView(BlobStoreContext.class);
             storage = context.getBlobStore();
             blob = storage.getBlob(rootContainer, key);
-            if (blob == null) throw new IOException(KEY_NOT_FOUND_MSG);      // key not found
-            return ByteStreams.toByteArray(blob.getPayload());
-        } catch (Exception e) {
-            if (KEY_NOT_FOUND_MSG.equalsIgnoreCase(e.getMessage())) {
+            if (blob == null) {
                 logger.warn("Could not find key {} in {}", key, provider.getId());
                 return null;
-            } else
-                throw new IOException();
+            }
+            return ByteStreams.toByteArray(blob.getPayload());
+        } catch (Exception e) {
+            throw new IOException(e);
         } finally {
             if (context != null)
                 context.close();
@@ -237,7 +233,7 @@ public class KvStore {
        --------------------------------------------------------------------------------------- */
     
 
-    private void testLatency() {
+    private void testLatency() {    // TODO parallelize
         
         byte[] testData = TEST_VALUE.getBytes();
         String testKey = TEST_KEY + (new Random()).nextInt(1000);

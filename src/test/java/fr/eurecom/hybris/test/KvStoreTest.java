@@ -6,8 +6,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.junit.Assert.*;
+
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import fr.eurecom.hybris.Config;
@@ -17,11 +20,12 @@ import fr.eurecom.hybris.kvs.KvStore;
 
 public class KvStoreTest extends HybrisAbstractTest {
 
-    private KvStore kvs;
+    private static KvStore kvs;
     
-    private String KVS_ROOT = "kvstest-root";
+    private static String KVS_ROOT = "kvstest-root";
     
-    public KvStoreTest () throws IOException {
+    @BeforeClass
+    public static void beforeClassSetup() throws IOException {
         Config.getInstance();
         kvs = new KvStore(KVS_ROOT, false);
     }
@@ -195,12 +199,5 @@ public class KvStoreTest extends HybrisAbstractTest {
             assertFalse(keysLst.contains(key3));
             assertTrue(keysLst.contains(key4));
         }
-    }
-
-    // TODO TEMP
-    public static void main(String[] args) throws Exception {
-        KvStoreTest kvs = new KvStoreTest();
-        kvs.setUp();
-        kvs.testPutGetDeleteList();
     }
 }
