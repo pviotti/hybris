@@ -55,9 +55,9 @@ public class MdStoreTest extends HybrisAbstractTest {
         Timestamp ts = new Timestamp(new BigInteger(10, random).intValue(), Utils.getClientId());
         byte[] hash = (new BigInteger(50, random).toString(10)).getBytes();
         List<CloudProvider> replicas = new ArrayList<CloudProvider>();
-        replicas.add(new CloudProvider("A", "A-accessKey", "A-secretKey", true, 0));
-        replicas.add(new CloudProvider("B", "B-accessKey", "B-secretKey", true, 0));
-        replicas.add(new CloudProvider("C", "C-accessKey", "C-secretKey", true, 0));
+        replicas.add(new CloudProvider("transient", "A-accessKey", "A-secretKey", true, 0));
+        replicas.add(new CloudProvider("transient", "B-accessKey", "B-secretKey", true, 0));
+        replicas.add(new CloudProvider("transient", "C-accessKey", "C-secretKey", true, 0));
         Metadata md = new Metadata(ts, hash, replicas);
         
         mds.tsWrite(key, md, MdStore.NONODE);
@@ -76,7 +76,7 @@ public class MdStoreTest extends HybrisAbstractTest {
         
         String key = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
         List<CloudProvider> replicas = new ArrayList<CloudProvider>();
-        replicas.add(new CloudProvider("A", "A-accessKey", "A-secretKey", true, 0));
+        replicas.add(new CloudProvider("transient", "A-accessKey", "A-secretKey", true, 0));
         byte[] hash = (new BigInteger(50, random).toString(10)).getBytes();
         Stat stat = new Stat();
         Metadata retrieved;
@@ -177,9 +177,9 @@ public class MdStoreTest extends HybrisAbstractTest {
         Timestamp ts = new Timestamp(new BigInteger(10, random).intValue(), Utils.getClientId());
         byte[] hash = (new BigInteger(50, random).toString(10)).getBytes();
         List<CloudProvider> replicas = new ArrayList<CloudProvider>();
-        replicas.add(new CloudProvider("A", "A-accessKey", "A-secretKey", true, 10));
-        replicas.add(new CloudProvider("B", "B-accessKey", "B-secretKey", true, 20));
-        replicas.add(new CloudProvider("C", "C-accessKey", "C-secretKey", true, 30));
+        replicas.add(new CloudProvider("transient", "A-accessKey", "A-secretKey", true, 10));
+        replicas.add(new CloudProvider("transient", "B-accessKey", "B-secretKey", true, 20));
+        replicas.add(new CloudProvider("transient", "C-accessKey", "C-secretKey", true, 30));
         
         Metadata md = new Metadata(ts, hash, replicas); 
         mds.tsWrite(key, md, MdStore.NONODE);
@@ -215,8 +215,8 @@ public class MdStoreTest extends HybrisAbstractTest {
         Timestamp ts = new Timestamp(new BigInteger(10, random).intValue(), Utils.getClientId());
         byte[] hash = (new BigInteger(50, random).toString(10)).getBytes();
         List<CloudProvider> replicas = new ArrayList<CloudProvider>();
-        replicas.add(new CloudProvider("A", "A-accessKey", "A-secretKey", true, 10));
-        replicas.add(new CloudProvider("B", "B-accessKey", "B-secretKey", true, 20));
+        replicas.add(new CloudProvider("transient", "A-accessKey", "A-secretKey", true, 10));
+        replicas.add(new CloudProvider("transient", "B-accessKey", "B-secretKey", true, 20));
         
         Metadata md = new Metadata(ts, hash, replicas);
         
@@ -276,8 +276,8 @@ public class MdStoreTest extends HybrisAbstractTest {
         Timestamp ts = new Timestamp(new BigInteger(10, random).intValue(), Utils.getClientId());
         byte[] hash = (new BigInteger(50, random).toString(10)).getBytes();
         List<CloudProvider> replicas = new ArrayList<CloudProvider>();
-        replicas.add(new CloudProvider("A", "A-accessKey", "A-secretKey", true, 10));
-        replicas.add(new CloudProvider("B", "B-accessKey", "B-secretKey", true, 20));
+        replicas.add(new CloudProvider("transient", "A-accessKey", "A-secretKey", true, 10));
+        replicas.add(new CloudProvider("transient", "B-accessKey", "B-secretKey", true, 20));
         
         Metadata md = new Metadata(ts, hash, replicas);
         

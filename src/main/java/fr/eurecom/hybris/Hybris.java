@@ -50,11 +50,12 @@ public class Hybris {
             conf = Config.getInstance();
             mds = new MdStore(conf.getProperty(Config.ZK_ADDR), 
                                 conf.getProperty(Config.ZK_ROOT));
-            kvs = new KvStore(conf.getProperty(Config.KVS_ROOT), 
-                    Boolean.parseBoolean(conf.getProperty(Config.KVS_TESTSONSTARTUP)));
+            kvs = new KvStore(conf.getProperty(Config.KVS_ACCOUNTSFILE),
+                                conf.getProperty(Config.KVS_ROOT), 
+                                Boolean.parseBoolean(conf.getProperty(Config.KVS_TESTSONSTARTUP)));
         } catch (IOException e) {
-            logger.error("Could not initialize the Zookeeper metadata store.", e);
-            throw new HybrisException("Could not initialize the Zookeeper metadata store.");
+            logger.error("Could not initialize Zookeeper or the cloud storage accounts.", e);
+            throw new HybrisException("Could not initialize Zookeeper or the cloud storage accounts.");
         }
         
         int t = Integer.parseInt(conf.getProperty(Config.HS_T));
@@ -64,16 +65,16 @@ public class Hybris {
         this.gcEnabled = Boolean.parseBoolean(conf.getProperty(Config.HS_GC));
     }
     
-    public Hybris(String zkAddress, String zkRoot, String kvsRoot, 
-                    boolean kvsTestOnStartup, int t, int writeTimeout, 
-                    int readTimeout, boolean gcEnabled) throws HybrisException {
+    public Hybris(String zkAddress, String zkRoot, 
+                    String kvsAccountFile, String kvsRoot, boolean kvsTestOnStartup, 
+                    int t, int writeTimeout, int readTimeout, boolean gcEnabled) throws HybrisException {
         try {
             conf = Config.getInstance();
             mds = new MdStore(zkAddress, zkRoot);
-            kvs = new KvStore(zkRoot, kvsTestOnStartup);
+            kvs = new KvStore(kvsAccountFile, kvsRoot, kvsTestOnStartup);
         } catch (IOException e) {
-            logger.error("Could not initialize the Zookeeper metadata store.", e);
-            throw new HybrisException("Could not initialize the Zookeeper metadata store.");
+            logger.error("Could not initialize Zookeeper or the cloud storage accounts.", e);
+            throw new HybrisException("Could not initialize Zookeeper or the cloud storage accounts.");
         }
         
         this.quorum = t + 1;
@@ -155,9 +156,7 @@ public class Hybris {
         
         if (gcEnabled && overwritten) (mds.new GcMarker(key)).start();
         
-        StringBuilder strBld = new StringBuilder("Data successfully stored on these replicas: ");
-        for (CloudProvider cloud : savedReplicasLst) strBld.append(cloud.getId() + " ");
-        logger.info(strBld.toString());
+        logger.info("Data successfully stored on these replicas: {}", savedReplicasLst);
     }
     
     /**
@@ -461,9 +460,7 @@ public class Hybris {
                 }
             }
         }
-        
-        mds.emptyStaleAndOrphansContainers();   // XXX this should set a lock in order to be sure to not
-                                                // delete reference to stale or orphans created concurrently 
+        //mds.emptyStaleAndOrphansContainers();
     }
 
     
@@ -473,10 +470,9 @@ public class Hybris {
      * @throws HybrisException 
      */
     public static void main(String[] args) throws HybrisException {
-//        Hybris hybris = new Hybris();
-//        hybris.batchGc();
-//        hybris.write("mykey", "my_value".getBytes());
-//        String value = new String(hybris.read("mykey"));
-//        System.out.println("Read output: " + value);
+        Hybris hybris = new Hybris();
+        hybris.write("mykey", "my_value".getBytes());
+        String value = new String(hybris.read("mykey"));
+        System.out.println("Read output: " + value);
     }
 }

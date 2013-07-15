@@ -30,11 +30,14 @@ public class HybrisGcTest extends HybrisAbstractTest {
     private String MDS_TEST_ROOT = "mdstest-root";
     private String MDS_ADDRESS = "localhost:2181";
     
+    private String KVS_ACCOUNTS_FILE = "accounts.properties";
+    
     public HybrisGcTest() throws HybrisException, IOException {
-        hybris = new Hybris(MDS_ADDRESS, MDS_TEST_ROOT, KVS_ROOT, false, 1, 600, 600, true);
+        hybris = new Hybris(MDS_ADDRESS, MDS_TEST_ROOT, KVS_ACCOUNTS_FILE,
+                                KVS_ROOT, false, 0, 600, 600, true);
         
         mds = new MdStore(MDS_ADDRESS, MDS_TEST_ROOT);
-        kvs = new KvStore(KVS_ROOT, false);
+        kvs = new KvStore(KVS_ACCOUNTS_FILE, KVS_ROOT, false);
     }
     
     // Executed before each test
@@ -44,14 +47,14 @@ public class HybrisGcTest extends HybrisAbstractTest {
         mds.emptyStaleAndOrphansContainers();
         synchronized(kvs.getProviders()) {
             for (CloudProvider provider : kvs.getProviders())
-                kvs.emptyStorageContainer(provider);
+                try{
+                    kvs.emptyStorageContainer(provider);
+                } catch (Exception e) {}
         }
     }
 
     @Test
     public void testGcKey() throws HybrisException, IOException {
-        
-        System.out.println("TEST GC KEY");
         
         String key = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
         byte[] value1 = (new BigInteger(50, random).toString(32)).getBytes();
@@ -81,8 +84,6 @@ public class HybrisGcTest extends HybrisAbstractTest {
     
     @Test
     public void testGc() throws HybrisException, IOException, InterruptedException {
-        
-        System.out.println("TEST GC");
         
         String key1 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
         String key2 = TEST_KEY_PREFIX + (new BigInteger(50, random).toString(32));
@@ -145,8 +146,6 @@ public class HybrisGcTest extends HybrisAbstractTest {
     
     @Test
     public void testBatchGc() throws HybrisException, IOException, InterruptedException {
-        
-        System.out.println("TEST BATCH GC");
         
         // write random  stuff on kvs
         kvs.put(kvs.getProviders().get(0), "malformedkey1", "fakevalue1".getBytes());

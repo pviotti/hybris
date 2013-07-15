@@ -22,12 +22,12 @@ public class KvStoreTest extends HybrisAbstractTest {
 
     private static KvStore kvs;
     
-    private static String KVS_ROOT = "kvstest-root";
+    private static String KVS_ROOT = "kvstest-root-prova";
     
     @BeforeClass
     public static void beforeClassSetup() throws IOException {
         Config.getInstance();
-        kvs = new KvStore(KVS_ROOT, false);
+        kvs = new KvStore("accounts-test.properties", KVS_ROOT, true);
     }
     
     // Executed before each test

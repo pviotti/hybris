@@ -129,13 +129,8 @@ public class Metadata implements Serializable {
     
     @Override
     public String toString() {
-        StringBuilder strBld = new StringBuilder("Timestamp [ts=" + ts + ", "
-                                                    + "hash=" + Utils.byteArrayToHexString(hash) + ", replicasLst={");
-        if (replicasLst != null)
-            for (CloudProvider replica : replicasLst)
-                strBld.append(replica.getId() + ",");
-        strBld.append("}]");
-        return strBld.toString();
+        return "Metadata [ts=" + ts + ", " + "hash=" + Utils.byteArrayToHexString(hash) + 
+                ", replicasLst=" + replicasLst + "]";
     }
 
     @Override

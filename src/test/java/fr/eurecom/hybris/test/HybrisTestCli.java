@@ -32,11 +32,12 @@ public class HybrisTestCli implements Runnable {
         System.out.println("Type 'h' for help.");
 
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-
-        try {
-            boolean quit = false;
-            String line;
-            while(!quit) {
+        
+        boolean quit = false;
+        String line;
+        while(!quit) {
+            
+            try {
                 System.out.print(">");
                 line = br.readLine().trim().toLowerCase();
                 
@@ -51,7 +52,10 @@ public class HybrisTestCli implements Runnable {
                 } else if (line.startsWith("r")) {
                     String key = line.split(" ")[1];
                     byte[] value = this.read(key);
-                    System.out.println("Value retrieved: " + new String(value));
+                    if (value == null)
+                        System.out.println("No value was found.");
+                    else
+                        System.out.println("Value retrieved: " + new String(value));
                 } else if (line.startsWith("d")) {
                     String key = line.split(" ")[1];
                     this.delete(key);
@@ -65,12 +69,16 @@ public class HybrisTestCli implements Runnable {
                         System.out.println("\t - " + key + ": " + map.get(key));
                 } else
                     System.out.println("* Unknown command.");
-            }
-            hybris.gc();
-        } catch (IOException | HybrisException ioe) {
-           ioe.printStackTrace();
-           System.exit(1);
+            
+             } catch (IOException e) {
+                e.printStackTrace();
+             } catch (ArrayIndexOutOfBoundsException e) {
+                 System.out.println("* Unknown command.");
+             }
         }
+        try {
+            hybris.gc();
+        } catch (HybrisException e) { e.printStackTrace(); }
     }
     
     private void write(String key, byte[] value) {

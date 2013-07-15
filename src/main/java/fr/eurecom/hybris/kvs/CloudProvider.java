@@ -2,6 +2,10 @@ package fr.eurecom.hybris.kvs;
 
 import java.io.Serializable;
 
+import org.jclouds.ContextBuilder;
+import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.BlobStoreContext;
+
 /**
  * Class for storing cloud storage provider details.
  * @author p.viotti
@@ -14,6 +18,8 @@ public class CloudProvider implements Comparable<CloudProvider>, Serializable {
     
     private transient boolean alreadyUsed;   // whether the storage provider has already been used (to initialize the folder/bucket)
     private transient boolean enabled;
+    
+    private transient BlobStore blobStore;
 
     /* measures to compare the providers */
     private transient long writeLatency;
@@ -33,6 +39,11 @@ public class CloudProvider implements Comparable<CloudProvider>, Serializable {
         this.readLatency = 0;
         this.writeLatency = 0;
         this.alreadyUsed = false;
+        
+        BlobStoreContext context = ContextBuilder.newBuilder(id)
+                                        .credentials(accessKey, secretKey)
+                                        .buildView(BlobStoreContext.class);
+        this.blobStore = context.getBlobStore();
     }
     
     public String getId()                           { return id; }
@@ -51,6 +62,7 @@ public class CloudProvider implements Comparable<CloudProvider>, Serializable {
     public void setReadLatency(long readLatency)    { this.readLatency = readLatency; }
     public int getCost()                            { return cost; }
     public void setCost(int cost)                   { this.cost = cost; }
+    public BlobStore getBlobStore()                 { return blobStore; }
 
     /* 
      * TODO should they be comparable both in terms of cost and latency?
@@ -97,6 +109,10 @@ public class CloudProvider implements Comparable<CloudProvider>, Serializable {
 
     @Override
     public String toString() {
+        return id;
+    }
+    
+    public String toVerboseString() {
         return "CloudProvider (" + id + ") [alreadyUsed=" + alreadyUsed + 
                 ", enabled=" + enabled + ", writeLatency=" + writeLatency +
                 ", readLatency=" + readLatency + ", cost=" + cost + "]";

@@ -8,9 +8,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Callable;
 
-import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.rest.AuthorizationException;
@@ -39,13 +37,14 @@ public class KvStore {
     private static String TEST_KEY = "latency_test-";
     private static String TEST_VALUE = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM";
     
-    public KvStore(String container, boolean testLatency) throws IOException {
+    public KvStore(String accountsFile, String container, boolean testLatency) throws IOException {
         
         conf = Config.getInstance();
         
         rootContainer = container;
         
         this.providers = Collections.synchronizedList(new ArrayList<CloudProvider>());
+        conf.loadAccountsProperties(accountsFile);
         String[] accountIds = conf.getAccountsIds();
         for (String accountId : accountIds) {
             providers.add(new CloudProvider(accountId, 
@@ -62,7 +61,7 @@ public class KvStore {
             logger.debug("Cloud providers sorted by performance/cost metrics:");
             synchronized (this.providers) {
                 for(CloudProvider provider : this.providers) 
-                    logger.debug("\t* " + provider.toString());
+                    logger.debug("\t* " + provider.toVerboseString());
             }
         }
     }
@@ -108,16 +107,8 @@ public class KvStore {
 
    public void put(CloudProvider provider, String key, byte[] data) throws IOException {
         
-        BlobStoreContext context = null; 
-        BlobStore storage = null; 
-        Blob blob = null;
-        
         try {
-            context = ContextBuilder.newBuilder(provider.getId())
-                                    .credentials(provider.getAccessKey(), provider.getSecretKey())
-                                    .buildView(BlobStoreContext.class);
-            storage = context.getBlobStore();
-            
+            BlobStore storage = provider.getBlobStore();
             if (!provider.isAlreadyUsed()) {
                 boolean created = storage.createContainerInLocation(null, rootContainer);
                 provider.setAlreadyUsed(true);
@@ -126,31 +117,20 @@ public class KvStore {
             }
             
             // logger.debug("Storing {} on {}...", key, provider.getId());
-            blob = storage.blobBuilder(key).payload(data).build();
+            Blob blob = storage.blobBuilder(key).payload(data).build();
             storage.putBlob(rootContainer, blob);
             // logger.debug("Finished storing {} on {}.", key, provider.getId());
-            
         } catch (Exception ex) {
             throw new IOException(ex);
-        } finally {
-            if (context != null)
-                context.close();
         }
     }
 
 
     public byte[] get(CloudProvider provider, String key) throws IOException {
         
-        BlobStoreContext context = null; 
-        BlobStore storage = null; 
-        Blob blob = null;
-        
         try {
-            context = ContextBuilder.newBuilder(provider.getId())
-                                    .credentials(provider.getAccessKey(), provider.getSecretKey())
-                                    .buildView(BlobStoreContext.class);
-            storage = context.getBlobStore();
-            blob = storage.getBlob(rootContainer, key);
+            BlobStore storage = provider.getBlobStore();
+            Blob blob = storage.getBlob(rootContainer, key);
             if (blob == null) {
                 logger.warn("Could not find key {} in {}", key, provider.getId());
                 return null;
@@ -158,55 +138,31 @@ public class KvStore {
             return ByteStreams.toByteArray(blob.getPayload());
         } catch (Exception e) {
             throw new IOException(e);
-        } finally {
-            if (context != null)
-                context.close();
         }
     }
 
 
     public void delete(CloudProvider provider, String key) throws IOException {
         
-        BlobStoreContext context = null; 
-        BlobStore storage = null; 
-        
         try {
-            context = ContextBuilder.newBuilder(provider.getId())
-                                    .credentials(provider.getAccessKey(), provider.getSecretKey())
-                                    .buildView(BlobStoreContext.class);
-
-            storage = context.getBlobStore();
+            BlobStore storage = provider.getBlobStore();
             storage.removeBlob(rootContainer, key);
-
         } catch (Exception ex) {
             throw new IOException(ex);
-        } finally {
-            if (context != null)
-                context.close();
         }
     }
     
     
     public List<String> list(CloudProvider provider) throws IOException {
         
-        BlobStoreContext context = null; 
-        BlobStore storage = null; 
-        List<String> keys = new ArrayList<String>();
-        
         try {
-            context = ContextBuilder.newBuilder(provider.getId())
-                                    .credentials(provider.getAccessKey(), provider.getSecretKey())
-                                    .buildView(BlobStoreContext.class);
-
-            storage = context.getBlobStore();
+            List<String> keys = new ArrayList<String>();
+            BlobStore storage = provider.getBlobStore();
             for (StorageMetadata resourceMd : storage.list(rootContainer))  // TODO this list might just be a partial PageSet
                 keys.add(resourceMd.getName());
             return keys;
         } catch (Exception ex) {
             throw new IOException(ex);
-        } finally {
-            if (context != null)
-                context.close();
         }
     }
     

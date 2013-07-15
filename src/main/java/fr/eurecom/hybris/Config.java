@@ -18,7 +18,6 @@ public class Config {
     private Properties accountsProperties;
     
     private static String generalConfFileName = "hybris.properties";
-    private static String accountsConfFileName = "accounts.properties";
     private static String log4jConfFileName = "log4j.properties";
     
     public static String LOGGER_NAME = "hybrisLogger";
@@ -32,6 +31,7 @@ public class Config {
     public static String ZK_ROOT = "fr.eurecom.hybris.zk.root";
     
     public static String KVS_ROOT = "fr.eurecom.hybris.kvs.root";
+    public static String KVS_ACCOUNTSFILE = "fr.eurecom.hybris.kvs.accountsfile";
     public static String KVS_TESTSONSTARTUP = "fr.eurecom.hybris.kvs.latencytestonstartup";
     
     private static String C_ACCOUNTS = "fr.eurecom.hybris.clouds";
@@ -44,10 +44,6 @@ public class Config {
         try {
             hybrisProperties = new Properties();
             hybrisProperties.load(new FileInputStream(generalConfFileName));
-            
-            accountsProperties = new Properties();
-            accountsProperties.load(new FileInputStream(accountsConfFileName));
-            
             PropertyConfigurator.configure(log4jConfFileName);
         } catch (IOException e) {
             System.err.println("FATAL: Could not find properties and/or log4j configuration files.");
@@ -64,12 +60,28 @@ public class Config {
     public String getProperty (String key) {
         return hybrisProperties.getProperty(key);
     }
-       
-    public String[] getAccountsIds() {
-        return accountsProperties.getProperty(C_ACCOUNTS).split(",");
+    
+    /* --------------- Accounts properties management --------------- */ 
+    
+    public void loadAccountsProperties() throws IOException {
+        accountsProperties = new Properties();
+        accountsProperties.load(new FileInputStream(hybrisProperties.getProperty(KVS_ACCOUNTSFILE)));
     }
     
-    public String getAccountsProperty(String key) {
+    public void loadAccountsProperties(String propertiesFile) throws IOException {
+        accountsProperties = new Properties();
+        accountsProperties.load(new FileInputStream(propertiesFile));
+    }
+    
+    public String[] getAccountsIds() throws IOException {
+        if (accountsProperties == null)
+            loadAccountsProperties();
+        return accountsProperties.getProperty(C_ACCOUNTS).trim().split(",");
+    }
+    
+    public String getAccountsProperty(String key) throws IOException {
+        if (accountsProperties == null)
+            loadAccountsProperties();
         return accountsProperties.getProperty(key);
     }
 }
