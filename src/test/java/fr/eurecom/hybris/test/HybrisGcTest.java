@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import fr.eurecom.hybris.Hybris;
@@ -20,16 +21,17 @@ import fr.eurecom.hybris.mds.MdStore;
 import fr.eurecom.hybris.mds.MdStore.GcMarker;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
+@Ignore
 public class HybrisGcTest extends HybrisAbstractTest {
 
     private Hybris hybris;
     private KvStore kvs;
     private MdStore mds;
     
-    private String KVS_ROOT = "kvstest-root";
     private String MDS_TEST_ROOT = "mdstest-root";
     private String MDS_ADDRESS = "localhost:2181";
     
+    private String KVS_ROOT = "kvstest-root";
     private String KVS_ACCOUNTS_FILE = "accounts.properties";
     
     public HybrisGcTest() throws HybrisException, IOException {

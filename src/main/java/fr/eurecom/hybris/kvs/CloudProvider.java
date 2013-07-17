@@ -13,12 +13,10 @@ import org.jclouds.blobstore.BlobStoreContext;
 public class CloudProvider implements Comparable<CloudProvider>, Serializable {
     
     private String id;
-    private transient String accessKey;
-    private transient String secretKey;
     
-    private transient boolean alreadyUsed;   // whether the storage provider has already been used (to initialize the folder/bucket)
     private transient boolean enabled;
-    
+    private transient boolean alreadyUsed;   // whether the storage provider 
+                                             // has already been used (to initialize the folder/bucket)
     private transient BlobStore blobStore;
 
     /* measures to compare the providers */
@@ -31,8 +29,6 @@ public class CloudProvider implements Comparable<CloudProvider>, Serializable {
     public CloudProvider(String id, String accessKey, String secretKey,
                             boolean enabled, int cost) {
         this.id = id;
-        this.accessKey = accessKey;
-        this.secretKey = secretKey;
         this.enabled = enabled;
         this.cost = cost;
         
@@ -48,10 +44,6 @@ public class CloudProvider implements Comparable<CloudProvider>, Serializable {
     
     public String getId()                           { return id; }
     public void setId(String id)                    { this.id = id; }
-    public String getAccessKey()                    { return accessKey; }
-    public void setAccessKey(String accessKey)      { this.accessKey = accessKey; }
-    public String getSecretKey()                    { return secretKey; }
-    public void setSecretKey(String secretKey)      { this.secretKey = secretKey; }
     public boolean isAlreadyUsed()                  { return alreadyUsed; }
     public void setAlreadyUsed(boolean alreadyUsed) { this.alreadyUsed = alreadyUsed; }
     public boolean isEnabled()                      { return enabled; }

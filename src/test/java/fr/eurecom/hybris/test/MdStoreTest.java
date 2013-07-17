@@ -194,8 +194,7 @@ public class MdStoreTest extends HybrisAbstractTest {
             assertEquals(0, provider.getReadLatency());
             assertEquals(0, provider.getWriteLatency());
             assertEquals(0, provider.getCost());
-            assertNull(provider.getAccessKey());
-            assertNull(provider.getSecretKey());
+            assertNull(provider.getBlobStore());
         }
         
         mds.delete(key);

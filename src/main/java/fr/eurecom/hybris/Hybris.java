@@ -55,7 +55,7 @@ public class Hybris {
                                 Boolean.parseBoolean(conf.getProperty(Config.KVS_TESTSONSTARTUP)));
         } catch (IOException e) {
             logger.error("Could not initialize Zookeeper or the cloud storage accounts.", e);
-            throw new HybrisException("Could not initialize Zookeeper or the cloud storage accounts.");
+            throw new HybrisException("Could not initialize Zookeeper or the cloud storage accounts.", e);
         }
         
         int t = Integer.parseInt(conf.getProperty(Config.HS_T));
@@ -74,7 +74,7 @@ public class Hybris {
             kvs = new KvStore(kvsAccountFile, kvsRoot, kvsTestOnStartup);
         } catch (IOException e) {
             logger.error("Could not initialize Zookeeper or the cloud storage accounts.", e);
-            throw new HybrisException("Could not initialize Zookeeper or the cloud storage accounts.");
+            throw new HybrisException("Could not initialize Zookeeper or the cloud storage accounts", e);
         }
         
         this.quorum = t + 1;
@@ -469,10 +469,10 @@ public class Hybris {
      * @throws IOException 
      * @throws HybrisException 
      */
-    public static void main(String[] args) throws HybrisException {
-        Hybris hybris = new Hybris();
-        hybris.write("mykey", "my_value".getBytes());
-        String value = new String(hybris.read("mykey"));
-        System.out.println("Read output: " + value);
-    }
+//    public static void main(String[] args) throws HybrisException {
+//        Hybris hybris = new Hybris();
+//        hybris.write("mykey", "my_value".getBytes());
+//        String value = new String(hybris.read("mykey"));
+//        System.out.println("Read output: " + value);
+//    }
 }

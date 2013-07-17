@@ -8,6 +8,7 @@ import java.util.Arrays;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import fr.eurecom.hybris.Hybris;
@@ -43,6 +44,7 @@ public class HybrisTest extends HybrisAbstractTest {
         assertNull(hybris.read(key));
     }
     
+    @Ignore
     @Test
     public void testParallelWrite() throws HybrisException {
         
