@@ -39,11 +39,10 @@ public class KvStore {
     
     public KvStore(String accountsFile, String container, boolean testLatency) throws IOException {
         
-        conf = Config.getInstance();
-        
         rootContainer = container;
         
         this.providers = Collections.synchronizedList(new ArrayList<CloudProvider>());
+        conf = Config.getInstance();
         conf.loadAccountsProperties(accountsFile);
         String[] accountIds = conf.getAccountsIds();
         for (String accountId : accountIds) {

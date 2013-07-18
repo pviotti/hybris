@@ -27,8 +27,8 @@ public class Config {
     public static String HS_TO_READ = "fr.eurecom.hybris.timeoutread";
     public static String HS_GC = "fr.eurecom.hybris.gc";
     
-    public static String ZK_ADDR = "fr.eurecom.hybris.zk.address";
-    public static String ZK_ROOT = "fr.eurecom.hybris.zk.root";
+    public static String MDS_ADDR = "fr.eurecom.hybris.mds.address";
+    public static String MDS_ROOT = "fr.eurecom.hybris.mds.root";
     
     public static String KVS_ROOT = "fr.eurecom.hybris.kvs.root";
     public static String KVS_ACCOUNTSFILE = "fr.eurecom.hybris.kvs.accountsfile";
@@ -40,48 +40,37 @@ public class Config {
     public static String C_ENABLED = "fr.eurecom.hybris.clouds.%s.enabled";
     public static String C_COST = "fr.eurecom.hybris.clouds.%s.cost";
     
-    private Config () throws IOException {
-        try {
-            hybrisProperties = new Properties();
-            hybrisProperties.load(new FileInputStream(generalConfFileName));
-            PropertyConfigurator.configure(log4jConfFileName);
-        } catch (IOException e) {
-            System.err.println("FATAL: Could not find properties and/or log4j configuration files.");
-            throw e;
-        }
+    private Config () {
+        PropertyConfigurator.configure(log4jConfFileName);
     }
     
-    public static Config getInstance () throws IOException {
+    public static Config getInstance () {
         if (instance == null)
             instance = new Config();
         return instance;
     }
     
-    public String getProperty (String key) {
+    public void loadProperties() throws IOException {
+        hybrisProperties = new Properties();
+        hybrisProperties.load(new FileInputStream(generalConfFileName));
+    }
+    
+    public String getProperty (String key) { 
         return hybrisProperties.getProperty(key);
     }
     
     /* --------------- Accounts properties management --------------- */ 
-    
-    public void loadAccountsProperties() throws IOException {
-        accountsProperties = new Properties();
-        accountsProperties.load(new FileInputStream(hybrisProperties.getProperty(KVS_ACCOUNTSFILE)));
-    }
     
     public void loadAccountsProperties(String propertiesFile) throws IOException {
         accountsProperties = new Properties();
         accountsProperties.load(new FileInputStream(propertiesFile));
     }
     
-    public String[] getAccountsIds() throws IOException {
-        if (accountsProperties == null)
-            loadAccountsProperties();
+    public String[] getAccountsIds() {
         return accountsProperties.getProperty(C_ACCOUNTS).trim().split(",");
     }
     
-    public String getAccountsProperty(String key) throws IOException {
-        if (accountsProperties == null)
-            loadAccountsProperties();
+    public String getAccountsProperty(String key) {
         return accountsProperties.getProperty(key);
     }
 }

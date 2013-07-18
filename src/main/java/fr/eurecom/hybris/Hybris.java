@@ -32,7 +32,6 @@ import fr.eurecom.hybris.mds.Metadata.Timestamp;
 public class Hybris {
 
     private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
-    private Config conf;
     
     private MdStore mds;
     private KvStore kvs;
@@ -46,10 +45,12 @@ public class Hybris {
     private boolean gcEnabled;
     
     public Hybris() throws HybrisException {
+        
+        Config conf = Config.getInstance();
         try {
-            conf = Config.getInstance();
-            mds = new MdStore(conf.getProperty(Config.ZK_ADDR), 
-                                conf.getProperty(Config.ZK_ROOT));
+            conf.loadProperties();
+            mds = new MdStore(conf.getProperty(Config.MDS_ADDR), 
+                                conf.getProperty(Config.MDS_ROOT));
             kvs = new KvStore(conf.getProperty(Config.KVS_ACCOUNTSFILE),
                                 conf.getProperty(Config.KVS_ROOT), 
                                 Boolean.parseBoolean(conf.getProperty(Config.KVS_TESTSONSTARTUP)));
@@ -69,7 +70,6 @@ public class Hybris {
                     String kvsAccountFile, String kvsRoot, boolean kvsTestOnStartup, 
                     int t, int writeTimeout, int readTimeout, boolean gcEnabled) throws HybrisException {
         try {
-            conf = Config.getInstance();
             mds = new MdStore(zkAddress, zkRoot);
             kvs = new KvStore(kvsAccountFile, kvsRoot, kvsTestOnStartup);
         } catch (IOException e) {
@@ -156,7 +156,7 @@ public class Hybris {
         
         if (gcEnabled && overwritten) (mds.new GcMarker(key)).start();
         
-        logger.info("Data successfully stored on these replicas: {}", savedReplicasLst);
+        logger.info("Data successfully stored on: {}", savedReplicasLst);
     }
     
     /**

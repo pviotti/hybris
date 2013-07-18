@@ -38,24 +38,24 @@
 	</dependency>
 	
     <dependency>
-      <groupId>org.jclouds</groupId>
+      <groupId>org.apache.jclouds</groupId>
       <artifactId>jclouds-blobstore</artifactId>
-      <version>1.6.0</version>
+      <version>1.6.1-incubating</version>
     </dependency>
      <dependency>
-		<groupId>org.jclouds.provider</groupId>
+		<groupId>org.apache.jclouds.provider</groupId>
 		<artifactId>aws-s3</artifactId>
-		<version>1.6.0</version>
+		<version>1.6.1-incubating</version>
 	</dependency>
 	 <dependency>
-		<groupId>org.jclouds.provider</groupId>
+		<groupId>org.apache.jclouds.provider</groupId>
 		<artifactId>cloudfiles-us</artifactId>
-		<version>1.6.0</version>
+		<version>1.6.1-incubating</version>
 	</dependency>
 	 <dependency>
-		<groupId>org.jclouds.provider</groupId>
+		<groupId>org.apache.jclouds.provider</groupId>
 		<artifactId>azureblob</artifactId>
-		<version>1.6.0</version>
+		<version>1.6.1-incubating</version>
 	</dependency>
 	
 	<dependency> <!-- used for serialization -->
@@ -149,8 +149,24 @@
             <descriptorRef>src</descriptorRef>
             <descriptorRef>jar-with-dependencies</descriptorRef>
           </descriptorRefs>
+          <!-- <appendAssemblyId>false</appendAssemblyId> -->
         </configuration>
       </plugin>
     </plugins>
   </build>
+  
+  <reporting>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>2.10</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>2.9.1</version>
+      </plugin>
+    </plugins>
+  </reporting>
 </project>
