@@ -1,10 +1,14 @@
 package fr.eurecom.hybris.test.ycsb;
 
-import java.nio.ByteBuffer;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
 
+import com.yahoo.ycsb.ByteArrayByteIterator;
 import com.yahoo.ycsb.ByteIterator;
 import com.yahoo.ycsb.DB;
 import com.yahoo.ycsb.DBException;
@@ -16,37 +20,41 @@ public class HybrisYcsbClient extends DB {
 
     private Hybris hybris;
 
-    private String KVS_ROOT = "kvstest-root";
-    private String MDS_TEST_ROOT = "mdstest-root";
-    private String MDS_ADDRESS = "localhost:2181";
+    private static final String KVS_ROOT = "ycsbtest-root";
+    private static final String MDS_TEST_ROOT = "ycsbtest-root";
+    private static final String MDS_ADDRESS = "localhost:2181";
 
-    private String KVS_ACCOUNTS_FILE = "/home/paolo/workspace/hybris/accounts-test.properties";
+    private final String PROP_KVS_ACCOUNTS_FILE = "kvs.accountfile";
+    private final String PROP_T = "t";
 
     public void init() throws DBException {
 
+        Properties props = this.getProperties();
+        String accountFile = props.getProperty(this.PROP_KVS_ACCOUNTS_FILE);
+        int t = Integer.parseInt(props.getProperty(this.PROP_T));
         try {
-            hybris = new Hybris(MDS_ADDRESS, MDS_TEST_ROOT, KVS_ACCOUNTS_FILE,
-                    KVS_ROOT, false, 0, 600, 600, true);
+            this.hybris = new Hybris(MDS_ADDRESS, MDS_TEST_ROOT, accountFile,
+                                        KVS_ROOT, true, t, 600, 600, false);
         } catch (HybrisException e) {
             e.printStackTrace();
             throw new DBException(e);
         }
     }
 
-    public void cleanup() throws DBException {
-    }
+    public void cleanup() throws DBException {  }
 
     @Override
     public int read(String table, String key, Set<String> fields,
                     HashMap<String, ByteIterator> result) {
 
-        System.out.println("Hybris read...");
         try {
-            byte[] value = hybris.read(key);
+            byte[] value = this.hybris.read(key);
             if (value == null)
                 return 1;
-            else
+            else{
+                result.put(key, new ByteArrayByteIterator(value));
                 return 0;
+            }
         } catch (HybrisException e) {
             e.printStackTrace();
             return 1;
@@ -54,30 +62,45 @@ public class HybrisYcsbClient extends DB {
     }
 
     @Override
-    public int scan(String table, String startkey, int recordcount,
-            Set<String> fields, Vector<HashMap<String, ByteIterator>> result) {
-        // TODO Auto-generated method stub
+    public int scan(String table, String startkey, int recordcount, Set<String> fields,
+                    Vector<HashMap<String, ByteIterator>> result) {
+
+        List<String> keys;
+        try {
+            keys = this.hybris.list();
+        } catch (HybrisException e) {
+            e.printStackTrace();
+            return 1;
+        }
+
+        HashMap<String, ByteIterator> values;
+        for (String key : keys) {
+            values = new HashMap<String, ByteIterator>();
+            this.read(table, key, fields, values);
+            result.add(values);
+        }
+
         return 0;
     }
 
     @Override
-    public int update(String table, String key,
-            HashMap<String, ByteIterator> values) {
-        // TODO Auto-generated method stub
-        return 0;
+    public int update(String table, String key, HashMap<String, ByteIterator> values) {
+        return this.insert(table, key, values);
     }
 
     @Override
-    public int insert(String table, String key,
-            HashMap<String, ByteIterator> values) {
+    public int insert(String table, String key, HashMap<String, ByteIterator> values) {
 
-        System.out.println("Hybris insert...");
-        ByteBuffer target = ByteBuffer.allocate(99999);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
         for (String vkey : values.keySet())
-            target.put(values.get(vkey).toArray());
+            try {
+                baos.write(values.get(vkey).toArray());
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
 
         try {
-            hybris.write(key, target.array());
+            this.hybris.write(key, baos.toByteArray());
             return 0;
         } catch (HybrisException e) {
             e.printStackTrace();
@@ -87,16 +110,23 @@ public class HybrisYcsbClient extends DB {
 
     @Override
     public int delete(String table, String key) {
-        // TODO Auto-generated method stub
-        return 0;
+
+        try {
+            this.hybris.delete(key);
+            return 0;
+        } catch (HybrisException e) {
+            e.printStackTrace();
+            return 1;
+        }
     }
 
     /**
-     * TODO TEMP
-     * 
-     * @param args
+     * Used to perform the cleanup (void test containers).
+     * @throws HybrisException
      */
-    public static void main(String[] args) {
-        System.out.println("Hello World!");
+    public static void main(String[] args) throws HybrisException {
+        Hybris hybris = new Hybris(MDS_ADDRESS, MDS_TEST_ROOT, "accounts.properties",
+                                    KVS_ROOT, true, 1, 600, 600, false);
+        hybris._emptyContainers();
     }
 }

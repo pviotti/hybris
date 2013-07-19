@@ -10,48 +10,48 @@ import fr.eurecom.hybris.Utils;
 import fr.eurecom.hybris.kvs.CloudProvider;
 
 /**
- * Class representing timestamped metadata.
+ * Represents timestamped metadata.
  * Holds the timestamped reference to the cloud replicas.
  * @author p.viotti
  */
 public class Metadata implements Serializable {
-    
+
     public static class Timestamp implements Serializable {
 
         private static final long serialVersionUID = -829397868153955069L;
-        
+
         private int num;
         private String cid;
-        
+
         public Timestamp(int n, String c) {
             this.num = n;
             this.cid = c;
         }
-        
+
         public static Timestamp parseString(String tsStr) {
             String[] tsParts = tsStr.split("_");
             int n =Integer.parseInt(tsParts[0]);
             String cid = tsParts[1];
-            return new Timestamp(n, cid);            
+            return new Timestamp(n, cid);
         }
-        
-        public int getNum()             { return num; }
+
+        public int getNum()             { return this.num; }
         public void setNum(int num)     { this.num = num; }
-        public String getCid()          { return cid; }
+        public String getCid()          { return this.cid; }
         public void setCid(String cid)  { this.cid = cid; }
 
         public boolean isGreater(Timestamp ts) {
-            if ((ts == null) || (this.num > ts.num) || 
-                ((this.num == ts.num) && (this.cid.compareTo(ts.cid)) < 0)) 
+            if (ts == null || this.num > ts.num ||
+                this.num == ts.num && this.cid.compareTo(ts.cid) < 0)
                 return true;
-            return false;   
+            return false;
         }
-        
+
         public void inc(String client) {
             this.num = this.num + 1;
             this.cid = client;
         }
-        
+
         @Override
         public String toString() {
             return this.num + "_" + this.cid;
@@ -61,8 +61,8 @@ public class Metadata implements Serializable {
         public int hashCode() {
             final int prime = 31;
             int result = 1;
-            result = prime * result + ((cid == null) ? 0 : cid.hashCode());
-            result = prime * result + num;
+            result = prime * result + (this.cid == null ? 0 : this.cid.hashCode());
+            result = prime * result + this.num;
             return result;
         }
 
@@ -72,15 +72,15 @@ public class Metadata implements Serializable {
                 return true;
             if (obj == null)
                 return false;
-            if (getClass() != obj.getClass())
+            if (this.getClass() != obj.getClass())
                 return false;
             Timestamp other = (Timestamp) obj;
-            if (cid == null) {
+            if (this.cid == null) {
                 if (other.cid != null)
                     return false;
-            } else if (!cid.equals(other.cid))
+            } else if (!this.cid.equals(other.cid))
                 return false;
-            if (num != other.num)
+            if (this.num != other.num)
                 return false;
             return true;
         }
@@ -92,13 +92,13 @@ public class Metadata implements Serializable {
     private Timestamp ts;
     private byte[] hash;
     private List<CloudProvider> replicasLst;
-    
+
     public Metadata(Timestamp ts, byte[] hash, List<CloudProvider> replicas) {
         this.ts = ts;
         this.hash = hash;
         this.replicasLst = replicas;
     }
-    
+
     public Metadata(byte[] raw) {
         Metadata md;
         if (raw == null)
@@ -109,38 +109,38 @@ public class Metadata implements Serializable {
         this.replicasLst = md.replicasLst;
         this.hash = md.getHash();
     }
-    
+
     public byte[] serialize() {
-        return SerializationUtils.serialize(this);    
+        return SerializationUtils.serialize(this);
     }
-    
+
     public boolean isTombstone() {
-        return ((this.hash == null) && 
-                (this.replicasLst == null) && 
-                (this.ts == null));
+        return this.hash == null &&
+                this.replicasLst == null &&
+                this.ts == null;
     }
-    
-    public Timestamp getTs() { return ts; }
+
+    public Timestamp getTs() { return this.ts; }
     public void setTs(Timestamp ts) { this.ts = ts;    }
-    public List<CloudProvider> getReplicasLst() { return replicasLst; }
+    public List<CloudProvider> getReplicasLst() { return this.replicasLst; }
     public void setReplicasLst(List<CloudProvider> replicasLst) { this.replicasLst = replicasLst; }
-    public byte[] getHash() { return hash; }
+    public byte[] getHash() { return this.hash; }
     public void setHash(byte[] hash) { this.hash = hash; }
-    
+
     @Override
     public String toString() {
-        return "Metadata [ts=" + ts + ", " + "hash=" + Utils.byteArrayToHexString(hash) + 
-                ", replicasLst=" + replicasLst + "]";
+        return "Metadata [ts=" + this.ts + ", " + "hash=" + Utils.byteArrayToHexString(this.hash) +
+                ", replicasLst=" + this.replicasLst + "]";
     }
 
     @Override
     public int hashCode() {
         final int prime = 31;
         int result = 1;
-        result = prime * result + Arrays.hashCode(hash);
+        result = prime * result + Arrays.hashCode(this.hash);
         result = prime * result
-                + ((replicasLst == null) ? 0 : replicasLst.hashCode());
-        result = prime * result + ((ts == null) ? 0 : ts.hashCode());
+                + (this.replicasLst == null ? 0 : this.replicasLst.hashCode());
+        result = prime * result + (this.ts == null ? 0 : this.ts.hashCode());
         return result;
     }
 
@@ -150,20 +150,20 @@ public class Metadata implements Serializable {
             return true;
         if (obj == null)
             return false;
-        if (getClass() != obj.getClass())
+        if (this.getClass() != obj.getClass())
             return false;
         Metadata other = (Metadata) obj;
-        if (!Arrays.equals(hash, other.hash))
+        if (!Arrays.equals(this.hash, other.hash))
             return false;
-        if (replicasLst == null) {
+        if (this.replicasLst == null) {
             if (other.replicasLst != null)
                 return false;
-        } else if (!replicasLst.equals(other.replicasLst))
+        } else if (!this.replicasLst.equals(other.replicasLst))
             return false;
-        if (ts == null) {
+        if (this.ts == null) {
             if (other.ts != null)
                 return false;
-        } else if (!ts.equals(other.ts))
+        } else if (!this.ts.equals(other.ts))
             return false;
         return true;
     }

@@ -9,8 +9,10 @@ import java.util.Random;
 import java.util.concurrent.Callable;
 
 import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.BlobStores;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.StorageMetadata;
+import org.jclouds.blobstore.options.ListContainerOptions;
 import org.jclouds.rest.AuthorizationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,60 +28,59 @@ import fr.eurecom.hybris.Config;
  * @author p.viotti
  */
 public class KvStore {
-    
-    private Config conf;
+
+    private final Config conf;
     private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
-    
-    private List<CloudProvider> providers;      // storage providers sorted by cost and latency
-    
+
+    private final List<CloudProvider> providers;      // storage providers sorted by cost and latency
+
     private static String rootContainer;
-    
+
     private static String TEST_KEY = "latency_test-";
     private static String TEST_VALUE = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM";
-    
+
     public KvStore(String accountsFile, String container, boolean testLatency) throws IOException {
-        
+
         rootContainer = container;
-        
+
         this.providers = Collections.synchronizedList(new ArrayList<CloudProvider>());
-        conf = Config.getInstance();
-        conf.loadAccountsProperties(accountsFile);
-        String[] accountIds = conf.getAccountsIds();
-        for (String accountId : accountIds) {
-            providers.add(new CloudProvider(accountId, 
-                            conf.getAccountsProperty( String.format(Config.C_AKEY, accountId) ), 
-                            conf.getAccountsProperty( String.format(Config.C_SKEY, accountId) ),
-                            Boolean.parseBoolean( conf.getAccountsProperty( String.format(Config.C_ENABLED, accountId)) ),
-                            Integer.parseInt( conf.getAccountsProperty( String.format(Config.C_COST, accountId) ) )));
-        }
-        
+        this.conf = Config.getInstance();
+        this.conf.loadAccountsProperties(accountsFile);
+        String[] accountIds = this.conf.getAccountsIds();
+        for (String accountId : accountIds)
+            this.providers.add(new CloudProvider(accountId,
+                            this.conf.getAccountsProperty( String.format(Config.C_AKEY, accountId) ),
+                            this.conf.getAccountsProperty( String.format(Config.C_SKEY, accountId) ),
+                            Boolean.parseBoolean( this.conf.getAccountsProperty( String.format(Config.C_ENABLED, accountId)) ),
+                            Integer.parseInt( this.conf.getAccountsProperty( String.format(Config.C_COST, accountId) ) )));
+
         if (testLatency) {
             logger.info("Performing latency tests on cloud providers...");
-            testLatency();
+            this.testLatency();
             Collections.sort(this.providers);  // Sort providers according to cost and latency (see CloudProvider.compareTo())
             logger.debug("Cloud providers sorted by performance/cost metrics:");
             synchronized (this.providers) {
-                for(CloudProvider provider : this.providers) 
+                for(CloudProvider provider : this.providers)
                     logger.debug("\t* " + provider.toVerboseString());
             }
         }
     }
-    
-    
-    public List<CloudProvider> getProviders()   { return providers; }
-    
-    
+
+
+    public List<CloudProvider> getProviders()   { return this.providers; }
+
+
     /**
-     * Worker thread class in charge of asynchronously performing 
-     * write operation on cloud stores. 
+     * Worker thread class in charge of asynchronously performing
+     * write operation on cloud stores.
      * @author p.viotti
      */
     public class KvsPutWorker implements Callable<CloudProvider> {
-        
-        private CloudProvider provider;
-        private String key;
-        private byte[] value;
-        
+
+        private final CloudProvider provider;
+        private final String key;
+        private final byte[] value;
+
         public KvsPutWorker(CloudProvider provider, String key, byte[] value) {
             this.provider = provider;
             this.key = key;
@@ -89,23 +90,23 @@ public class KvStore {
         @Override
         public CloudProvider call() {
             try {
-                put(provider, key, value);
-                return provider;
+                KvStore.this.put(this.provider, this.key, this.value);
+                return this.provider;
             } catch (Exception e) {
-                logger.warn("Could not put " + key + " on " + provider.getId(), e);
+                logger.warn("Could not put " + this.key + " on " + this.provider.getId(), e);
                 return null;
             }
         }
     }
 
-    
+
     /* ---------------------------------------------------------------------------------------
                                             Public APIs
        --------------------------------------------------------------------------------------- */
-    
+
 
    public void put(CloudProvider provider, String key, byte[] data) throws IOException {
-        
+
         try {
             BlobStore storage = provider.getBlobStore();
             if (!provider.isAlreadyUsed()) {
@@ -114,7 +115,7 @@ public class KvStore {
                 if (created)
                     logger.debug("Created root data container \"{}\" for {}", rootContainer, provider.getId());
             }
-            
+
             // logger.debug("Storing {} on {}...", key, provider.getId());
             Blob blob = storage.blobBuilder(key).payload(data).build();
             storage.putBlob(rootContainer, blob);
@@ -126,7 +127,7 @@ public class KvStore {
 
 
     public byte[] get(CloudProvider provider, String key) throws IOException {
-        
+
         try {
             BlobStore storage = provider.getBlobStore();
             Blob blob = storage.getBlob(rootContainer, key);
@@ -142,7 +143,7 @@ public class KvStore {
 
 
     public void delete(CloudProvider provider, String key) throws IOException {
-        
+
         try {
             BlobStore storage = provider.getBlobStore();
             storage.removeBlob(rootContainer, key);
@@ -150,30 +151,31 @@ public class KvStore {
             throw new IOException(ex);
         }
     }
-    
-    
+
+
     public List<String> list(CloudProvider provider) throws IOException {
-        
+
         try {
             List<String> keys = new ArrayList<String>();
             BlobStore storage = provider.getBlobStore();
-            for (StorageMetadata resourceMd : storage.list(rootContainer))  // TODO this list might just be a partial PageSet
+
+            for (StorageMetadata resourceMd : BlobStores.listAll(storage, rootContainer, ListContainerOptions.NONE))
                 keys.add(resourceMd.getName());
             return keys;
         } catch (Exception ex) {
             throw new IOException(ex);
         }
     }
-    
-    
+
+
     /**
      * Empty the data storage root container.
      * ATTENTION: it erases all data stored in the root container!
      * @param provider the cloud storage provider
-     * @throws IOException 
+     * @throws IOException
      */
     public void emptyStorageContainer(CloudProvider provider) throws IOException {
-        
+
         try {
             List<String> keys = this.list(provider);
             for (String key : keys)
@@ -186,21 +188,21 @@ public class KvStore {
     /* ---------------------------------------------------------------------------------------
                                         Private methods
        --------------------------------------------------------------------------------------- */
-    
+
 
     private void testLatency() {    // TODO parallelize
-        
+
         byte[] testData = TEST_VALUE.getBytes();
-        String testKey = TEST_KEY + (new Random()).nextInt(1000);
+        String testKey = TEST_KEY + new Random().nextInt(1000);
         long start, end = 0;
-        
+
         synchronized(this.providers){
             for (CloudProvider provider : this.providers) {
-                
+
                 // write
                 try {
                     start = System.currentTimeMillis();
-                    put(provider, testKey, testData);
+                    this.put(provider, testKey, testData);
                     end = System.currentTimeMillis();
                     provider.setWriteLatency(end - start);
                 } catch (Exception e) {
@@ -210,12 +212,12 @@ public class KvStore {
                         provider.setEnabled(false);
                     continue;
                 }
-                
+
                 // read
                 byte[] retrieved = null;
                 try {
                     start = System.currentTimeMillis();
-                    retrieved = get(provider, testKey);
+                    retrieved = this.get(provider, testKey);
                     end = System.currentTimeMillis();
                 } catch (Exception e) {
                     logger.error("error while reading " + testKey + " on " + provider.getId(), e);
@@ -223,14 +225,14 @@ public class KvStore {
                     if (e instanceof AuthorizationException)
                         provider.setEnabled(false);
                 }
-                if ((retrieved == null) || (!Arrays.equals(testData, retrieved)))
+                if (retrieved == null || !Arrays.equals(testData, retrieved))
                     provider.setReadLatency(Integer.MAX_VALUE);
                 else
                     provider.setReadLatency(end - start);
-                
+
                 // clean up
                 try {
-                    delete(provider, testKey);
+                    this.delete(provider, testKey);
                 } catch (IOException e) {
                     logger.warn("Could not remove {} from {}.", testKey, provider.getId());
                 }

@@ -126,7 +126,7 @@
               <goal>shade</goal>
             </goals>
             <configuration>
-              <filters>
+                 <filters>
                     <filter>
                       <artifact>*:*</artifact>
                       <excludes> Remove all signature to prevent SecurityException

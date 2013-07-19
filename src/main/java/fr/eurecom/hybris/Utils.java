@@ -9,10 +9,10 @@ import java.util.UUID;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 public class Utils {
-    
+
     private static String clientId = null;
     private static String KVS_KEY_SEPARATOR = "#";
-    
+
     public static byte[] getHash(byte[] inputBytes) {
         MessageDigest hash;
         try {
@@ -25,19 +25,19 @@ public class Utils {
             return null;
         }
     }
-    
+
     public static String byteArrayToHexString(byte[] b){
         StringBuffer sb = new StringBuffer(b.length * 2);
-        for (int i = 0; i < b.length; i++){
-            int v = b[i] & 0xff;
+        for (byte element : b) {
+            int v = element & 0xff;
             if (v < 16) sb.append('0');
             sb.append(Integer.toHexString(v));
         }
         return sb.toString().toLowerCase();
     }
-    
+
     public static String getClientId() {
-        
+
         if (clientId == null)
             try {
                 clientId = InetAddress.getLocalHost().getHostName();
@@ -47,15 +47,15 @@ public class Utils {
             }
         return clientId;
     }
-    
+
     public static String getKvsKey(String key, Timestamp ts) {
         return key + KVS_KEY_SEPARATOR + ts;
     }
-    
+
     public static String getKeyFromKvsKey(String kvsKey) {
         return kvsKey.split(KVS_KEY_SEPARATOR)[0];
     }
-    
+
     public static Timestamp getTimestampfromKvsKey(String kvsKey) {
         String tsStr = kvsKey.split(KVS_KEY_SEPARATOR)[1];
         return Timestamp.parseString(tsStr);
