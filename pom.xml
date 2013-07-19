@@ -126,30 +126,30 @@
               <goal>shade</goal>
             </goals>
             <configuration>
-                 <filters>
-                    <filter>
-                      <artifact>*:*</artifact>
-                      <excludes> Remove all signature to prevent SecurityException
-                        <exclude>META-INF/*.SF</exclude>
-                        <exclude>META-INF/*.DSA</exclude>
-                        <exclude>META-INF/*.RSA</exclude>
-                      </excludes>
-                    </filter>
-                  </filters>
-            </configuration>
-          </execution> -->
+               <filtering>false</filtering>
+               <transformers>       # Note: the following transformer for merging service properties 
+                                    # with same names in METAINF/services (e.g. org.jclouds.providers.ProviderMetadata)
+                                    # this in order to make jClouds find all the available storage providers
+                   <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer">
+                   </transformer>
+               </transformers>
+           </configuration>
+          </execution>-->
         </executions>
       </plugin>
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
         <version>2.4</version>
         <configuration>
-          <descriptorRefs>
+         <!--  <descriptorRefs>
             <descriptorRef>bin</descriptorRef>
             <descriptorRef>src</descriptorRef>
             <descriptorRef>jar-with-dependencies</descriptorRef>
-          </descriptorRefs>
+          </descriptorRefs> -->
           <!-- <appendAssemblyId>false</appendAssemblyId> -->
+          <descriptors>
+            <descriptor>src/main/assembly/jar-with-dependencies.xml</descriptor>
+          </descriptors>
         </configuration>
       </plugin>
     </plugins>
