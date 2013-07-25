@@ -15,8 +15,6 @@ public class Config {
     private Properties hybrisProperties;
     private Properties accountsProperties;
 
-    private static String generalConfFileName = "hybris.properties";
-
     public static String LOGGER_NAME = "hybrisLogger";
 
     public static String HS_T = "fr.eurecom.hybris.t";
@@ -43,10 +41,10 @@ public class Config {
         return instance;
     }
 
-    public void loadProperties() throws IOException {
+    public void loadProperties(String propertiesFile) throws IOException {
         try {
             this.hybrisProperties = new Properties();
-            this.hybrisProperties.load(new FileInputStream(generalConfFileName));
+            this.hybrisProperties.load(new FileInputStream(propertiesFile));
         } catch (Exception e) {
             throw new IOException(e);
         }

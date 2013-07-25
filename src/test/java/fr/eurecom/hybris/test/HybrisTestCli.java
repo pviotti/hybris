@@ -23,7 +23,7 @@ public class HybrisTestCli implements Runnable {
                                         "\tla - list all";
 
     public HybrisTestCli() throws HybrisException {
-        this.hybris = new Hybris();
+        this.hybris = new Hybris("hybris.properties");
     }
 
     @Override

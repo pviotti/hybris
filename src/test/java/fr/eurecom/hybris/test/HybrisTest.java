@@ -22,7 +22,7 @@ public class HybrisTest extends HybrisAbstractTest {
 
     @BeforeClass
     public static void beforeClassSetup() throws HybrisException {
-        hybris = new Hybris();
+        hybris = new Hybris("hybris.properties");
     }
 
     @Before

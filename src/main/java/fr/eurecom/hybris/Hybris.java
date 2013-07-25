@@ -44,11 +44,11 @@ public class Hybris {
 
     private final boolean gcEnabled;
 
-    public Hybris() throws HybrisException {
+    public Hybris(String propertiesFile) throws HybrisException {
 
         Config conf = Config.getInstance();
         try {
-            conf.loadProperties();
+            conf.loadProperties(propertiesFile);
             this.mds = new MdStore(conf.getProperty(Config.MDS_ADDR),
                                 conf.getProperty(Config.MDS_ROOT));
             this.kvs = new KvStore(conf.getProperty(Config.KVS_ACCOUNTSFILE),
