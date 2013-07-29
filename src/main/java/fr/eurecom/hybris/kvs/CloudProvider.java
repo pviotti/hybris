@@ -37,8 +37,14 @@ public class CloudProvider implements Comparable<CloudProvider>, Serializable {
         this.writeLatency = 0;
         this.alreadyUsed = false;
 
+        /*Properties overrides = new Properties();
+        overrides.setProperty(PROPERTY_MAX_CONNECTIONS_PER_CONTEXT, "30");
+        overrides.setProperty(PROPERTY_MAX_CONNECTIONS_PER_HOST, "0");  // limited by MAX_CONNECTIONS_PER_CONTEXT
+        overrides.setProperty(PROPERTY_IO_WORKER_THREADS, "30");
+        overrides.setProperty(PROPERTY_USER_THREADS, "0");              // unlimited */
         BlobStoreContext context = ContextBuilder.newBuilder(id)
                                                 .credentials(accessKey, secretKey)
+                                                //.overrides(overrides)
                                                 .buildView(BlobStoreContext.class);
         this.blobStore = context.getBlobStore();
     }
