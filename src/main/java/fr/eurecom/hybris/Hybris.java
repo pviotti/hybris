@@ -128,7 +128,11 @@ public class Hybris {
                     }
                     if (savedReplicasLst.size() >= this.quorum)
                         break;
-                } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                } catch (InterruptedException e) {
+                    logger.warn("Exception on the parallel task execution", e);
+                } catch (ExecutionException e) {
+                    logger.warn("Exception on the parallel task execution", e);
+                } catch (TimeoutException e) {
                     logger.warn("Exception on the parallel task execution", e);
                 }
 

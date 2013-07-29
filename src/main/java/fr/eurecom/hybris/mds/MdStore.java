@@ -249,7 +249,10 @@ public class MdStore implements Watcher {
         List<String> znodes;
         try {
             znodes = this.zk.getChildren(this.storageRoot, false);
-        } catch (KeeperException | InterruptedException e1) {
+        } catch (KeeperException e1) {
+            logger.error("Could not list the children of znode " + this.storageRoot, e1);
+            throw new HybrisException(e1);
+        } catch(InterruptedException e1) {
             logger.error("Could not list the children of znode " + this.storageRoot, e1);
             throw new HybrisException(e1);
         }
@@ -260,7 +263,9 @@ public class MdStore implements Watcher {
             byte[] rawMd = null;
             try {
                 rawMd = this.zk.getData(znodePath, false, null);
-            } catch (KeeperException | InterruptedException e) {
+            } catch (KeeperException e) {
+                logger.warn("Could not read metadata for key " + znodePath, e);
+            } catch(InterruptedException e) {
                 logger.warn("Could not read metadata for key " + znodePath, e);
             }
             Metadata md = new Metadata(rawMd);
@@ -281,7 +286,10 @@ public class MdStore implements Watcher {
         List<String> znodes;
         try {
             znodes = this.zk.getChildren(this.gcOrphansDir, false);
-        } catch (KeeperException | InterruptedException e1) {
+        } catch (KeeperException e1) {
+            logger.error("Could not list the children of znode " + this.storageRoot, e1);
+            throw new HybrisException(e1);
+        } catch(InterruptedException e1) {
             logger.error("Could not list the children of znode " + this.storageRoot, e1);
             throw new HybrisException(e1);
         }
@@ -292,7 +300,9 @@ public class MdStore implements Watcher {
             byte[] rawMd = null;
             try {
                 rawMd = this.zk.getData(znodePath, false, null);
-            } catch (KeeperException | InterruptedException e) {
+            } catch (KeeperException e) {
+                logger.warn("Could not read metadata for key " + znodePath, e);
+            } catch (InterruptedException e) {
                 logger.warn("Could not read metadata for key " + znodePath, e);
             }
             Metadata md = new Metadata(rawMd);
@@ -332,7 +342,10 @@ public class MdStore implements Watcher {
 
         try {
             return this.zk.getChildren(this.gcStaleDir, false);
-        } catch (KeeperException | InterruptedException e1) {
+        } catch (KeeperException e1) {
+            logger.error("Could not list the children of znode " + this.storageRoot, e1);
+            throw new HybrisException(e1);
+        } catch (InterruptedException e1) {
             logger.error("Could not list the children of znode " + this.storageRoot, e1);
             throw new HybrisException(e1);
         }
@@ -368,7 +381,10 @@ public class MdStore implements Watcher {
         List<String> znodes;
         try {
             znodes = this.zk.getChildren(this.storageRoot, false);
-        } catch (KeeperException | InterruptedException e1) {
+        } catch (KeeperException e1) {
+            logger.error("Could not list the children of znode " + this.storageRoot, e1);
+            throw new HybrisException(e1);
+        } catch(InterruptedException e1) {
             logger.error("Could not list the children of znode " + this.storageRoot, e1);
             throw new HybrisException(e1);
         }
@@ -379,7 +395,9 @@ public class MdStore implements Watcher {
             byte[] rawMd = null;
             try {
                 rawMd = this.zk.getData(znodePath, false, null);
-            } catch (KeeperException | InterruptedException e) {
+            } catch (KeeperException e) {
+                logger.warn("Could not read metadata for key " + znodePath, e);
+            } catch(InterruptedException e) {
                 logger.warn("Could not read metadata for key " + znodePath, e);
             }
             Metadata md = new Metadata(rawMd);
