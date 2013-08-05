@@ -18,9 +18,9 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import fr.eurecom.hybris.kvs.CloudProvider;
-import fr.eurecom.hybris.kvs.KvStore;
-import fr.eurecom.hybris.mds.MdStore;
+import fr.eurecom.hybris.kvs.KvsManager;
+import fr.eurecom.hybris.kvs.drivers.Kvs;
+import fr.eurecom.hybris.mds.MdsManager;
 import fr.eurecom.hybris.mds.Metadata;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
@@ -33,8 +33,8 @@ public class Hybris {
 
     private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
-    private MdStore mds;
-    private KvStore kvs;
+    private MdsManager mds;
+    private KvsManager kvs;
 
     private final int quorum;
 
@@ -49,9 +49,9 @@ public class Hybris {
         Config conf = Config.getInstance();
         try {
             conf.loadProperties(propertiesFile);
-            this.mds = new MdStore(conf.getProperty(Config.MDS_ADDR),
+            this.mds = new MdsManager(conf.getProperty(Config.MDS_ADDR),
                                 conf.getProperty(Config.MDS_ROOT));
-            this.kvs = new KvStore(conf.getProperty(Config.KVS_ACCOUNTSFILE),
+            this.kvs = new KvsManager(conf.getProperty(Config.KVS_ACCOUNTSFILE),
                                 conf.getProperty(Config.KVS_ROOT),
                                 Boolean.parseBoolean(conf.getProperty(Config.KVS_TESTSONSTARTUP)));
         } catch (IOException e) {
@@ -70,8 +70,8 @@ public class Hybris {
                     String kvsAccountFile, String kvsRoot, boolean kvsTestOnStartup,
                     int t, int writeTimeout, int readTimeout, boolean gcEnabled) throws HybrisException {
         try {
-            this.mds = new MdStore(zkAddress, zkRoot);
-            this.kvs = new KvStore(kvsAccountFile, kvsRoot, kvsTestOnStartup);
+            this.mds = new MdsManager(zkAddress, zkRoot);
+            this.kvs = new KvsManager(kvsAccountFile, kvsRoot, kvsTestOnStartup);
         } catch (IOException e) {
             logger.error("Could not initialize Zookeeper or the cloud storage accounts.", e);
             throw new HybrisException("Could not initialize Zookeeper or the cloud storage accounts", e);
@@ -98,7 +98,7 @@ public class Hybris {
 
         Timestamp ts;
         Stat stat = new Stat();
-        stat.setVersion(MdStore.NONODE);    // if it stays unchanged after the read, the znode does not exist
+        stat.setVersion(MdsManager.NONODE);    // if it stays unchanged after the read, the znode does not exist
         Metadata md = this.mds.tsRead(key, stat);
         if (md == null)
             ts = new Timestamp(0, Utils.getClientId());
@@ -107,19 +107,19 @@ public class Hybris {
             ts.inc( Utils.getClientId() );
         }
 
-        List<CloudProvider> savedReplicasLst = new ArrayList<CloudProvider>();
+        List<Kvs> savedReplicasLst = new ArrayList<Kvs>();
         String kvsKey = Utils.getKvsKey(key, ts);
         ExecutorService executor = Executors.newFixedThreadPool(this.quorum);
-        List<Future<CloudProvider>> futureLst = new ArrayList<Future<CloudProvider>>(this.quorum);
+        List<Future<Kvs>> futureLst = new ArrayList<Future<Kvs>>(this.quorum);
         int idxFrom = 0; int idxTo = this.quorum;
         do {
-            synchronized(this.kvs.getProviders()) {
-                for (CloudProvider provider : this.kvs.getProviders().subList(idxFrom, idxTo))
+            synchronized(this.kvs.getKvStores()) {
+                for (Kvs provider : this.kvs.getKvStores().subList(idxFrom, idxTo))
                     futureLst.add(executor.submit(this.kvs.new KvsPutWorker(provider, kvsKey, value)));
             }
 
-            CloudProvider savedReplica = null;
-            for (Future<CloudProvider> future : futureLst)
+            Kvs savedReplica = null;
+            for (Future<Kvs> future : futureLst)
                 try {
                     savedReplica = future.get(this.TIMEOUT_WRITE, TimeUnit.SECONDS);
                     if (savedReplica != null) {
@@ -133,16 +133,16 @@ public class Hybris {
                 }
 
             idxFrom = idxTo;
-            idxTo = this.kvs.getProviders().size() > idxTo + this.quorum ?
-                        idxTo + this.quorum : this.kvs.getProviders().size();
+            idxTo = this.kvs.getKvStores().size() > idxTo + this.quorum ?
+                        idxTo + this.quorum : this.kvs.getKvStores().size();
 
         } while (savedReplicasLst.size() < this.quorum && idxFrom < idxTo);
         executor.shutdown();
 
         if (savedReplicasLst.size() < this.quorum) {
             if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
-            logger.warn("Hybris could not manage to store data in cloud stores for key {}.", key);
-            throw new HybrisException("Hybris could not manage to store data in cloud stores");
+            logger.warn("Hybris could not store data in cloud stores for key {}.", key);
+            throw new HybrisException("Hybris could not store data in cloud stores");
         }
 
         boolean overwritten = false;
@@ -150,8 +150,8 @@ public class Hybris {
             overwritten = this.mds.tsWrite(key, new Metadata(ts, Utils.getHash(value), savedReplicasLst), stat.getVersion());
         } catch (HybrisException e) {
             if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
-            logger.warn("Hybris could not manage to store metadata on Zookeeper for key {}.", key);
-            throw new HybrisException("Hybris could not manage to store the metadata on Zookeeper");
+            logger.warn("Hybris could not store metadata on Zookeeper for key {}.", key);
+            throw new HybrisException("Hybris could not store the metadata on Zookeeper");
         }
 
         if (this.gcEnabled && overwritten) this.mds.new GcMarker(key).start();
@@ -170,7 +170,7 @@ public class Hybris {
 
         Timestamp ts;
         Stat stat = new Stat();
-        stat.setVersion(MdStore.NONODE);    // if it stays unchanged after the read, the znode does not exist
+        stat.setVersion(MdsManager.NONODE);    // if it stays unchanged after the read, the znode does not exist
         Metadata md = this.mds.tsRead(key, stat);
         if (md == null)
             ts = new Timestamp(0, Utils.getClientId());
@@ -179,11 +179,11 @@ public class Hybris {
             ts.inc( Utils.getClientId() );
         }
 
-        List<CloudProvider> savedReplicasLst = new ArrayList<CloudProvider>();
+        List<Kvs> savedReplicasLst = new ArrayList<Kvs>();
         String kvsKey = Utils.getKvsKey(key, ts);
 
-        synchronized(this.kvs.getProviders()) {
-            for (CloudProvider provider : this.kvs.getProviders())
+        synchronized(this.kvs.getKvStores()) {
+            for (Kvs provider : this.kvs.getKvStores())
                 try {                                           // Notice: serial put
                     logger.debug("Storing {} on {}...", key, provider);
                     this.kvs.put(provider, kvsKey, value);
@@ -197,8 +197,8 @@ public class Hybris {
 
         if (savedReplicasLst.size() < this.quorum) {
             if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
-            logger.warn("Hybris could not manage to store data in cloud stores for key {}.", key);
-            throw new HybrisException("Hybris could not manage to store data in cloud stores");
+            logger.warn("Hybris could not store data in cloud stores for key {}.", key);
+            throw new HybrisException("Hybris could not store data in cloud stores");
         }
 
         boolean modified = false;
@@ -206,15 +206,15 @@ public class Hybris {
             modified = this.mds.tsWrite(key, new Metadata(ts, Utils.getHash(value), savedReplicasLst), stat.getVersion());
         } catch (HybrisException e) {
             if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
-            logger.warn("Hybris could not manage to store metadata on Zookeeper for key {}.", key);
-            throw new HybrisException("Hybris could not manage to store the metadata on Zookeeper");
+            logger.warn("Hybris could not store metadata on Zookeeper for key {}.", key);
+            throw new HybrisException("Hybris could not store the metadata on Zookeeper");
         }
 
         if (this.gcEnabled && modified)
             this.mds.new GcMarker(key).start();
 
         StringBuilder strBld = new StringBuilder("Data successfully stored to these replicas: ");
-        for (CloudProvider cloud : savedReplicasLst) strBld.append(cloud + " ");
+        for (Kvs cloud : savedReplicasLst) strBld.append(cloud + " ");
         logger.info(strBld.toString());
     }
 
@@ -235,8 +235,8 @@ public class Hybris {
         byte[] value = null;
         String kvsKey = Utils.getKvsKey(key, md.getTs());
 
-        synchronized(this.kvs.getProviders()) {
-            for (CloudProvider provider : this.kvs.getProviders()) {
+        synchronized(this.kvs.getKvStores()) {
+            for (Kvs provider : this.kvs.getKvStores()) {
 
                 if (!md.getReplicasLst().contains(provider))
                     continue;
@@ -274,7 +274,7 @@ public class Hybris {
             }
         }
 
-        logger.warn("Hybris could not manage to retrieve the data associated with key {} from cloud stores.", key);
+        logger.warn("Hybris could not retrieve the data associated with key {} from cloud stores.", key);
         return null;
     }
 
@@ -288,8 +288,8 @@ public class Hybris {
         }
 
         String kvsKey = Utils.getKvsKey(key, md.getTs());
-        synchronized(this.kvs.getProviders()) {
-            for (CloudProvider provider : this.kvs.getProviders()) {
+        synchronized(this.kvs.getKvStores()) {
+            for (Kvs provider : this.kvs.getKvStores()) {
 
                 if (!md.getReplicasLst().contains(provider))
                     continue;
@@ -332,8 +332,8 @@ public class Hybris {
             Metadata md = orphans.get(kvsKey);
             boolean error = false;
 
-            synchronized(this.kvs.getProviders()) {
-                for (CloudProvider provider : this.kvs.getProviders()) {
+            synchronized(this.kvs.getKvStores()) {
+                for (Kvs provider : this.kvs.getKvStores()) {
 
                     if (!md.getReplicasLst().contains(provider))
                         continue;
@@ -375,8 +375,8 @@ public class Hybris {
             return;
         }
 
-        synchronized(this.kvs.getProviders()) {
-            for (CloudProvider provider : this.kvs.getProviders()) {
+        synchronized(this.kvs.getKvStores()) {
+            for (Kvs provider : this.kvs.getKvStores()) {
 
                 List<String> kvsKeys;
                 try {
@@ -424,8 +424,8 @@ public class Hybris {
 
         Map<String, Metadata> mdMap = this.mds.getAll();     // !! heavy operation
 
-        synchronized(this.kvs.getProviders()) {
-            for (CloudProvider provider : this.kvs.getProviders()) {
+        synchronized(this.kvs.getKvStores()) {
+            for (Kvs provider : this.kvs.getKvStores()) {
 
                 List<String> kvsKeys;
                 try {
@@ -469,8 +469,8 @@ public class Hybris {
      */
     public void _emptyContainers() throws HybrisException {
         this.mds.emptyMetadataContainer();
-        synchronized(this.kvs.getProviders()) {
-            for (CloudProvider provider : this.kvs.getProviders())
+        synchronized(this.kvs.getKvStores()) {
+            for (Kvs provider : this.kvs.getKvStores())
                 try {
                     this.kvs.emptyStorageContainer(provider);
                 } catch (IOException e) {
@@ -478,17 +478,4 @@ public class Hybris {
                 }
         }
     }
-
-
-    /**
-     * TODO TEMP for debugging purposes
-     * @throws IOException
-     * @throws HybrisException
-     */
-//    public static void main(String[] args) throws HybrisException {
-//        Hybris hybris = new Hybris();
-//        hybris.write("mykey", "my_value".getBytes());
-//        String value = new String(hybris.read("mykey"));
-//        System.out.println("Read output: " + value);
-//    }
 }

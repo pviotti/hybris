@@ -7,7 +7,7 @@ import java.util.List;
 import org.apache.commons.lang3.SerializationUtils;
 
 import fr.eurecom.hybris.Utils;
-import fr.eurecom.hybris.kvs.CloudProvider;
+import fr.eurecom.hybris.kvs.drivers.Kvs;
 
 /**
  * Represents timestamped metadata.
@@ -91,9 +91,9 @@ public class Metadata implements Serializable {
 
     private Timestamp ts;
     private byte[] hash;
-    private List<CloudProvider> replicasLst;
+    private List<Kvs> replicasLst;
 
-    public Metadata(Timestamp ts, byte[] hash, List<CloudProvider> replicas) {
+    public Metadata(Timestamp ts, byte[] hash, List<Kvs> replicas) {
         this.ts = ts;
         this.hash = hash;
         this.replicasLst = replicas;
@@ -122,8 +122,8 @@ public class Metadata implements Serializable {
 
     public Timestamp getTs() { return this.ts; }
     public void setTs(Timestamp ts) { this.ts = ts;    }
-    public List<CloudProvider> getReplicasLst() { return this.replicasLst; }
-    public void setReplicasLst(List<CloudProvider> replicasLst) { this.replicasLst = replicasLst; }
+    public List<Kvs> getReplicasLst() { return this.replicasLst; }
+    public void setReplicasLst(List<Kvs> replicasLst) { this.replicasLst = replicasLst; }
     public byte[] getHash() { return this.hash; }
     public void setHash(byte[] hash) { this.hash = hash; }
 

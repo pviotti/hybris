@@ -24,15 +24,16 @@ import org.junit.Test;
 import fr.eurecom.hybris.Config;
 import fr.eurecom.hybris.HybrisException;
 import fr.eurecom.hybris.Utils;
-import fr.eurecom.hybris.kvs.CloudProvider;
-import fr.eurecom.hybris.mds.MdStore;
+import fr.eurecom.hybris.kvs.drivers.Kvs;
+import fr.eurecom.hybris.kvs.drivers.TransientKvs;
+import fr.eurecom.hybris.mds.MdsManager;
 import fr.eurecom.hybris.mds.Metadata;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 
 public class MdStoreTest extends HybrisAbstractTest {
 
-    private static MdStore mds;
+    private static MdsManager mds;
 
     private static String MDS_TEST_ROOT = "mdstest-root";
     private static String MDS_ADDRESS = "localhost:2181";
@@ -40,7 +41,7 @@ public class MdStoreTest extends HybrisAbstractTest {
     @BeforeClass
     public static void beforeClassSetup() throws IOException {
         Config.getInstance();
-        mds = new MdStore(MDS_ADDRESS, MDS_TEST_ROOT);
+        mds = new MdsManager(MDS_ADDRESS, MDS_TEST_ROOT);
     }
 
     // Executed before each test
@@ -59,13 +60,13 @@ public class MdStoreTest extends HybrisAbstractTest {
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), Utils.getClientId());
         byte[] hash = new BigInteger(50, this.random).toString(10).getBytes();
-        List<CloudProvider> replicas = new ArrayList<CloudProvider>();
-        replicas.add(new CloudProvider("transient", "A-accessKey", "A-secretKey", true, 0));
-        replicas.add(new CloudProvider("transient", "B-accessKey", "B-secretKey", true, 0));
-        replicas.add(new CloudProvider("transient", "C-accessKey", "C-secretKey", true, 0));
+        List<Kvs> replicas = new ArrayList<Kvs>();
+        replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "B-accessKey", "B-secretKey", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "C-accessKey", "C-secretKey", "container", true, 20));
         Metadata md = new Metadata(ts, hash, replicas);
 
-        mds.tsWrite(key, md, MdStore.NONODE);
+        mds.tsWrite(key, md, MdsManager.NONODE);
 
         md = mds.tsRead(key, null);
         assertEquals(ts, md.getTs());
@@ -80,8 +81,8 @@ public class MdStoreTest extends HybrisAbstractTest {
     public void testOverwrite() throws HybrisException {
 
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
-        List<CloudProvider> replicas = new ArrayList<CloudProvider>();
-        replicas.add(new CloudProvider("transient", "A-accessKey", "A-secretKey", true, 0));
+        List<Kvs> replicas = new ArrayList<Kvs>();
+        replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
         byte[] hash = new BigInteger(50, this.random).toString(10).getBytes();
         Stat stat = new Stat();
         Metadata retrieved;
@@ -143,10 +144,10 @@ public class MdStoreTest extends HybrisAbstractTest {
 
         try {
             Stat stat = new Stat();
-            stat.setVersion(MdStore.NONODE);
+            stat.setVersion(MdsManager.NONODE);
             value = mds.tsRead(key, stat);
             assertNull(value);
-            assertEquals(MdStore.NONODE, stat.getVersion()); // in case of not existent znode, stat will remain unmodified
+            assertEquals(MdsManager.NONODE, stat.getVersion()); // in case of not existent znode, stat will remain unmodified
         } catch (HybrisException e) {
             e.printStackTrace();
             fail();
@@ -181,16 +182,16 @@ public class MdStoreTest extends HybrisAbstractTest {
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), Utils.getClientId());
         byte[] hash = new BigInteger(50, this.random).toString(10).getBytes();
-        List<CloudProvider> replicas = new ArrayList<CloudProvider>();
-        replicas.add(new CloudProvider("transient", "A-accessKey", "A-secretKey", true, 10));
-        replicas.add(new CloudProvider("transient", "B-accessKey", "B-secretKey", true, 20));
-        replicas.add(new CloudProvider("transient", "C-accessKey", "C-secretKey", true, 30));
+        List<Kvs> replicas = new ArrayList<Kvs>();
+        replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "B-accessKey", "B-secretKey", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "C-accessKey", "C-secretKey", "container", true, 20));
 
         Metadata md = new Metadata(ts, hash, replicas);
-        mds.tsWrite(key, md, MdStore.NONODE);
+        mds.tsWrite(key, md, MdsManager.NONODE);
 
         md = mds.tsRead(key, null);
-        for(CloudProvider provider : md.getReplicasLst()) {
+        for(Kvs provider : md.getReplicasLst()) {
             assertNotNull(provider.getId());
             assertEquals(replicas.get( md.getReplicasLst().indexOf(provider) ), provider);
 
@@ -199,7 +200,6 @@ public class MdStoreTest extends HybrisAbstractTest {
             assertEquals(0, provider.getReadLatency());
             assertEquals(0, provider.getWriteLatency());
             assertEquals(0, provider.getCost());
-            assertNull(provider.getBlobStore());
         }
 
         mds.delete(key);
@@ -218,17 +218,17 @@ public class MdStoreTest extends HybrisAbstractTest {
         keys.add(key1); keys.add(key2); keys.add(key3); keys.add(key4); keys.add(key5);
         Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), Utils.getClientId());
         byte[] hash = new BigInteger(50, this.random).toString(10).getBytes();
-        List<CloudProvider> replicas = new ArrayList<CloudProvider>();
-        replicas.add(new CloudProvider("transient", "A-accessKey", "A-secretKey", true, 10));
-        replicas.add(new CloudProvider("transient", "B-accessKey", "B-secretKey", true, 20));
+        List<Kvs> replicas = new ArrayList<Kvs>();
+        replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "B-accessKey", "B-secretKey", "container", true, 20));
 
         Metadata md = new Metadata(ts, hash, replicas);
 
-        mds.tsWrite(key1, md, MdStore.NONODE);
-        mds.tsWrite(key2, md, MdStore.NONODE);
-        mds.tsWrite(key3, md, MdStore.NONODE);
-        mds.tsWrite(key4, md, MdStore.NONODE);
-        mds.tsWrite(key5, md, MdStore.NONODE);
+        mds.tsWrite(key1, md, MdsManager.NONODE);
+        mds.tsWrite(key2, md, MdsManager.NONODE);
+        mds.tsWrite(key3, md, MdsManager.NONODE);
+        mds.tsWrite(key4, md, MdsManager.NONODE);
+        mds.tsWrite(key5, md, MdsManager.NONODE);
 
         List<String> listedKeys = mds.list();
         assertEquals(5, listedKeys.size());
@@ -237,7 +237,7 @@ public class MdStoreTest extends HybrisAbstractTest {
 
         ts.inc(Utils.getClientId());
         md = new Metadata(ts, new BigInteger(50, this.random).toString(10).getBytes(), replicas);
-        mds.tsWrite(key4, md, MdStore.NONODE);  // overwrites a key
+        mds.tsWrite(key4, md, MdsManager.NONODE);  // overwrites a key
         listedKeys = mds.list();
         assertEquals(5, listedKeys.size());
         Stat stat = new Stat();
@@ -279,17 +279,17 @@ public class MdStoreTest extends HybrisAbstractTest {
         keys.add(key1); keys.add(key2); keys.add(key3); keys.add(key4); keys.add(key5);
         Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), Utils.getClientId());
         byte[] hash = new BigInteger(50, this.random).toString(10).getBytes();
-        List<CloudProvider> replicas = new ArrayList<CloudProvider>();
-        replicas.add(new CloudProvider("transient", "A-accessKey", "A-secretKey", true, 10));
-        replicas.add(new CloudProvider("transient", "B-accessKey", "B-secretKey", true, 20));
+        List<Kvs> replicas = new ArrayList<Kvs>();
+        replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 10));
+        replicas.add(new TransientKvs("transient", "B-accessKey", "B-secretKey", "container", true, 20));
 
         Metadata md = new Metadata(ts, hash, replicas);
 
-        mds.tsWrite(key1, md, MdStore.NONODE);
-        mds.tsWrite(key2, md, MdStore.NONODE);
-        mds.tsWrite(key3, md, MdStore.NONODE);
-        mds.tsWrite(key4, md, MdStore.NONODE);
-        mds.tsWrite(key5, md, MdStore.NONODE);
+        mds.tsWrite(key1, md, MdsManager.NONODE);
+        mds.tsWrite(key2, md, MdsManager.NONODE);
+        mds.tsWrite(key3, md, MdsManager.NONODE);
+        mds.tsWrite(key4, md, MdsManager.NONODE);
+        mds.tsWrite(key5, md, MdsManager.NONODE);
 
         Map<String, Metadata> allMd = mds.getAll();
         assertEquals(5, allMd.size());
@@ -301,7 +301,7 @@ public class MdStoreTest extends HybrisAbstractTest {
 
         Timestamp ts4 = new Timestamp(ts.getNum() +1, Utils.getClientId());
         Metadata md4 = new Metadata(ts4, new BigInteger(50, this.random).toString(10).getBytes(), replicas);
-        mds.tsWrite(key4, md4, MdStore.NONODE);  // overwrites a key
+        mds.tsWrite(key4, md4, MdsManager.NONODE);  // overwrites a key
         allMd = mds.getAll();
         assertEquals(5, allMd.size());
         Stat stat = new Stat();

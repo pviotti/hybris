@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>fr.eurecom.hybris</groupId>
   <artifactId>hybris</artifactId>
-  <version>0.0.1</version>
+  <version>0.0.1-sdk</version>
   <name>Hybris</name>
   <description>Hybris storage library</description>
   <properties>
@@ -37,27 +37,6 @@
         </exclusions>
 	</dependency>
 	
-    <dependency>
-      <groupId>org.apache.jclouds</groupId>
-      <artifactId>jclouds-blobstore</artifactId>
-      <version>1.6.1-incubating</version>
-    </dependency>
-     <dependency>
-		<groupId>org.apache.jclouds.provider</groupId>
-		<artifactId>aws-s3</artifactId>
-		<version>1.6.1-incubating</version>
-	</dependency>
-	 <dependency>
-		<groupId>org.apache.jclouds.provider</groupId>
-		<artifactId>cloudfiles-us</artifactId>
-		<version>1.6.1-incubating</version>
-	</dependency>
-	 <dependency>
-		<groupId>org.apache.jclouds.provider</groupId>
-		<artifactId>azureblob</artifactId>
-		<version>1.6.1-incubating</version>
-	</dependency>
-	
 	<dependency> <!-- used for serialization -->
 		<groupId>org.apache.commons</groupId>
 		<artifactId>commons-lang3</artifactId>
@@ -69,6 +48,37 @@
         <artifactId>junit</artifactId>
         <version>4.11</version>
     </dependency>
+    
+    <!-- kvs drivers' dependencies -->
+    <dependency>
+        <groupId>com.microsoft.windowsazure</groupId>
+        <artifactId>microsoft-windowsazure-api</artifactId>
+        <version>0.4.4</version>
+    </dependency>
+    
+    <dependency>
+        <groupId>com.google.appengine.tools</groupId>
+        <artifactId>appengine-gcs-client</artifactId>
+        <version>0.3</version>
+    </dependency>
+    
+    <dependency>
+        <groupId>com.amazonaws</groupId>
+        <artifactId>aws-java-sdk</artifactId>
+        <version>1.5.2</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.apache.jclouds</groupId>
+      <artifactId>jclouds-blobstore</artifactId>
+      <version>1.6.1-incubating</version>
+    </dependency>
+     <dependency>
+        <groupId>org.apache.jclouds.provider</groupId>
+        <artifactId>cloudfiles-us</artifactId>
+        <version>1.6.1-incubating</version>
+    </dependency>
+            
     
     <dependency>
       <groupId>com.yahoo.ycsb</groupId>

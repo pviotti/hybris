@@ -18,27 +18,27 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import fr.eurecom.hybris.Config;
-import fr.eurecom.hybris.kvs.CloudProvider;
-import fr.eurecom.hybris.kvs.KvStore;
+import fr.eurecom.hybris.kvs.KvsManager;
+import fr.eurecom.hybris.kvs.drivers.Kvs;
 
 
 public class KvStoreTest extends HybrisAbstractTest {
 
-    private static KvStore kvs;
+    private static KvsManager kvs;
 
     private static String KVS_ROOT = "kvstest-root-prova";
 
     @BeforeClass
     public static void beforeClassSetup() throws IOException {
         Config.getInstance();
-        kvs = new KvStore("accounts-test.properties", KVS_ROOT, true);
+        kvs = new KvsManager("accounts-test.properties", KVS_ROOT, true);
     }
 
     // Executed before each test
     @Before
     public void setUp() throws Exception {
-        synchronized(kvs.getProviders()) {
-            for (CloudProvider provider : kvs.getProviders())
+        synchronized(kvs.getKvStores()) {
+            for (Kvs provider : kvs.getKvStores())
                 kvs.emptyStorageContainer(provider);
         }
     }
@@ -52,9 +52,9 @@ public class KvStoreTest extends HybrisAbstractTest {
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         byte[] value = new BigInteger(50, this.random).toString(32).getBytes();
 
-        List<CloudProvider> replicas = new ArrayList<CloudProvider>();
-        synchronized(kvs.getProviders()) {
-            for (CloudProvider provider : kvs.getProviders())
+        List<Kvs> replicas = new ArrayList<Kvs>();
+        synchronized(kvs.getKvStores()) {
+            for (Kvs provider : kvs.getKvStores())
                 try {
                     kvs.put(provider, key, value);
                     replicas.add(provider);
@@ -64,15 +64,15 @@ public class KvStoreTest extends HybrisAbstractTest {
         }
         assertTrue(replicas.size() > 0);
 
-        for(CloudProvider replica : replicas) {
+        for(Kvs replica : replicas) {
             byte[] output = kvs.get(replica, key);
             assertTrue(Arrays.equals(output, value));
         }
 
-        for(CloudProvider replica : replicas)
+        for(Kvs replica : replicas)
             kvs.delete(replica, key);
 
-        for(CloudProvider replica : replicas)
+        for(Kvs replica : replicas)
             assertNull(kvs.get(replica, key));
     }
 
@@ -83,8 +83,8 @@ public class KvStoreTest extends HybrisAbstractTest {
         byte[] value1 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".getBytes();
         byte[] value2 = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB".getBytes();
 
-        synchronized(kvs.getProviders()) {
-            for (CloudProvider provider : kvs.getProviders())
+        synchronized(kvs.getKvStores()) {
+            for (Kvs provider : kvs.getKvStores())
                 try {
                     kvs.put(provider, key, value1);
                     kvs.put(provider, key, value2);
@@ -105,8 +105,8 @@ public class KvStoreTest extends HybrisAbstractTest {
 
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
 
-        synchronized(kvs.getProviders()) {
-            for (CloudProvider provider : kvs.getProviders())
+        synchronized(kvs.getKvStores()) {
+            for (Kvs provider : kvs.getKvStores())
                 try {
                     kvs.delete(provider, key);
                 } catch(Throwable t) {
@@ -122,8 +122,8 @@ public class KvStoreTest extends HybrisAbstractTest {
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         byte[] value = null;
 
-        synchronized(kvs.getProviders()) {
-            for (CloudProvider provider : kvs.getProviders())
+        synchronized(kvs.getKvStores()) {
+            for (Kvs provider : kvs.getKvStores())
                 try {
                     value = kvs.get(provider, key);
                     assertNull(value);
@@ -146,9 +146,9 @@ public class KvStoreTest extends HybrisAbstractTest {
         byte[] value3 = "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC".getBytes();
         byte[] value4 = "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD".getBytes();
 
-        List<CloudProvider> replicas = new ArrayList<CloudProvider>();
-        synchronized(kvs.getProviders()) {
-            for (CloudProvider provider : kvs.getProviders())
+        List<Kvs> replicas = new ArrayList<Kvs>();
+        synchronized(kvs.getKvStores()) {
+            for (Kvs provider : kvs.getKvStores())
                 try {
                     kvs.put(provider, key1, value1);
                     kvs.put(provider, key2, value2);
@@ -162,7 +162,7 @@ public class KvStoreTest extends HybrisAbstractTest {
         assertTrue(replicas.size() > 0);
 
         List<String> keysLst;
-        for(CloudProvider replica : replicas) {
+        for(Kvs replica : replicas) {
             keysLst = kvs.list(replica);
             assertTrue(keysLst.size() > 3);
             assertTrue(keysLst.contains(key1));
@@ -172,7 +172,7 @@ public class KvStoreTest extends HybrisAbstractTest {
         }
 
         byte[] output;
-        for(CloudProvider replica : replicas) {
+        for(Kvs replica : replicas) {
             output = kvs.get(replica, key1);
             assertTrue(Arrays.equals(output, value1));
             output = kvs.get(replica, key2);
@@ -183,20 +183,20 @@ public class KvStoreTest extends HybrisAbstractTest {
             assertTrue(Arrays.equals(output, value4));
         }
 
-        for(CloudProvider replica : replicas){
+        for(Kvs replica : replicas){
             kvs.delete(replica, key1);
             kvs.delete(replica, key2);
             kvs.delete(replica, key3);
         }
 
-        for(CloudProvider replica : replicas) {
+        for(Kvs replica : replicas) {
             assertNull(kvs.get(replica, key1));
             assertNull(kvs.get(replica, key2));
             assertNull(kvs.get(replica, key3));
             assertNotNull(kvs.get(replica, key4));
         }
 
-        for(CloudProvider replica : replicas) {
+        for(Kvs replica : replicas) {
             keysLst = kvs.list(replica);
             assertFalse(keysLst.contains(key1));
             assertFalse(keysLst.contains(key2));
@@ -210,15 +210,15 @@ public class KvStoreTest extends HybrisAbstractTest {
         byte[] payload = this.generatePayload(41940000, (byte) 'x');
         String key1 = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
 
-        List<CloudProvider> replicas = new ArrayList<CloudProvider>();
-        synchronized(kvs.getProviders()) {
-            for (CloudProvider provider : kvs.getProviders()) {
+        List<Kvs> replicas = new ArrayList<Kvs>();
+        synchronized(kvs.getKvStores()) {
+            for (Kvs provider : kvs.getKvStores()) {
                 kvs.put(provider, key1, payload);
                 replicas.add(provider);
             }
         }
 
-        for(CloudProvider replica : replicas)
+        for(Kvs replica : replicas)
             kvs.delete(replica, key1);
     }
 }

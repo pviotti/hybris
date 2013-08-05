@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
 import fr.eurecom.hybris.Config;
 import fr.eurecom.hybris.HybrisException;
 import fr.eurecom.hybris.Utils;
-import fr.eurecom.hybris.kvs.CloudProvider;
+import fr.eurecom.hybris.kvs.drivers.Kvs;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 /**
@@ -28,7 +28,7 @@ import fr.eurecom.hybris.mds.Metadata.Timestamp;
  * Provides read&write access to the metadata storage.
  * @author p.viotti
  */
-public class MdStore implements Watcher {
+public class MdsManager implements Watcher {
 
     private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
@@ -49,7 +49,7 @@ public class MdStore implements Watcher {
      * @param zkRoot the hybris metadata root folder
      * @throws IOException thrown in case of error while initializing the ZK client
      */
-    public MdStore(String zkAddress, String zkRoot) throws IOException {
+    public MdsManager(String zkAddress, String zkRoot) throws IOException {
 
         this.storageRoot = "/" + zkRoot;
 
@@ -89,11 +89,11 @@ public class MdStore implements Watcher {
 
         private final String key;
         private Timestamp ts;
-        private List<CloudProvider> replicas;
+        private List<Kvs> replicas;
         private final GcType type;
 
         public GcMarker(String key, Timestamp ts,
-                            List<CloudProvider> savedReplicas) {
+                            List<Kvs> savedReplicas) {
             this.key = key;
             this.ts = ts;
             this.replicas = savedReplicas;
@@ -112,9 +112,9 @@ public class MdStore implements Watcher {
 
             case STALE:
                 // create znode  <root>-gc/stale/<key>
-                path = MdStore.this.gcStaleDir + "/" + this.key;
+                path = MdsManager.this.gcStaleDir + "/" + this.key;
                 try {
-                    MdStore.this.zk.create(path, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                    MdsManager.this.zk.create(path, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                     logger.debug("GcMarker: marked {} as stale", path);
                 } catch (KeeperException e){
                     if (e.code() != KeeperException.Code.NODEEXISTS)
@@ -125,10 +125,10 @@ public class MdStore implements Watcher {
                 break;
             case ORPHAN:
                 // create znode <root>-gc/orphans/<KvsKey>
-                path = MdStore.this.gcOrphansDir + "/" + Utils.getKvsKey(this.key, this.ts);
+                path = MdsManager.this.gcOrphansDir + "/" + Utils.getKvsKey(this.key, this.ts);
                 byte[] value = new Metadata(this.ts, null, this.replicas).serialize();
                 try {
-                    MdStore.this.zk.create(path, value, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                    MdsManager.this.zk.create(path, value, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                     logger.debug("GcMarker: marked {} as orphan", path);
                 } catch (KeeperException e){
                     if (e.code() != KeeperException.Code.NODEEXISTS)

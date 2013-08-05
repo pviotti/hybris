@@ -17,23 +17,23 @@ public class Config {
 
     public static String LOGGER_NAME = "hybrisLogger";
 
-    public static String HS_T = "fr.eurecom.hybris.t";
-    public static String HS_TO_WRITE = "fr.eurecom.hybris.timeoutwrite";
-    public static String HS_TO_READ = "fr.eurecom.hybris.timeoutread";
-    public static String HS_GC = "fr.eurecom.hybris.gc";
+    public static String HS_T = "hybris.t";
+    public static String HS_TO_WRITE = "hybris.timeoutwrite";
+    public static String HS_TO_READ = "hybris.timeoutread";
+    public static String HS_GC = "hybris.gc";
 
-    public static String MDS_ADDR = "fr.eurecom.hybris.mds.address";
-    public static String MDS_ROOT = "fr.eurecom.hybris.mds.root";
+    public static String MDS_ADDR = "hybris.mds.address";
+    public static String MDS_ROOT = "hybris.mds.root";
 
-    public static String KVS_ROOT = "fr.eurecom.hybris.kvs.root";
-    public static String KVS_ACCOUNTSFILE = "fr.eurecom.hybris.kvs.accountsfile";
-    public static String KVS_TESTSONSTARTUP = "fr.eurecom.hybris.kvs.latencytestonstartup";
+    public static String KVS_ROOT = "hybris.kvs.root";
+    public static String KVS_ACCOUNTSFILE = "hybris.kvs.accountsfile";
+    public static String KVS_TESTSONSTARTUP = "hybris.kvs.latencytestonstartup";
 
-    private static String C_ACCOUNTS = "fr.eurecom.hybris.clouds";
-    public static String C_AKEY = "fr.eurecom.hybris.clouds.%s.akey";
-    public static String C_SKEY = "fr.eurecom.hybris.clouds.%s.skey";
-    public static String C_ENABLED = "fr.eurecom.hybris.clouds.%s.enabled";
-    public static String C_COST = "fr.eurecom.hybris.clouds.%s.cost";
+    private static String C_ACCOUNTS = "hybris.kvs.drivers";
+    public static String C_AKEY = "hybris.kvs.drivers.%s.akey";
+    public static String C_SKEY = "hybris.kvs.drivers.%s.skey";
+    public static String C_ENABLED = "hybris.kvs.drivers.%s.enabled";
+    public static String C_COST = "hybris.kvs.drivers.%s.cost";
 
     public static Config getInstance () {
         if (instance == null)

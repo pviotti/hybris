@@ -1,63 +1,37 @@
-package fr.eurecom.hybris.kvs;
+package fr.eurecom.hybris.kvs.drivers;
 
-import java.io.Serializable;
+import java.io.IOException;
+import java.util.List;
 
-import org.jclouds.ContextBuilder;
-import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.BlobStoreContext;
+public abstract class Kvs implements Comparable<Kvs> {
 
-/**
- * Class for storing cloud storage provider details.
- * @author p.viotti
- */
-public class CloudProvider implements Comparable<CloudProvider>, Serializable {
+    protected final String id;
 
-    private String id;
-
-    private transient boolean enabled;
-    private transient boolean alreadyUsed; /* whether the storage provider
+    protected transient boolean enabled;
+    protected transient boolean alreadyUsed; /* whether the storage provider
                                             * has already been used
-                                            * (to initialize the container */
-    private transient BlobStore blobStore;
+                                            * (to initialize the container) */
+
+    protected transient String rootContainer;
 
     /* measures to compare the providers */
     private transient long writeLatency;
     private transient long readLatency;
     private transient int cost; // $ cents per GB
 
-    private static final long serialVersionUID = 1L;
-
-    public CloudProvider(String id, String accessKey, String secretKey,
-                            boolean enabled, int cost) {
+    public Kvs(String id, String accessKey, String secretKey,
+                        String container, boolean enabled, int cost) {
         this.id = id;
         this.enabled = enabled;
         this.cost = cost;
+        this.rootContainer = container;
 
         this.readLatency = 0;
         this.writeLatency = 0;
         this.alreadyUsed = false;
-
-        //Iterable<Module> modules = ImmutableSet.<Module> of(new SLF4JLoggingModule());
-        /*
-        Properties overrides = new Properties();
-        overrides.setProperty(PROPERTY_MAX_CONNECTIONS_PER_CONTEXT, "30");
-        overrides.setProperty("jclouds.mpu.parallel.degree", "5");      // Number of parts being uploaded in parallel; default is 4  
-                                                                        // only works for S3 and Swift, for async (deprecated) APIs 
-                                                                        // (see https://issues.apache.org/jira/browse/JCLOUDS-227)
-        overrides.setProperty(PROPERTY_MAX_CONNECTIONS_PER_HOST, "0");  // Limited by MAX_CONNECTIONS_PER_CONTEXT
-        overrides.setProperty(PROPERTY_IO_WORKER_THREADS, "30");
-        overrides.setProperty(PROPERTY_USER_THREADS, "0");              // Unlimited
-         */
-        BlobStoreContext context = ContextBuilder.newBuilder(id)
-                                                .credentials(accessKey, secretKey)
-                                                //.modules(modules)
-                                                //.overrides(overrides)
-                                                .buildView(BlobStoreContext.class);
-        this.blobStore = context.getBlobStore();
     }
 
     public String getId()           { return this.id; }
-    public void setId(String id)    { this.id = id; }
     public boolean isAlreadyUsed()  { return this.alreadyUsed; }
     public void setAlreadyUsed(boolean alreadyUsed) { this.alreadyUsed = alreadyUsed; }
     public boolean isEnabled()      { return this.enabled; }
@@ -68,14 +42,21 @@ public class CloudProvider implements Comparable<CloudProvider>, Serializable {
     public void setReadLatency(long readLatency)    { this.readLatency = readLatency; }
     public int getCost()            { return this.cost; }
     public void setCost(int cost)   { this.cost = cost; }
-    public BlobStore getBlobStore() { return this.blobStore; }
+
+    /* APIs */
+    public abstract void put(String key, byte[] value) throws IOException;
+    public abstract byte[] get(String key) throws IOException;
+    public abstract List<String> list() throws IOException;
+    public abstract void delete(String key) throws IOException;
+    public abstract boolean createContainer(String container) throws IOException;
+    public abstract void emptyContainer() throws IOException;
 
     /*
      * TODO should they be comparable both in terms of cost and latency? if so,
      * which weight should be given to each of them
      */
     @Override
-    public int compareTo(CloudProvider o) {
+    public int compareTo(Kvs o) {
         if (this.writeLatency + this.readLatency < o.getWriteLatency()
                 + o.getReadLatency()
                 || !o.isEnabled())
@@ -104,7 +85,7 @@ public class CloudProvider implements Comparable<CloudProvider>, Serializable {
             return false;
         if (this.getClass() != obj.getClass())
             return false;
-        CloudProvider other = (CloudProvider) obj;
+        Kvs other = (Kvs) obj;
         if (this.id == null) {
             if (other.id != null)
                 return false;
@@ -119,7 +100,7 @@ public class CloudProvider implements Comparable<CloudProvider>, Serializable {
     }
 
     public String toVerboseString() {
-        return "CloudProvider (" + this.id + ") [alreadyUsed="
+        return "Kvs (" + this.id + ") [alreadyUsed="
                 + this.alreadyUsed + ", enabled=" + this.enabled
                 + ", writeLatency=" + this.writeLatency + ", readLatency="
                 + this.readLatency + ", cost=" + this.cost + "]";
