@@ -118,7 +118,7 @@ public class KvStore {
 
             // logger.debug("Storing {} on {}...", key, provider.getId());
             Blob blob = storage.blobBuilder(key).payload(data).build();
-            storage.putBlob(rootContainer, blob);
+            storage.putBlob(rootContainer, blob); // multipart() for enabling multipart uploads (if supported)
             // logger.debug("Finished storing {} on {}.", key, provider.getId());
         } catch (Exception ex) {
             throw new IOException(ex);

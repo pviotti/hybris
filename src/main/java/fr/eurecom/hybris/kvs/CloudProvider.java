@@ -37,13 +37,20 @@ public class CloudProvider implements Comparable<CloudProvider>, Serializable {
         this.writeLatency = 0;
         this.alreadyUsed = false;
 
-        /*Properties overrides = new Properties();
+        //Iterable<Module> modules = ImmutableSet.<Module> of(new SLF4JLoggingModule());
+        /*
+        Properties overrides = new Properties();
         overrides.setProperty(PROPERTY_MAX_CONNECTIONS_PER_CONTEXT, "30");
-        overrides.setProperty(PROPERTY_MAX_CONNECTIONS_PER_HOST, "0");  // limited by MAX_CONNECTIONS_PER_CONTEXT
+        overrides.setProperty("jclouds.mpu.parallel.degree", "5");      // Number of parts being uploaded in parallel; default is 4  
+                                                                        // only works for S3 and Swift, for async (deprecated) APIs 
+                                                                        // (see https://issues.apache.org/jira/browse/JCLOUDS-227)
+        overrides.setProperty(PROPERTY_MAX_CONNECTIONS_PER_HOST, "0");  // Limited by MAX_CONNECTIONS_PER_CONTEXT
         overrides.setProperty(PROPERTY_IO_WORKER_THREADS, "30");
-        overrides.setProperty(PROPERTY_USER_THREADS, "0");              // unlimited */
+        overrides.setProperty(PROPERTY_USER_THREADS, "0");              // Unlimited
+         */
         BlobStoreContext context = ContextBuilder.newBuilder(id)
                                                 .credentials(accessKey, secretKey)
+                                                //.modules(modules)
                                                 //.overrides(overrides)
                                                 .buildView(BlobStoreContext.class);
         this.blobStore = context.getBlobStore();

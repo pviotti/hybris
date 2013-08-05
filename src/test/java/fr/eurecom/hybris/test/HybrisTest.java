@@ -77,9 +77,17 @@ public class HybrisTest extends HybrisAbstractTest {
         assertNull(hybris.read(key2));
     }
 
-    private byte[] generatePayload(int size, byte b) {
-        byte[] array = new byte[size];
-        Arrays.fill(array, b);
-        return array;
+    @Ignore
+    @Test
+    public void testLargeFiles() throws HybrisException {
+        byte[] payload = this.generatePayload(50000000, (byte) 'x');
+        String key1 = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
+
+        long start = 0, end = 0;
+        start = System.currentTimeMillis();
+        hybris.write(key1, payload);
+        end = System.currentTimeMillis();
+        System.out.println("Parallel: " + (end - start) + " ms");
+        hybris.delete(key1);
     }
 }

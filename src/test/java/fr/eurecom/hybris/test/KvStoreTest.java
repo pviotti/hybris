@@ -204,4 +204,21 @@ public class KvStoreTest extends HybrisAbstractTest {
             assertTrue(keysLst.contains(key4));
         }
     }
+
+    @Test
+    public void testLargeFiles() throws IOException {
+        byte[] payload = this.generatePayload(41940000, (byte) 'x');
+        String key1 = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
+
+        List<CloudProvider> replicas = new ArrayList<CloudProvider>();
+        synchronized(kvs.getProviders()) {
+            for (CloudProvider provider : kvs.getProviders()) {
+                kvs.put(provider, key1, payload);
+                replicas.add(provider);
+            }
+        }
+
+        for(CloudProvider replica : replicas)
+            kvs.delete(replica, key1);
+    }
 }
