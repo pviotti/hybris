@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,6 +13,7 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.ObjectMetadata;
@@ -55,6 +57,13 @@ public class AmazonKvs extends Kvs {
             S3Object object = this.s3.getObject(new GetObjectRequest(this.rootContainer, key));
             return ByteStreams.toByteArray(object.getObjectContent());
         } catch (AmazonClientException e) {
+
+            if (e instanceof AmazonS3Exception) {
+                AmazonS3Exception as3e = (AmazonS3Exception) e;
+                if (as3e.getStatusCode() == HttpStatus.SC_NOT_FOUND)
+                    return null;
+            }
+
             logger.warn("Could not get {}", key, e);
             throw new IOException(e);
         }

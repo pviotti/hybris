@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.http.HttpStatus;
 import org.jets3t.service.ServiceException;
 import org.jets3t.service.impl.rest.httpclient.GoogleStorageService;
 import org.jets3t.service.model.GSObject;
@@ -56,6 +57,13 @@ public class GoogleKvs extends Kvs {
             InputStream ins = objectComplete.getDataInputStream();
             return  ByteStreams.toByteArray(ins);
         } catch (ServiceException | IOException e) {
+
+            if (e instanceof ServiceException) {
+                ServiceException se = (ServiceException) e;
+                if (se.getResponseCode() == HttpStatus.SC_NOT_FOUND)
+                    return null;
+            }
+
             logger.warn("Could not get {}", key, e);
             throw new IOException(e);
         }
@@ -65,6 +73,13 @@ public class GoogleKvs extends Kvs {
         try {
             this.gsService.deleteObject(this.rootContainer, key);
         } catch (ServiceException e) {
+
+            if (e instanceof ServiceException) {
+                ServiceException se = e;
+                if (se.getResponseCode() == HttpStatus.SC_NOT_FOUND)
+                    return;
+            }
+
             logger.warn("Could not delete {}", key, e);
             throw new IOException(e);
         }

@@ -47,10 +47,8 @@ public class RackspaceKvs extends Kvs {
     public byte[] get(String key) throws IOException {
         try {
             Blob blob = this.blobStore.getBlob(this.rootContainer, key);
-            if (blob == null) {
-                logger.warn("Could not find key {} in {}", key, this.id);
+            if (blob == null)
                 return null;
-            }
             return ByteStreams.toByteArray(blob.getPayload());
         } catch (Exception e) {
             throw new IOException(e);

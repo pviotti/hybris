@@ -26,6 +26,8 @@ public class AzureKvs extends Kvs {
     private static final long serialVersionUID = 1L;
     private transient static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
+    private static final String ERROR_BLOB_NOT_FOUND = "BlobNotFound";
+
     private transient final CloudBlobClient blobClient;
 
     public AzureKvs(String id, String accessKey, String secretKey,
@@ -64,6 +66,13 @@ public class AzureKvs extends Kvs {
             blob.download(baos);
             return baos.toByteArray();
         } catch (URISyntaxException | StorageException | IOException e) {
+
+            if (e instanceof StorageException) {
+                StorageException se = (StorageException) e;
+                if (ERROR_BLOB_NOT_FOUND.equals(se.getErrorCode()))
+                    return null;
+            }
+
             logger.warn("Could not get {}", key, e);
             throw new IOException(e);
         }
@@ -75,6 +84,13 @@ public class AzureKvs extends Kvs {
             CloudBlockBlob blob = container.getBlockBlobReference(key);
             blob.delete();
         } catch (URISyntaxException | StorageException e) {
+
+            if (e instanceof StorageException) {
+                StorageException se = (StorageException) e;
+                if (ERROR_BLOB_NOT_FOUND.equals(se.getErrorCode()))
+                    return;
+            }
+
             logger.warn("Could not delete {}", key, e);
             throw new IOException(e);
         }

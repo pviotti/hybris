@@ -149,7 +149,10 @@ public class KvsManager {
 
 
     public byte[] get(Kvs kvStore, String key) throws IOException {
-        return kvStore.get(key);
+        byte[] value = kvStore.get(key);
+        if (value == null)
+            logger.warn("Could not find key {} in {}", key, kvStore.getId());
+        return value;
     }
 
 
