@@ -23,9 +23,10 @@ import fr.eurecom.hybris.Config;
 
 public class AzureKvs extends Kvs {
 
-    private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
+    private static final long serialVersionUID = 1L;
+    private transient static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
-    private final CloudBlobClient blobClient;
+    private transient final CloudBlobClient blobClient;
 
     public AzureKvs(String id, String accessKey, String secretKey,
                         String container, boolean enabled, int cost) throws IOException {
@@ -94,10 +95,11 @@ public class AzureKvs extends Kvs {
         }
     }
 
-    public boolean createContainer() throws IOException {
+    public void createContainer() throws IOException {
         try {
             CloudBlobContainer container = this.blobClient.getContainerReference(this.rootContainer);
-            return container.createIfNotExist();
+            container.createIfNotExist();
+            this.alreadyUsed = true;
         } catch (StorageException | URISyntaxException e) {
             logger.warn("Could not create " + this.rootContainer + " on " + this.id, e);
             throw new IOException(e);

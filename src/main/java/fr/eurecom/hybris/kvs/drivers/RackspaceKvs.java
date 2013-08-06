@@ -20,10 +20,11 @@ import fr.eurecom.hybris.Config;
 
 public class RackspaceKvs extends Kvs {
 
+    private static final long serialVersionUID = 1L;
     private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
     private final static String rackspaceId = "cloudfiles-us";
-    private final BlobStore blobStore;
+    private transient final BlobStore blobStore;
 
     public RackspaceKvs(String id, String accessKey, String secretKey,
                             String container, boolean enabled, int cost) {
@@ -78,11 +79,10 @@ public class RackspaceKvs extends Kvs {
         }
     }
 
-    public boolean createContainer() throws IOException {
+    public void createContainer() throws IOException {
         try {
-            boolean created = this.blobStore.createContainerInLocation(null, this.rootContainer);
+            this.blobStore.createContainerInLocation(null, this.rootContainer);
             this.alreadyUsed = true;
-            return created;
         } catch (Exception ex) {
             throw new IOException(ex);
         }

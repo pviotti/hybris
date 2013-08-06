@@ -7,7 +7,8 @@ import java.util.Map;
 
 public class TransientKvs extends Kvs {
 
-    private final Map<String, byte[]> hashMap;
+    private static final long serialVersionUID = 1L;
+    private transient final Map<String, byte[]> hashMap;
 
     public TransientKvs(String id, String accessKey, String secretKey,
                             String container, boolean enabled, int cost) {
@@ -31,7 +32,5 @@ public class TransientKvs extends Kvs {
         return new ArrayList<String>(this.hashMap.keySet());
     }
 
-    public boolean createContainer() {
-        return false;
-    }
+    public void createContainer() { }
 }

@@ -1,9 +1,10 @@
 package fr.eurecom.hybris.kvs.drivers;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.List;
 
-public abstract class Kvs implements Comparable<Kvs> {
+public abstract class Kvs implements Comparable<Kvs>, Serializable {
 
     protected final String id;
 
@@ -18,6 +19,8 @@ public abstract class Kvs implements Comparable<Kvs> {
     private transient long writeLatency;
     private transient long readLatency;
     private transient int cost; // $ cents per GB
+
+    private static final long serialVersionUID = 1L;
 
     public Kvs(String id, String accessKey, String secretKey,
                         String container, boolean enabled, int cost) {
@@ -48,7 +51,7 @@ public abstract class Kvs implements Comparable<Kvs> {
     public abstract byte[] get(String key) throws IOException;
     public abstract List<String> list() throws IOException;
     public abstract void delete(String key) throws IOException;
-    public abstract boolean createContainer() throws IOException;
+    public abstract void createContainer() throws IOException;
 
     /*
      * TODO should they be comparable both in terms of cost and latency? if so,

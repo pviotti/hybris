@@ -60,6 +60,18 @@
         <groupId>net.java.dev.jets3t</groupId>
         <artifactId>jets3t</artifactId>
         <version>0.9.0</version>
+         <exclusions>
+            <!-- because in the uber-jar it would conflict with 
+                    another version (4.2 instead of 4.1) required by AWS SDK -->
+	        <exclusion>
+	            <groupId>org.apache.httpcomponents</groupId>
+	            <artifactId>httpclient</artifactId>
+	        </exclusion>
+	        <exclusion>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpcore</artifactId>
+            </exclusion>
+        </exclusions>
     </dependency>
     
     <dependency>
@@ -85,7 +97,7 @@
       <artifactId>core</artifactId>
       <version>0.1.4</version>
       <exclusions> 
-        <!-- because when doing the uber-jar it would conflict with another version required by jClouds -->
+        <!-- because in the uber-jar it would conflict with another version required by jClouds -->
         <exclusion>
           <groupId>com.google.collections</groupId>
           <artifactId>google-collections</artifactId>
@@ -168,7 +180,7 @@
         <artifactId>maven-eclipse-plugin</artifactId>
         <version>2.9</version>
         <configuration>
-          <downloadSources>false</downloadSources>
+          <downloadSources>true</downloadSources>
           <downloadJavadocs>true</downloadJavadocs>
         </configuration>
       </plugin>

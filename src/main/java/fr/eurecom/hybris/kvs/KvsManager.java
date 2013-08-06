@@ -34,8 +34,6 @@ public class KvsManager {
 
     private final List<Kvs> kvStores;      // kvStores sorted by cost and latency
 
-    private static String rootContainer;
-
     private static String TEST_KEY = "latency_test-";
     private static String TEST_VALUE = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM";
 
@@ -48,8 +46,6 @@ public class KvsManager {
     };
 
     public KvsManager(String accountsFile, String container, boolean testLatency) throws IOException {
-
-        rootContainer = container;
 
         this.kvStores = Collections.synchronizedList(new ArrayList<Kvs>());
         this.conf = Config.getInstance();
@@ -147,8 +143,7 @@ public class KvsManager {
 
    public void put(Kvs kvStore, String key, byte[] data) throws IOException {
        if (!kvStore.isAlreadyUsed())
-           if (kvStore.createContainer())
-               logger.debug("Created root data container \"{}\" for {}", rootContainer, kvStore.getId());
+           kvStore.createContainer();
        kvStore.put(key, data);
     }
 

@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GetObjectRequest;
@@ -24,25 +24,26 @@ import fr.eurecom.hybris.Config;
 
 public class AmazonKvs extends Kvs {
 
-    private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
+    private static final long serialVersionUID = 1L;
+    private transient static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
-    private final AmazonS3 s3;
+    private transient final AmazonS3 s3;
 
     public AmazonKvs(String id, final String accessKey, final String secretKey,
                             String container, boolean enabled, int cost) {
         super(id, accessKey, secretKey, container, enabled, cost);
 
-        this.s3 = new AmazonS3Client(new AWSCredentials() {
-            public String getAWSSecretKey() { return secretKey; }
-            public String getAWSAccessKeyId() { return accessKey; }
-        });
+        BasicAWSCredentials credentials = new BasicAWSCredentials(accessKey,secretKey);
+        this.s3 = new AmazonS3Client(credentials);
     }
 
     public void put(String key, byte[] value) throws IOException {
         try {
+            ObjectMetadata om = new ObjectMetadata();
+            om.setContentLength(value.length);
             this.s3.putObject(
                     new PutObjectRequest(
-                            this.rootContainer, key, new ByteArrayInputStream(value), new ObjectMetadata()));
+                            this.rootContainer, key, new ByteArrayInputStream(value), om));
         } catch (AmazonClientException e) {
             logger.warn("Could not put {}", key, e);
             throw new IOException(e);
@@ -93,10 +94,10 @@ public class AmazonKvs extends Kvs {
         }
     }
 
-    public boolean createContainer() throws IOException {
+    public void createContainer() throws IOException {
         try {
             this.s3.createBucket(this.rootContainer);   // TODO if the bucket already exists?
-            return false;
+            this.alreadyUsed = true;
         } catch (AmazonClientException e) {
             logger.warn("Could not create " + this.rootContainer + " on " + this.id, e);
             throw new IOException(e);
