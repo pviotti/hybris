@@ -22,7 +22,7 @@ import fr.eurecom.hybris.kvs.drivers.TransientKvs;
 
 
 /**
- * KvStore exposes a simple common cloud storage API
+ * KvsManager exposes a simple common cloud storage API
  * for saving, retrieving and deleting data
  * on the supported cloud storage services.
  * @author p.viotti
@@ -32,7 +32,7 @@ public class KvsManager {
     private final Config conf;
     private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
-    private final List<Kvs> kvStores;      // storage providers sorted by cost and latency
+    private final List<Kvs> kvStores;      // kvStores sorted by cost and latency
 
     private static String rootContainer;
 
@@ -56,7 +56,7 @@ public class KvsManager {
         this.conf.loadAccountsProperties(accountsFile);
         String[] accountIds = this.conf.getAccountsIds();
 
-        Kvs driver;
+        Kvs kvStore;
         String accessKey, secretKey;
         boolean enabled;
         int cost;
@@ -67,42 +67,42 @@ public class KvsManager {
             enabled = Boolean.parseBoolean( this.conf.getAccountsProperty( String.format(Config.C_ENABLED, accountId)) );
             cost = Integer.parseInt( this.conf.getAccountsProperty( String.format(Config.C_COST, accountId) ));
 
-            switch (KvsId.valueOf(accountId.toUpperCase())) {
+            switch (KvsId.valueOf(accountId.toUpperCase())) {       // TODO what happens if does not find a value?
                 case AMAZON:
-                    driver = new AmazonKvs(accountId, accessKey, secretKey,
-                                            container, enabled, cost);
+                    kvStore = new AmazonKvs(accountId, accessKey, secretKey,
+                                                    container, enabled, cost);
                     break;
                 case AZURE:
-                    driver = new AzureKvs(accountId, accessKey, secretKey,
-                                            container, enabled, cost);
+                    kvStore = new AzureKvs(accountId, accessKey, secretKey,
+                                                    container, enabled, cost);
                     break;
                 case GOOGLE:
-                    driver = new GoogleKvs(accountId, accessKey, secretKey,
-                                            container, enabled, cost);
+                    kvStore = new GoogleKvs(accountId, accessKey, secretKey,
+                                                    container, enabled, cost);
                     break;
                 case RACKSPACE:
-                    driver = new RackspaceKvs(accountId, accessKey, secretKey,
-                                                container, enabled, cost);
+                    kvStore = new RackspaceKvs(accountId, accessKey, secretKey,
+                                                        container, enabled, cost);
                     break;
                 case TRANSIENT:
-                    driver = new TransientKvs(accountId, accessKey, secretKey,
-                                                  container, enabled, cost);
+                    kvStore = new TransientKvs(accountId, accessKey, secretKey,
+                                                      container, enabled, cost);
                     break;
                 default:
                     logger.error("Hybris could not find driver {}", accountId); // TODO
                     continue;
             }
-            this.kvStores.add(driver);
+            this.kvStores.add(kvStore);
         }
 
         if (testLatency) {
-            logger.info("Performing latency tests on cloud providers...");
+            logger.info("Performing latency tests on cloud kvStores...");
             this.testLatency();
-            Collections.sort(this.kvStores);  // Sort providers according to cost and latency (see Driver.compareTo())
-            logger.debug("Cloud providers sorted by performance/cost metrics:");
+            Collections.sort(this.kvStores);  // Sort kvStores according to cost and latency (see Driver.compareTo())
+            logger.debug("Cloud kvStores sorted by performance/cost metrics:");
             synchronized (this.kvStores) {
-                for(Kvs provider : this.kvStores)
-                    logger.debug("\t* {}", provider.toVerboseString());
+                for(Kvs kvs : this.kvStores)
+                    logger.debug("\t* {}", kvs.toVerboseString());
             }
         }
     }
@@ -117,12 +117,12 @@ public class KvsManager {
      */
     public class KvsPutWorker implements Callable<Kvs> {
 
-        private final Kvs provider;
+        private final Kvs kvStore;
         private final String key;
         private final byte[] value;
 
-        public KvsPutWorker(Kvs provider, String key, byte[] value) {
-            this.provider = provider;
+        public KvsPutWorker(Kvs kvStore, String key, byte[] value) {
+            this.kvStore = kvStore;
             this.key = key;
             this.value = value;
         }
@@ -130,10 +130,10 @@ public class KvsManager {
         @Override
         public Kvs call() {
             try {
-                KvsManager.this.put(this.provider, this.key, this.value);
-                return this.provider;
+                KvsManager.this.put(this.kvStore, this.key, this.value);
+                return this.kvStore;
             } catch (Exception e) {
-                logger.warn("Could not put " + this.key + " on " + this.provider.getId(), e);
+                logger.warn("Could not put " + this.key + " on " + this.kvStore.getId(), e);
                 return null;
             }
         }
@@ -147,8 +147,8 @@ public class KvsManager {
 
    public void put(Kvs kvStore, String key, byte[] data) throws IOException {
        if (!kvStore.isAlreadyUsed())
-           if (kvStore.createContainer(rootContainer))
-               logger.debug("Created root data container \"{}\" for {}", this.rootContainer, kvStore.getId());
+           if (kvStore.createContainer())
+               logger.debug("Created root data container \"{}\" for {}", rootContainer, kvStore.getId());
        kvStore.put(key, data);
     }
 
@@ -171,7 +171,7 @@ public class KvsManager {
     /**
      * Empty the data storage root container.
      * ATTENTION: it erases all data stored in the root container!
-     * @param provider the cloud storage provider
+     * @param kvStore the cloud storage provider
      * @throws IOException
      */
     public void emptyStorageContainer(Kvs kvStore) throws IOException {

@@ -38,7 +38,7 @@ public class AzureKvs extends Kvs {
 
     }
 
-    public boolean createContainer(String container) throws IOException {
+    public boolean createContainer() throws IOException {
         // TODO Auto-generated method stub
         return false;
     }
@@ -47,6 +47,4 @@ public class AzureKvs extends Kvs {
         // TODO Auto-generated method stub
 
     }
-
-
 }

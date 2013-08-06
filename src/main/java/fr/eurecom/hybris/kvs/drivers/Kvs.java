@@ -48,7 +48,7 @@ public abstract class Kvs implements Comparable<Kvs> {
     public abstract byte[] get(String key) throws IOException;
     public abstract List<String> list() throws IOException;
     public abstract void delete(String key) throws IOException;
-    public abstract boolean createContainer(String container) throws IOException;
+    public abstract boolean createContainer() throws IOException;
     public abstract void emptyContainer() throws IOException;
 
     /*

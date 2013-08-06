@@ -31,7 +31,7 @@ public class TransientKvs extends Kvs {
         this.hashMap.remove(key);
     }
 
-    public boolean createContainer(String container) {
+    public boolean createContainer() {
         return false;
     }
 
