@@ -45,9 +45,8 @@ public class AzureKvs extends Kvs {
     }
 
     public void put(String key, byte[] value) throws IOException {
-        CloudBlobContainer container;
         try {
-            container = this.blobClient.getContainerReference(this.rootContainer);
+            CloudBlobContainer container = this.blobClient.getContainerReference(this.rootContainer);
             CloudBlockBlob blob = container.getBlockBlobReference(key);
             blob.upload(new ByteArrayInputStream(value), value.length);
         } catch (URISyntaxException | StorageException | IOException e) {
@@ -69,8 +68,18 @@ public class AzureKvs extends Kvs {
         }
     }
 
-    public List<String> list() throws IOException {
+    public void delete(String key) throws IOException {
+        try {
+            CloudBlobContainer container = this.blobClient.getContainerReference(this.rootContainer);
+            CloudBlockBlob blob = container.getBlockBlobReference(key);
+            blob.delete();
+        } catch (URISyntaxException | StorageException e) {
+            logger.warn("Could not delete {}", key, e);
+            throw new IOException(e);
+        }
+    }
 
+    public List<String> list() throws IOException {
         try {
             List<String> keys = new ArrayList<String>();
             CloudBlobContainer container = this.blobClient.getContainerReference(this.rootContainer);
@@ -85,33 +94,12 @@ public class AzureKvs extends Kvs {
         }
     }
 
-    public void delete(String key) throws IOException {
-        try {
-            CloudBlobContainer container = this.blobClient.getContainerReference(this.rootContainer);
-            CloudBlockBlob blob = container.getBlockBlobReference(key);
-            blob.delete();
-        } catch (URISyntaxException | StorageException e) {
-            logger.warn("Could not delete {}", key, e);
-            throw new IOException(e);
-        }
-    }
-
     public boolean createContainer() throws IOException {
         try {
             CloudBlobContainer container = this.blobClient.getContainerReference(this.rootContainer);
             return container.createIfNotExist();
         } catch (StorageException | URISyntaxException e) {
             logger.warn("Could not create " + this.rootContainer + " on " + this.id, e);
-            throw new IOException(e);
-        }
-    }
-
-    public void emptyContainer() throws IOException {
-        try {
-            List<String> keys = this.list();
-            for (String key : keys)
-                this.delete(key);
-        } catch (IOException e) {
             throw new IOException(e);
         }
     }

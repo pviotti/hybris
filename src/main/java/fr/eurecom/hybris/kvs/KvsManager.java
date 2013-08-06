@@ -175,7 +175,9 @@ public class KvsManager {
      * @throws IOException
      */
     public void emptyStorageContainer(Kvs kvStore) throws IOException {
-        kvStore.emptyContainer();
+        List<String> keys = kvStore.list();
+        for (String key : keys)
+            kvStore.delete(key);
     }
 
     /* ---------------------------------------------------------------------------------------

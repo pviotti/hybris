@@ -23,19 +23,15 @@ public class TransientKvs extends Kvs {
         return this.hashMap.get(key);
     }
 
-    public List<String> list() {
-        return new ArrayList<String>(this.hashMap.keySet());
-    }
-
     public void delete(String key) {
         this.hashMap.remove(key);
     }
 
-    public boolean createContainer() {
-        return false;
+    public List<String> list() {
+        return new ArrayList<String>(this.hashMap.keySet());
     }
 
-    public void emptyContainer() {
-        this.hashMap.clear();
+    public boolean createContainer() {
+        return false;
     }
 }

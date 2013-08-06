@@ -78,16 +78,6 @@ public class RackspaceKvs extends Kvs {
         }
     }
 
-    public void emptyContainer() throws IOException {
-        try {
-            List<String> keys = this.list();
-            for (String key : keys)
-                this.delete(key);
-        } catch (IOException e) {
-            throw new IOException(e);
-        }
-    }
-
     public boolean createContainer() throws IOException {
         try {
             boolean created = this.blobStore.createContainerInLocation(null, this.rootContainer);

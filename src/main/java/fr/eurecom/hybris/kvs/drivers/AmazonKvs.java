@@ -102,14 +102,4 @@ public class AmazonKvs extends Kvs {
             throw new IOException(e);
         }
     }
-
-    public void emptyContainer() throws IOException {
-        try {
-            List<String> keys = this.list();
-            for (String key : keys)
-                this.delete(key);
-        } catch (IOException e) {
-            throw new IOException(e);
-        }
-    }
 }

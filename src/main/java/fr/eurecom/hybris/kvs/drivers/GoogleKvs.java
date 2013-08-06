@@ -1,10 +1,19 @@
 package fr.eurecom.hybris.kvs.drivers;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 
+import org.jets3t.service.ServiceException;
+import org.jets3t.service.impl.rest.httpclient.GoogleStorageService;
+import org.jets3t.service.model.GSObject;
+import org.jets3t.service.security.GSCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.io.ByteStreams;
 
 import fr.eurecom.hybris.Config;
 
@@ -12,39 +21,76 @@ public class GoogleKvs extends Kvs {
 
     private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
+    private final GoogleStorageService gsService;
+
     public GoogleKvs(String id, String accessKey, String secretKey,
-                            String container, boolean enabled, int cost) {
+                         String container, boolean enabled, int cost) throws IOException {
         super(id, accessKey, secretKey, container, enabled, cost);
-        // TODO Auto-generated constructor stub
+
+        GSCredentials gsCredentials = new GSCredentials(accessKey, secretKey);
+        try {
+            this.gsService = new GoogleStorageService(gsCredentials);
+        } catch (ServiceException e) {
+            logger.error("Could not initialize {} KvStore", id, e);
+            throw new IOException(e);
+        }
     }
 
-    public void put(String key, byte[] value) {
-        // TODO Auto-generated method stub
-
+    public void put(String key, byte[] value) throws IOException {
+        try {
+            GSObject object = new GSObject(key);
+            ByteArrayInputStream in = new ByteArrayInputStream(value);
+            object.setDataInputStream(in);
+            object.setContentLength(value.length);
+            this.gsService.putObject(this.rootContainer, object);
+        } catch (ServiceException e) {
+            logger.warn("Could not put {}", key, e);
+            throw new IOException(e);
+        }
     }
 
-    public byte[] get(String key) {
-        // TODO Auto-generated method stub
-        return null;
+    public byte[] get(String key) throws IOException {
+        try {
+            GSObject objectComplete = this.gsService.getObject(this.rootContainer, key);
+            InputStream ins = objectComplete.getDataInputStream();
+            return  ByteStreams.toByteArray(ins);
+        } catch (ServiceException | IOException e) {
+            logger.warn("Could not get {}", key, e);
+            throw new IOException(e);
+        }
     }
 
-    public List<String> list() {
-        // TODO Auto-generated method stub
-        return null;
+    public void delete(String key) throws IOException {
+        try {
+            this.gsService.deleteObject(this.rootContainer, key);
+        } catch (ServiceException e) {
+            logger.warn("Could not delete {}", key, e);
+            throw new IOException(e);
+        }
     }
 
-    public void delete(String key) {
-        // TODO Auto-generated method stub
+    public List<String> list() throws IOException {
+        try {
+            List<String> keys = new ArrayList<String>();
+            GSObject[] objs = this.gsService.listObjects(this.rootContainer);
 
+            for(GSObject obj: objs)
+                keys.add(obj.getName());
+
+            return keys;
+        } catch (ServiceException e) {
+            logger.warn("Could not list {}", this.rootContainer, e);
+            throw new IOException(e);
+        }
     }
 
     public boolean createContainer() throws IOException {
-        // TODO Auto-generated method stub
-        return false;
-    }
-
-    public void emptyContainer() {
-        // TODO Auto-generated method stub
-
+        try {
+            this.gsService.createBucket(this.rootContainer);
+            return false;
+        } catch (ServiceException e) {
+            logger.warn("Could not create " + this.rootContainer + " on " + this.id, e);
+            throw new IOException(e);
+        }
     }
 }

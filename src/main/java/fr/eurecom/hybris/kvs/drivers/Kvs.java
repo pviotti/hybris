@@ -49,7 +49,6 @@ public abstract class Kvs implements Comparable<Kvs> {
     public abstract List<String> list() throws IOException;
     public abstract void delete(String key) throws IOException;
     public abstract boolean createContainer() throws IOException;
-    public abstract void emptyContainer() throws IOException;
 
     /*
      * TODO should they be comparable both in terms of cost and latency? if so,
