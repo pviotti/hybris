@@ -33,13 +33,10 @@ import fr.eurecom.hybris.kvs.drivers.TransientKvs;
  */
 public class KvsManager {
 
-    private final Config conf;
     private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
+    private final Config conf;
     private final List<Kvs> kvStores;      // kvStores sorted by cost and latency
-
-    private static String TEST_KEY = "latency_test-";
-    private static String TEST_VALUE = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM";
 
     private enum KvsId {
         AMAZON,
@@ -51,9 +48,9 @@ public class KvsManager {
 
     public KvsManager(String accountsFile, String container, boolean testLatency) throws IOException {
 
-        this.kvStores = new ArrayList<Kvs>();
         this.conf = Config.getInstance();
         this.conf.loadAccountsProperties(accountsFile);
+        this.kvStores = new ArrayList<Kvs>();
         String[] accountIds = this.conf.getAccountsIds();
 
         Kvs kvStore;
@@ -125,7 +122,6 @@ public class KvsManager {
             this.value = value;
         }
 
-        @Override
         public Kvs call() {
             try {
                 KvsManager.this.put(this.kvStore, this.key, this.value);
@@ -145,14 +141,17 @@ public class KvsManager {
 
         private final Kvs kvStore;
 
+        private final String TEST_KEY = "latency_test-";
+        private final String TEST_VALUE = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM";
+
         public LatencyTester(Kvs kvStore) {
             this.kvStore = kvStore;
         }
 
         public void run() {
 
-            byte[] testData = TEST_VALUE.getBytes();
-            String testKey = TEST_KEY + new Random().nextInt(1000);
+            byte[] testData = this.TEST_VALUE.getBytes();
+            String testKey = this.TEST_KEY + new Random().nextInt(1000);
             long start, end = 0;
 
             // Write

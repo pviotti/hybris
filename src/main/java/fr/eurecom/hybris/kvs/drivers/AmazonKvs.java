@@ -18,6 +18,10 @@ import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.amazonaws.services.s3.model.StorageClass;
+import com.amazonaws.services.s3.transfer.TransferManager;
+import com.amazonaws.services.s3.transfer.TransferManagerConfiguration;
+import com.amazonaws.services.s3.transfer.Upload;
 import com.google.common.io.ByteStreams;
 
 public class AmazonKvs extends Kvs {
@@ -26,6 +30,7 @@ public class AmazonKvs extends Kvs {
     //private transient static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
     private transient final AmazonS3 s3;
+    private transient final TransferManager tm;
 
     public AmazonKvs(String id, final String accessKey, final String secretKey,
                             String container, boolean enabled, int cost) {
@@ -33,16 +38,27 @@ public class AmazonKvs extends Kvs {
 
         BasicAWSCredentials credentials = new BasicAWSCredentials(accessKey,secretKey);
         this.s3 = new AmazonS3Client(credentials);
+
+        this.tm = new TransferManager(credentials);
+        TransferManagerConfiguration tmc = new TransferManagerConfiguration();
+        tmc.setMultipartUploadThreshold(30000000);  // 30 MB
+        tmc.setMinimumUploadPartSize(10000000);     // 10 MB
+        this.tm.setConfiguration(tmc);
     }
 
     public void put(String key, byte[] value) throws IOException {
         try {
+            ByteArrayInputStream bais = new ByteArrayInputStream(value);
+
             ObjectMetadata om = new ObjectMetadata();
             om.setContentLength(value.length);
-            this.s3.putObject(
-                    new PutObjectRequest(
-                            this.rootContainer, key, new ByteArrayInputStream(value), om));
-        } catch (AmazonClientException e) {
+
+            PutObjectRequest request = new PutObjectRequest(this.rootContainer, key, bais, om);
+            request.setStorageClass(StorageClass.ReducedRedundancy);
+
+            Upload upload = this.tm.upload(request);   // NB: asynchronous, returns immediately
+            upload.waitForCompletion();
+        } catch (AmazonClientException | InterruptedException e) {
             throw new IOException(e);
         }
     }
