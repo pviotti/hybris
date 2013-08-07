@@ -96,15 +96,15 @@ public abstract class Kvs implements Comparable<Kvs>, Serializable {
         return true;
     }
 
-    @Override
     public String toString() {
         return this.id;
     }
 
     public String toVerboseString() {
-        return "Kvs (" + this.id + ") [alreadyUsed="
-                + this.alreadyUsed + ", enabled=" + this.enabled
-                + ", writeLatency=" + this.writeLatency + ", readLatency="
-                + this.readLatency + ", cost=" + this.cost + "]";
+        return "Kvs (" + this.id + ") [enabled=" + this.enabled +
+                ", writeLatency=" + this.writeLatency +
+                ", readLatency=" + this.readLatency +
+                ", cost=" + this.cost +
+                ", alreadyUsed=" + this.alreadyUsed + "]";
     }
 }

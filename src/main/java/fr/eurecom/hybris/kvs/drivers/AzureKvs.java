@@ -41,6 +41,8 @@ public class AzureKvs extends Kvs {
         try {
             storageAccount = CloudStorageAccount.parse(storageConnectionString);
             this.blobClient = storageAccount.createCloudBlobClient();
+            this.blobClient.setSingleBlobPutThresholdInBytes(30000000);  // 30 MB
+            this.blobClient.setConcurrentRequestCount(4);
         } catch (InvalidKeyException | URISyntaxException e) {
             logger.error("Could not initialize {} KvStore", id, e);
             throw new IOException(e);
