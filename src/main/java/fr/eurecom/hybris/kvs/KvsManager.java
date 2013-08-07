@@ -64,31 +64,37 @@ public class KvsManager {
             enabled = Boolean.parseBoolean( this.conf.getAccountsProperty( String.format(Config.C_ENABLED, accountId)) );
             cost = Integer.parseInt( this.conf.getAccountsProperty( String.format(Config.C_COST, accountId) ));
 
-            switch (KvsId.valueOf(accountId.toUpperCase())) {       // TODO what happens if does not find a value?
-                case AMAZON:
-                    kvStore = new AmazonKvs(accountId, accessKey, secretKey,
-                                                    container, enabled, cost);
-                    break;
-                case AZURE:
-                    kvStore = new AzureKvs(accountId, accessKey, secretKey,
-                                                    container, enabled, cost);
-                    break;
-                case GOOGLE:
-                    kvStore = new GoogleKvs(accountId, accessKey, secretKey,
-                                                    container, enabled, cost);
-                    break;
-                case RACKSPACE:
-                    kvStore = new RackspaceKvs(accountId, accessKey, secretKey,
+            try {
+                switch (KvsId.valueOf(accountId.toUpperCase())) {
+                    case AMAZON:
+                        kvStore = new AmazonKvs(accountId, accessKey, secretKey,
                                                         container, enabled, cost);
-                    break;
-                case TRANSIENT:
-                    kvStore = new TransientKvs(accountId, accessKey, secretKey,
-                                                      container, enabled, cost);
-                    break;
-                default:
-                    logger.error("Hybris could not find any driver for {} KvStore", accountId); // TODO
-                    continue;
+                        break;
+                    case AZURE:
+                        kvStore = new AzureKvs(accountId, accessKey, secretKey,
+                                                        container, enabled, cost);
+                        break;
+                    case GOOGLE:
+                        kvStore = new GoogleKvs(accountId, accessKey, secretKey,
+                                                        container, enabled, cost);
+                        break;
+                    case RACKSPACE:
+                        kvStore = new RackspaceKvs(accountId, accessKey, secretKey,
+                                                            container, enabled, cost);
+                        break;
+                    case TRANSIENT:
+                        kvStore = new TransientKvs(accountId, accessKey, secretKey,
+                                                          container, enabled, cost);
+                        break;
+                    default:
+                        logger.error("Hybris could not find any driver for {} KvStore", accountId);
+                        continue;
+                }
+            } catch (IllegalArgumentException e) {
+                logger.error("Hybris could not find any driver for {} KvStore", accountId);
+                throw new IOException(e);
             }
+
             this.kvStores.add(kvStore);
         }
 
