@@ -74,6 +74,9 @@ public class HybrisTestCli implements Runnable {
              } catch (ArrayIndexOutOfBoundsException e) {
                  System.out.println("* Unknown command.");
              }
+
+        this.hybris.shutdown();
+
         try {
             this.hybris.gc();
         } catch (HybrisException e) { e.printStackTrace(); }

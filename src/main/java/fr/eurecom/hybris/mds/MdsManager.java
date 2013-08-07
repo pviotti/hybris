@@ -455,6 +455,15 @@ public class MdsManager implements Watcher {
     }
 
 
+    public void shutdown() {
+        try {
+            this.zk.close();
+        } catch (InterruptedException e) {
+            logger.warn("Error during Zookeeper client shutdown", e);
+        }
+    }
+
+
     @Override
     public void process(WatchedEvent event) {
         // XXX Auto-generated method stub

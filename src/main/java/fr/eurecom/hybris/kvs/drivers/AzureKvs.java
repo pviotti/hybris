@@ -116,4 +116,6 @@ public class AzureKvs extends Kvs {
             throw new IOException(e);
         }
     }
+
+    public void shutdown() throws IOException { }
 }

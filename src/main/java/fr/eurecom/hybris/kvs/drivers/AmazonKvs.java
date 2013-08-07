@@ -120,4 +120,8 @@ public class AmazonKvs extends Kvs {
             throw new IOException(e);
         }
     }
+
+    public void shutdown() throws IOException {
+        this.tm.shutdownNow();
+    }
 }

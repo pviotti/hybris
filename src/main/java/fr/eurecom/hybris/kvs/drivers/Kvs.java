@@ -44,6 +44,7 @@ public abstract class Kvs implements Comparable<Kvs>, Serializable {
     public abstract List<String> list() throws IOException;
     public abstract void delete(String key) throws IOException;
     protected abstract void createContainer() throws IOException;
+    public abstract void shutdown() throws IOException;
 
     /*
      * TODO should they be comparable both in terms of cost and latency? if so,

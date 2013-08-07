@@ -33,4 +33,6 @@ public class TransientKvs extends Kvs {
     }
 
     public void createContainer() { }
+
+    public void shutdown() { }
 }

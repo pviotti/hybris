@@ -245,6 +245,15 @@ public class KvsManager {
     }
 
 
+    public void shutdown(Kvs kvStore) {
+        try {
+            kvStore.shutdown();
+        } catch (IOException e) {
+            logger.warn("Error during {} KvStore shutdown", kvStore.getId(), e);
+        }
+    }
+
+
     /**
      * Empty the data storage root container.
      * ATTENTION: it erases all data stored in the root container!

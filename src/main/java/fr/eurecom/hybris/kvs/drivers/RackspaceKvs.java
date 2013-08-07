@@ -93,4 +93,6 @@ public class RackspaceKvs extends Kvs {
             throw new IOException(ex);
         }
     }
+
+    public void shutdown() throws IOException { }
 }

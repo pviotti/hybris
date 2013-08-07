@@ -105,4 +105,12 @@ public class GoogleKvs extends Kvs {
             throw new IOException(e);
         }
     }
+
+    public void shutdown() throws IOException {
+        try {
+            this.gsService.shutdown();
+        } catch (ServiceException e) {
+            throw new IOException(e);
+        }
+    }
 }

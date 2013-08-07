@@ -303,6 +303,13 @@ public class Hybris {
     public Map<String, Metadata> getAllMetadata() throws HybrisException {
         return this.mds.getAll();
     }
+    
+
+    public void shutdown() {
+        for (Kvs kvStore : this.kvs.getKvStores())
+            this.kvs.shutdown(kvStore);
+        this.mds.shutdown();
+    }
 
 
     /* -------------------------------------- GC functions -------------------------------------- */
