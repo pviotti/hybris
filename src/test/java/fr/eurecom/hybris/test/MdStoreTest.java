@@ -195,7 +195,6 @@ public class MdStoreTest extends HybrisAbstractTest {
             assertNotNull(provider.getId());
             assertEquals(replicas.get( md.getReplicasLst().indexOf(provider) ), provider);
 
-            assertFalse(provider.isAlreadyUsed());
             assertFalse(provider.isEnabled());
             assertEquals(0, provider.getReadLatency());
             assertEquals(0, provider.getWriteLatency());

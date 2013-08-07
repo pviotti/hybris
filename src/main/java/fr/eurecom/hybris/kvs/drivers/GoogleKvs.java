@@ -36,6 +36,8 @@ public class GoogleKvs extends Kvs {
             logger.error("Could not initialize {} KvStore", id, e);
             throw new IOException(e);
         }
+
+        this.createContainer();
     }
 
     public void put(String key, byte[] value) throws IOException {
@@ -96,10 +98,9 @@ public class GoogleKvs extends Kvs {
         }
     }
 
-    public void createContainer() throws IOException {
+    protected void createContainer() throws IOException {
         try {
             this.gsService.getOrCreateBucket(this.rootContainer);
-            this.alreadyUsed = true;
         } catch (ServiceException e) {
             throw new IOException(e);
         }

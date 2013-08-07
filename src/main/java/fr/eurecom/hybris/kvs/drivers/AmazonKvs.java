@@ -33,10 +33,10 @@ public class AmazonKvs extends Kvs {
     private transient final TransferManager tm;
 
     public AmazonKvs(String id, final String accessKey, final String secretKey,
-                            String container, boolean enabled, int cost) {
+                            String container, boolean enabled, int cost) throws IOException {
         super(id, accessKey, secretKey, container, enabled, cost);
 
-        BasicAWSCredentials credentials = new BasicAWSCredentials(accessKey,secretKey);
+        BasicAWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
         this.s3 = new AmazonS3Client(credentials);
 
         this.tm = new TransferManager(credentials);
@@ -44,6 +44,8 @@ public class AmazonKvs extends Kvs {
         tmc.setMultipartUploadThreshold(30000000);  // 30 MB
         tmc.setMinimumUploadPartSize(10000000);     // 10 MB
         this.tm.setConfiguration(tmc);
+
+        this.createContainer();
     }
 
     public void put(String key, byte[] value) throws IOException {
@@ -111,10 +113,9 @@ public class AmazonKvs extends Kvs {
         }
     }
 
-    public void createContainer() throws IOException {
+    protected void createContainer() throws IOException {
         try {
-            this.s3.createBucket(this.rootContainer);   // TODO if the bucket already exists?
-            this.alreadyUsed = true;
+            this.s3.createBucket(this.rootContainer);
         } catch (AmazonClientException e) {
             throw new IOException(e);
         }

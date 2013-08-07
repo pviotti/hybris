@@ -40,6 +40,8 @@ public class RackspaceKvs extends Kvs {
             logger.error("Could not initialize {} KvStore", id, e);
             throw new IOException(e);
         }
+
+        this.createContainer();
     }
 
     public void put(String key, byte[] value) throws IOException {
@@ -84,10 +86,9 @@ public class RackspaceKvs extends Kvs {
         }
     }
 
-    public void createContainer() throws IOException {
+    protected void createContainer() throws IOException {
         try {
             this.blobStore.createContainerInLocation(null, this.rootContainer);
-            this.alreadyUsed = true;
         } catch (Exception ex) {
             throw new IOException(ex);
         }

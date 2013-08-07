@@ -204,8 +204,6 @@ public class KvsManager {
 
    public void put(Kvs kvStore, String key, byte[] data) throws IOException {
        try {
-           if (!kvStore.isAlreadyUsed())
-               kvStore.createContainer();
            kvStore.put(key, data);
        } catch (IOException e) {
            logger.warn("Could not put " + key + " on " + kvStore.getId(), e);

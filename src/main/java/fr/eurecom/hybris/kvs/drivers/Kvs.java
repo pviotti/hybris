@@ -7,20 +7,15 @@ import java.util.List;
 public abstract class Kvs implements Comparable<Kvs>, Serializable {
 
     protected final String id;
-
     protected transient boolean enabled;
-    protected transient boolean alreadyUsed; /* whether the storage provider
-                                              * has already been used
-                                              * (to initialize the container) */
-
     protected transient String rootContainer;
 
     /* measures to compare the providers */
-    private transient long writeLatency;
-    private transient long readLatency;
-    private transient int cost; // $ cents per GB
+    protected transient long writeLatency;
+    protected transient long readLatency;
+    protected transient int cost; // $ cents per GB
 
-    private static final long serialVersionUID = 1L;
+    protected static final long serialVersionUID = 1L;
 
     public Kvs(String id, String accessKey, String secretKey,
                         String container, boolean enabled, int cost) {
@@ -31,12 +26,9 @@ public abstract class Kvs implements Comparable<Kvs>, Serializable {
 
         this.readLatency = 0;
         this.writeLatency = 0;
-        this.alreadyUsed = false;
     }
 
     public String getId()           { return this.id; }
-    public boolean isAlreadyUsed()  { return this.alreadyUsed; }
-    public void setAlreadyUsed(boolean alreadyUsed) { this.alreadyUsed = alreadyUsed; }
     public boolean isEnabled()      { return this.enabled; }
     public void setEnabled(boolean enabled)         { this.enabled = enabled; }
     public long getWriteLatency()   { return this.writeLatency; }
@@ -51,7 +43,7 @@ public abstract class Kvs implements Comparable<Kvs>, Serializable {
     public abstract byte[] get(String key) throws IOException;
     public abstract List<String> list() throws IOException;
     public abstract void delete(String key) throws IOException;
-    public abstract void createContainer() throws IOException;
+    protected abstract void createContainer() throws IOException;
 
     /*
      * TODO should they be comparable both in terms of cost and latency? if so,
@@ -104,7 +96,6 @@ public abstract class Kvs implements Comparable<Kvs>, Serializable {
         return "Kvs (" + this.id + ") [enabled=" + this.enabled +
                 ", writeLatency=" + this.writeLatency +
                 ", readLatency=" + this.readLatency +
-                ", cost=" + this.cost +
-                ", alreadyUsed=" + this.alreadyUsed + "]";
+                ", cost=" + this.cost + "]";
     }
 }

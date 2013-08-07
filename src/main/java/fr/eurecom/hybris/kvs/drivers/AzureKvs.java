@@ -29,6 +29,7 @@ public class AzureKvs extends Kvs {
     private static final String ERROR_BLOB_NOT_FOUND = "BlobNotFound";
 
     private transient final CloudBlobClient blobClient;
+    private transient CloudBlobContainer containerRef;
 
     public AzureKvs(String id, String accessKey, String secretKey,
                         String container, boolean enabled, int cost) throws IOException {
@@ -47,12 +48,13 @@ public class AzureKvs extends Kvs {
             logger.error("Could not initialize {} KvStore", id, e);
             throw new IOException(e);
         }
+
+        this.createContainer();
     }
 
     public void put(String key, byte[] value) throws IOException {
         try {
-            CloudBlobContainer container = this.blobClient.getContainerReference(this.rootContainer);
-            CloudBlockBlob blob = container.getBlockBlobReference(key);
+            CloudBlockBlob blob = this.containerRef.getBlockBlobReference(key);
             blob.upload(new ByteArrayInputStream(value), value.length);
         } catch (URISyntaxException | StorageException | IOException e) {
             throw new IOException(e);
@@ -61,8 +63,7 @@ public class AzureKvs extends Kvs {
 
     public byte[] get(String key) throws IOException {
         try {
-            CloudBlobContainer container = this.blobClient.getContainerReference(this.rootContainer);
-            CloudBlockBlob blob = container.getBlockBlobReference(key);
+            CloudBlockBlob blob = this.containerRef.getBlockBlobReference(key);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             blob.download(baos);
             return baos.toByteArray();
@@ -80,8 +81,7 @@ public class AzureKvs extends Kvs {
 
     public void delete(String key) throws IOException {
         try {
-            CloudBlobContainer container = this.blobClient.getContainerReference(this.rootContainer);
-            CloudBlockBlob blob = container.getBlockBlobReference(key);
+            CloudBlockBlob blob = this.containerRef.getBlockBlobReference(key);
             blob.delete();
         } catch (URISyntaxException | StorageException e) {
 
@@ -98,22 +98,20 @@ public class AzureKvs extends Kvs {
     public List<String> list() throws IOException {
         try {
             List<String> keys = new ArrayList<String>();
-            CloudBlobContainer container = this.blobClient.getContainerReference(this.rootContainer);
-            for (ListBlobItem blobItem : container.listBlobs()) { // TODO useFlatBlobListing flag to get only blobs regardless of virtual directories
+            for (ListBlobItem blobItem : this.containerRef.listBlobs()) { // TODO useFlatBlobListing flag to get only blobs regardless of virtual directories
                 CloudBlob blob = (CloudBlob) blobItem;
                 keys.add(blob.getName());
             }
             return keys;
-        } catch (URISyntaxException | StorageException e) {
+        } catch (URISyntaxException e) {
             throw new IOException(e);
         }
     }
 
-    public void createContainer() throws IOException {
+    protected void createContainer() throws IOException {
         try {
-            CloudBlobContainer container = this.blobClient.getContainerReference(this.rootContainer);
-            container.createIfNotExist();
-            this.alreadyUsed = true;
+            this.containerRef = this.blobClient.getContainerReference(this.rootContainer);
+            this.containerRef.createIfNotExist();
         } catch (StorageException | URISyntaxException e) {
             throw new IOException(e);
         }
