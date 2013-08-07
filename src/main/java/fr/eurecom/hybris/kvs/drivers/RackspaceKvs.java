@@ -3,6 +3,7 @@ package fr.eurecom.hybris.kvs.drivers;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
@@ -27,20 +28,26 @@ public class RackspaceKvs extends Kvs {
     private transient final BlobStore blobStore;
 
     public RackspaceKvs(String id, String accessKey, String secretKey,
-                            String container, boolean enabled, int cost) {
+                            String container, boolean enabled, int cost) throws IOException {
         super(id, accessKey, secretKey, container, enabled, cost);
-        BlobStoreContext context = ContextBuilder.newBuilder(rackspaceId)
-                                                .credentials(accessKey, secretKey)
-                                                .buildView(BlobStoreContext.class);
-        this.blobStore = context.getBlobStore();
+
+        try {
+            BlobStoreContext context = ContextBuilder.newBuilder(rackspaceId)
+                                                    .credentials(accessKey, secretKey)
+                                                    .buildView(BlobStoreContext.class);
+            this.blobStore = context.getBlobStore();
+        } catch (NoSuchElementException e) {
+            logger.error("Could not initialize {} KvStore", id, e);
+            throw new IOException(e);
+        }
     }
 
     public void put(String key, byte[] value) throws IOException {
         try {
             Blob blob = this.blobStore.blobBuilder(key).payload(value).build();
             this.blobStore.putBlob(this.rootContainer, blob);
-        } catch (Exception ex) {
-            throw new IOException(ex);
+        } catch (Exception e) {
+            throw new IOException(e);
         }
     }
 

@@ -6,8 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.http.HttpStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -22,12 +20,10 @@ import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.common.io.ByteStreams;
 
-import fr.eurecom.hybris.Config;
-
 public class AmazonKvs extends Kvs {
 
     private static final long serialVersionUID = 1L;
-    private transient static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
+    //private transient static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
     private transient final AmazonS3 s3;
 
@@ -47,7 +43,6 @@ public class AmazonKvs extends Kvs {
                     new PutObjectRequest(
                             this.rootContainer, key, new ByteArrayInputStream(value), om));
         } catch (AmazonClientException e) {
-            logger.warn("Could not put {}", key, e);
             throw new IOException(e);
         }
     }
@@ -64,7 +59,6 @@ public class AmazonKvs extends Kvs {
                     return null;
             }
 
-            logger.warn("Could not get {}", key, e);
             throw new IOException(e);
         }
     }
@@ -73,7 +67,6 @@ public class AmazonKvs extends Kvs {
         try {
             this.s3.deleteObject(this.rootContainer, key);
         } catch (AmazonClientException e) {
-            logger.warn("Could not delete {}", key, e);
             throw new IOException(e);
         }
     }
@@ -98,7 +91,6 @@ public class AmazonKvs extends Kvs {
 
             return keys;
         } catch (AmazonClientException e) {
-            logger.warn("Could not list {}", this.rootContainer, e);
             throw new IOException(e);
         }
     }
@@ -108,7 +100,6 @@ public class AmazonKvs extends Kvs {
             this.s3.createBucket(this.rootContainer);   // TODO if the bucket already exists?
             this.alreadyUsed = true;
         } catch (AmazonClientException e) {
-            logger.warn("Could not create " + this.rootContainer + " on " + this.id, e);
             throw new IOException(e);
         }
     }

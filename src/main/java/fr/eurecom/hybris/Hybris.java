@@ -55,8 +55,8 @@ public class Hybris {
                                 conf.getProperty(Config.KVS_ROOT),
                                 Boolean.parseBoolean(conf.getProperty(Config.KVS_TESTSONSTARTUP)));
         } catch (IOException e) {
-            logger.error("Could not initialize Zookeeper or the cloud storage accounts.", e);
-            throw new HybrisException("Could not initialize Zookeeper or the cloud storage accounts.", e);
+            logger.error("Could not initialize Zookeeper or the cloud storage KvStores.", e);
+            throw new HybrisException("Could not initialize Zookeeper or the cloud storage KvStores.", e);
         }
 
         int t = Integer.parseInt(conf.getProperty(Config.HS_T));
@@ -73,8 +73,8 @@ public class Hybris {
             this.mds = new MdsManager(zkAddress, zkRoot);
             this.kvs = new KvsManager(kvsAccountFile, kvsRoot, kvsTestOnStartup);
         } catch (IOException e) {
-            logger.error("Could not initialize Zookeeper or the cloud storage accounts.", e);
-            throw new HybrisException("Could not initialize Zookeeper or the cloud storage accounts", e);
+            logger.error("Could not initialize Zookeeper or the cloud storage KvStores.", e);
+            throw new HybrisException("Could not initialize Zookeeper or the cloud storage KvStores", e);
         }
 
         this.quorum = t + 1;
@@ -191,7 +191,7 @@ public class Hybris {
                     savedReplicasLst.add(kvStore);
                     if (savedReplicasLst.size() >= this.quorum) break;
                 } catch (Exception e) {
-                    logger.warn("Error while trying to store " + key + " on " + kvStore, e);
+                    continue;
                 }
         }
 
@@ -244,7 +244,6 @@ public class Hybris {
                 try {
                     value = this.kvs.get(kvStore, kvsKey);
                 } catch (IOException e) {
-                    logger.warn("Error while trying to retrieve " + key + " from " + kvStore, e);
                     continue;
                 }
 

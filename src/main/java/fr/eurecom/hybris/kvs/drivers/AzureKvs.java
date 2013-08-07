@@ -53,7 +53,6 @@ public class AzureKvs extends Kvs {
             CloudBlockBlob blob = container.getBlockBlobReference(key);
             blob.upload(new ByteArrayInputStream(value), value.length);
         } catch (URISyntaxException | StorageException | IOException e) {
-            logger.warn("Could not put {}", key, e);
             throw new IOException(e);
         }
     }
@@ -73,7 +72,6 @@ public class AzureKvs extends Kvs {
                     return null;
             }
 
-            logger.warn("Could not get {}", key, e);
             throw new IOException(e);
         }
     }
@@ -91,7 +89,6 @@ public class AzureKvs extends Kvs {
                     return;
             }
 
-            logger.warn("Could not delete {}", key, e);
             throw new IOException(e);
         }
     }
@@ -106,7 +103,6 @@ public class AzureKvs extends Kvs {
             }
             return keys;
         } catch (URISyntaxException | StorageException e) {
-            logger.warn("Could not list {}", this.rootContainer, e);
             throw new IOException(e);
         }
     }
@@ -117,7 +113,6 @@ public class AzureKvs extends Kvs {
             container.createIfNotExist();
             this.alreadyUsed = true;
         } catch (StorageException | URISyntaxException e) {
-            logger.warn("Could not create " + this.rootContainer + " on " + this.id, e);
             throw new IOException(e);
         }
     }

@@ -85,7 +85,7 @@ public class KvsManager {
                                                       container, enabled, cost);
                     break;
                 default:
-                    logger.error("Hybris could not find driver {}", accountId); // TODO
+                    logger.error("Hybris could not find any driver for {} KvStore", accountId); // TODO
                     continue;
             }
             this.kvStores.add(kvStore);
@@ -129,7 +129,6 @@ public class KvsManager {
                 KvsManager.this.put(this.kvStore, this.key, this.value);
                 return this.kvStore;
             } catch (Exception e) {
-                logger.warn("Could not put " + this.key + " on " + this.kvStore.getId(), e);
                 return null;
             }
         }
@@ -142,27 +141,47 @@ public class KvsManager {
 
 
    public void put(Kvs kvStore, String key, byte[] data) throws IOException {
-       if (!kvStore.isAlreadyUsed())
-           kvStore.createContainer();
-       kvStore.put(key, data);
+       try {
+           if (!kvStore.isAlreadyUsed())
+               kvStore.createContainer();
+           kvStore.put(key, data);
+       } catch (IOException e) {
+           logger.warn("Could not put " + key + " on " + kvStore.getId(), e);
+           throw e;
+       }
     }
 
 
     public byte[] get(Kvs kvStore, String key) throws IOException {
-        byte[] value = kvStore.get(key);
-        if (value == null)
-            logger.warn("Could not find key {} in {}", key, kvStore.getId());
-        return value;
+        try {
+            byte[] value = kvStore.get(key);
+            if (value == null)
+                logger.warn("Could not find key {} in {}", key, kvStore.getId());
+            return value;
+        } catch (IOException e) {
+            logger.warn("Could not get " + key + " from " + kvStore.getId(), e);
+            throw e;
+        }
     }
 
 
     public void delete(Kvs kvStore, String key) throws IOException {
-        kvStore.delete(key);
+        try {
+            kvStore.delete(key);
+        } catch (IOException e) {
+            logger.warn("Could not delete " + key + " from " + kvStore.getId(), e);
+            throw e;
+        }
     }
 
 
     public List<String> list(Kvs kvStore) throws IOException {
-        return kvStore.list();
+        try {
+            return kvStore.list();
+        } catch (IOException e) {
+            logger.warn("Could not list keys in {}", kvStore.getId(), e);
+            throw e;
+        }
     }
 
 
@@ -175,7 +194,9 @@ public class KvsManager {
     public void emptyStorageContainer(Kvs kvStore) throws IOException {
         List<String> keys = kvStore.list();
         for (String key : keys)
-            kvStore.delete(key);
+            try {
+                kvStore.delete(key);
+            } catch (IOException e) { }
     }
 
     /* ---------------------------------------------------------------------------------------
@@ -183,7 +204,7 @@ public class KvsManager {
        --------------------------------------------------------------------------------------- */
 
 
-    private void testLatency() {    // TODO check, parallelize
+    private void testLatency() {    // TODO parallelize
 
         byte[] testData = TEST_VALUE.getBytes();
         String testKey = TEST_KEY + new Random().nextInt(1000);
@@ -199,7 +220,6 @@ public class KvsManager {
                     end = System.currentTimeMillis();
                     kvStore.setWriteLatency(end - start);
                 } catch (Exception e) {
-                    logger.error("error while storing " + testKey + " on " + kvStore.getId(), e);
                     kvStore.setWriteLatency(Integer.MAX_VALUE);
                     if (e instanceof AuthorizationException)
                         kvStore.setEnabled(false);
@@ -213,7 +233,6 @@ public class KvsManager {
                     retrieved = this.get(kvStore, testKey);
                     end = System.currentTimeMillis();
                 } catch (Exception e) {
-                    logger.error("error while reading " + testKey + " on " + kvStore.getId(), e);
                     kvStore.setReadLatency(Integer.MAX_VALUE);
                     if (e instanceof AuthorizationException)
                         kvStore.setEnabled(false);
@@ -226,9 +245,7 @@ public class KvsManager {
                 // clean up
                 try {
                     this.delete(kvStore, testKey);
-                } catch (IOException e) {
-                    logger.warn("Could not remove {} from {}.", testKey, kvStore.getId());
-                }
+                } catch (IOException e) {  }
             }
         }
     }

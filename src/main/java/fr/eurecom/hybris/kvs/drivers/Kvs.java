@@ -10,8 +10,8 @@ public abstract class Kvs implements Comparable<Kvs>, Serializable {
 
     protected transient boolean enabled;
     protected transient boolean alreadyUsed; /* whether the storage provider
-                                            * has already been used
-                                            * (to initialize the container) */
+                                              * has already been used
+                                              * (to initialize the container) */
 
     protected transient String rootContainer;
 

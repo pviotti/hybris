@@ -46,7 +46,6 @@ public class GoogleKvs extends Kvs {
             object.setContentLength(value.length);
             this.gsService.putObject(this.rootContainer, object);
         } catch (ServiceException e) {
-            logger.warn("Could not put {}", key, e);
             throw new IOException(e);
         }
     }
@@ -64,7 +63,6 @@ public class GoogleKvs extends Kvs {
                     return null;
             }
 
-            logger.warn("Could not get {}", key, e);
             throw new IOException(e);
         }
     }
@@ -80,7 +78,6 @@ public class GoogleKvs extends Kvs {
                     return;
             }
 
-            logger.warn("Could not delete {}", key, e);
             throw new IOException(e);
         }
     }
@@ -95,7 +92,6 @@ public class GoogleKvs extends Kvs {
 
             return keys;
         } catch (ServiceException e) {
-            logger.warn("Could not list {}", this.rootContainer, e);
             throw new IOException(e);
         }
     }
@@ -105,7 +101,6 @@ public class GoogleKvs extends Kvs {
             this.gsService.getOrCreateBucket(this.rootContainer);
             this.alreadyUsed = true;
         } catch (ServiceException e) {
-            logger.warn("Could not create " + this.rootContainer + " on " + this.id, e);
             throw new IOException(e);
         }
     }
