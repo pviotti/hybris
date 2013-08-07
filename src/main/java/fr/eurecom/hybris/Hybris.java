@@ -40,7 +40,7 @@ public class Hybris {
 
     /* read and write timeouts for cloud communications */
     private final int TIMEOUT_WRITE;
-    private final int TIMEOUT_READ;
+    private final int TIMEOUT_READ;     // TODO
 
     private final boolean gcEnabled;
 
@@ -113,10 +113,8 @@ public class Hybris {
         List<Future<Kvs>> futureLst = new ArrayList<Future<Kvs>>(this.quorum);
         int idxFrom = 0; int idxTo = this.quorum;
         do {
-            synchronized(this.kvs.getKvStores()) {
-                for (Kvs kvStore : this.kvs.getKvStores().subList(idxFrom, idxTo))
-                    futureLst.add(executor.submit(this.kvs.new KvsPutWorker(kvStore, kvsKey, value)));
-            }
+            for (Kvs kvStore : this.kvs.getKvStores().subList(idxFrom, idxTo))
+                futureLst.add(executor.submit(this.kvs.new KvsPutWorker(kvStore, kvsKey, value)));
 
             Kvs savedReplica = null;
             for (Future<Kvs> future : futureLst)
@@ -182,18 +180,16 @@ public class Hybris {
         List<Kvs> savedReplicasLst = new ArrayList<Kvs>();
         String kvsKey = Utils.getKvsKey(key, ts);
 
-        synchronized(this.kvs.getKvStores()) {
-            for (Kvs kvStore : this.kvs.getKvStores())
-                try {                                           // Notice: serial put
-                    logger.debug("Storing {} on {}...", key, kvStore);
-                    this.kvs.put(kvStore, kvsKey, value);
-                    logger.debug("Finished storing {} on {}.", key, kvStore);
-                    savedReplicasLst.add(kvStore);
-                    if (savedReplicasLst.size() >= this.quorum) break;
-                } catch (Exception e) {
-                    continue;
-                }
-        }
+        for (Kvs kvStore : this.kvs.getKvStores())
+            try {                                           // NB: serial put
+                logger.debug("Storing {} on {}...", key, kvStore);
+                this.kvs.put(kvStore, kvsKey, value);
+                logger.debug("Finished storing {} on {}.", key, kvStore);
+                savedReplicasLst.add(kvStore);
+                if (savedReplicasLst.size() >= this.quorum) break;
+            } catch (Exception e) {
+                continue;
+            }
 
         if (savedReplicasLst.size() < this.quorum) {
             if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
@@ -235,40 +231,38 @@ public class Hybris {
         byte[] value = null;
         String kvsKey = Utils.getKvsKey(key, md.getTs());
 
-        synchronized(this.kvs.getKvStores()) {
-            for (Kvs kvStore : this.kvs.getKvStores()) {
+        for (Kvs kvStore : this.kvs.getKvStores()) {
 
-                if (!md.getReplicasLst().contains(kvStore))
+            if (!md.getReplicasLst().contains(kvStore))
+                continue;
+
+            try {
+                value = this.kvs.get(kvStore, kvsKey);
+            } catch (IOException e) {
+                continue;
+            }
+
+            if (value != null) {
+                if (Arrays.equals(md.getHash(), Utils.getHash(value))) {
+                    logger.info("Value successfully retrieved from kvStore {}", kvStore);
+                    return value;
+                } else      // the hash doesn't match: byzantine fault: let's try with the other ones
                     continue;
-
-                try {
-                    value = this.kvs.get(kvStore, kvsKey);
-                } catch (IOException e) {
-                    continue;
-                }
-
-                if (value != null) {
-                    if (Arrays.equals(md.getHash(), Utils.getHash(value))) {
-                        logger.info("Value successfully retrieved from kvStore {}", kvStore);
-                        return value;
-                    } else      // the hash doesn't match: byzantine fault: let's try with the other ones
-                        continue;
-                } else {        /* this could be due to:
-                                 * a. byzantine replicas
-                                 * b. concurrent gc
-                                 */
-                    Metadata newMd = this.mds.tsRead(key, null);
-                    if (newMd != null) {
-                        if (newMd.getTs().isGreater(md.getTs())) {    // it's because of concurrent gc
-                            logger.warn("Could not get the value of {} from replica {} because of concurrent gc. Restarting read.",
-                                        key, kvStore);
-                            return this.read(key);                               // trigger recursive read
-                        } else
-                            continue;                                       // otherwise it's because of b.: let's try with the other ones
-                    } else {                                                // the value does not exist anymore because of concurrent gc
-                        logger.warn("Hybris could not find the metadata associated with key {}.", key);
-                        return null;
-                    }
+            } else {        /* this could be due to:
+                             * a. byzantine replicas
+                             * b. concurrent gc
+                             */
+                Metadata newMd = this.mds.tsRead(key, null);
+                if (newMd != null) {
+                    if (newMd.getTs().isGreater(md.getTs())) {    // it's because of concurrent gc
+                        logger.warn("Could not get the value of {} from replica {} because of concurrent gc. Restarting read.",
+                                    key, kvStore);
+                        return this.read(key);                               // trigger recursive read
+                    } else
+                        continue;                                       // otherwise it's because of b.: let's try with the other ones
+                } else {                                                // the value does not exist anymore because of concurrent gc
+                    logger.warn("Hybris could not find the metadata associated with key {}.", key);
+                    return null;
                 }
             }
         }
@@ -287,18 +281,14 @@ public class Hybris {
         }
 
         String kvsKey = Utils.getKvsKey(key, md.getTs());
-        synchronized(this.kvs.getKvStores()) {
-            for (Kvs kvStore : this.kvs.getKvStores()) {
+        for (Kvs kvStore : this.kvs.getKvStores()) {
 
-                if (!md.getReplicasLst().contains(kvStore))
-                    continue;
+            if (!md.getReplicasLst().contains(kvStore))
+                continue;
 
-                try {
-                    this.kvs.delete(kvStore, kvsKey);
-                } catch (IOException e) {
-                    logger.warn("error while deleting {} from {}.", key, kvStore);
-                }
-            }
+            try {
+                this.kvs.delete(kvStore, kvsKey);
+            } catch (IOException e) { }
         }
 
         this.mds.delete(key);
@@ -331,18 +321,16 @@ public class Hybris {
             Metadata md = orphans.get(kvsKey);
             boolean error = false;
 
-            synchronized(this.kvs.getKvStores()) {
-                for (Kvs kvStore : this.kvs.getKvStores()) {
+            for (Kvs kvStore : this.kvs.getKvStores()) {
 
-                    if (!md.getReplicasLst().contains(kvStore))
-                        continue;
+                if (!md.getReplicasLst().contains(kvStore))
+                    continue;
 
-                    try {
-                        this.kvs.delete(kvStore, kvsKey);
-                    } catch (IOException e) {
-                        error = true;
-                        logger.warn("error while deleting {} from {}.", kvsKey, kvStore);
-                    }
+                try {
+                    this.kvs.delete(kvStore, kvsKey);
+                } catch (IOException e) {
+                    error = true;
+                    logger.warn("error while deleting {} from {}.", kvsKey, kvStore);
                 }
             }
 
@@ -374,37 +362,35 @@ public class Hybris {
             return;
         }
 
-        synchronized(this.kvs.getKvStores()) {
-            for (Kvs kvStore : this.kvs.getKvStores()) {
+        for (Kvs kvStore : this.kvs.getKvStores()) {
 
-                List<String> kvsKeys;
+            List<String> kvsKeys;
+            try {
+                kvsKeys = this.kvs.list(kvStore);
+            } catch (IOException e) {
+                logger.warn("GC: Could not list {} container", kvStore);
+                continue;
+            }
+
+            for (String kvsKey : kvsKeys) {
+                String prefixKey = ""; Timestamp kvTs = null;
+                boolean malformedKey = false;
                 try {
-                    kvsKeys = this.kvs.list(kvStore);
-                } catch (IOException e) {
-                    logger.warn("GC: Could not list {} container", kvStore);
-                    continue;
+                    prefixKey = Utils.getKeyFromKvsKey(kvsKey);
+                    kvTs = Utils.getTimestampfromKvsKey(kvsKey);
+                } catch(IndexOutOfBoundsException e) {
+                    malformedKey = true;
                 }
 
-                for (String kvsKey : kvsKeys) {
-                    String prefixKey = ""; Timestamp kvTs = null;
-                    boolean malformedKey = false;
+                if ( malformedKey ||
+                        key.equals(prefixKey) && md.getTs().isGreater(kvTs) )  {
                     try {
-                        prefixKey = Utils.getKeyFromKvsKey(kvsKey);
-                        kvTs = Utils.getTimestampfromKvsKey(kvsKey);
-                    } catch(IndexOutOfBoundsException e) {
-                        malformedKey = true;
+                        this.kvs.delete(kvStore, kvsKey);
+                    } catch (IOException e) {
+                        logger.warn("GC: Could not delete {} from {}", kvsKey, kvStore);
+                        continue;
                     }
-
-                    if ( malformedKey ||
-                            key.equals(prefixKey) && md.getTs().isGreater(kvTs) )  {
-                        try {
-                            this.kvs.delete(kvStore, kvsKey);
-                        } catch (IOException e) {
-                            logger.warn("GC: Could not delete {} from {}", kvsKey, kvStore);
-                            continue;
-                        }
-                        logger.debug("GC: deleted {} from {}", kvsKey, kvStore);
-                    }
+                    logger.debug("GC: deleted {} from {}", kvsKey, kvStore);
                 }
             }
         }
@@ -423,38 +409,36 @@ public class Hybris {
 
         Map<String, Metadata> mdMap = this.mds.getAll();     // !! heavy operation
 
-        synchronized(this.kvs.getKvStores()) {
-            for (Kvs kvStore : this.kvs.getKvStores()) {
+        for (Kvs kvStore : this.kvs.getKvStores()) {
 
-                List<String> kvsKeys;
+            List<String> kvsKeys;
+            try {
+                kvsKeys = this.kvs.list(kvStore);
+            } catch (IOException e) {
+                logger.warn("GC: Could not list {} container", kvStore);
+                continue;
+            }
+
+            for (String kvsKey : kvsKeys) {
+
+                String key = ""; Timestamp kvTs = null;
+                boolean malformedKey = false;
                 try {
-                    kvsKeys = this.kvs.list(kvStore);
-                } catch (IOException e) {
-                    logger.warn("GC: Could not list {} container", kvStore);
-                    continue;
+                    key = Utils.getKeyFromKvsKey(kvsKey);
+                    kvTs = Utils.getTimestampfromKvsKey(kvsKey);
+                } catch(IndexOutOfBoundsException e) {
+                    malformedKey = true;
                 }
 
-                for (String kvsKey : kvsKeys) {
-
-                    String key = ""; Timestamp kvTs = null;
-                    boolean malformedKey = false;
+                if ( malformedKey || !mdMap.keySet().contains(key) ||
+                       mdMap.get(key).getTs().isGreater(kvTs) ) {
                     try {
-                        key = Utils.getKeyFromKvsKey(kvsKey);
-                        kvTs = Utils.getTimestampfromKvsKey(kvsKey);
-                    } catch(IndexOutOfBoundsException e) {
-                        malformedKey = true;
+                        this.kvs.delete(kvStore, kvsKey);
+                    } catch (IOException e) {
+                        logger.warn("GC: Could not delete {} from {}", kvsKey, kvStore);
+                        continue;
                     }
-
-                    if ( malformedKey || !mdMap.keySet().contains(key) ||
-                           mdMap.get(key).getTs().isGreater(kvTs) ) {
-                        try {
-                            this.kvs.delete(kvStore, kvsKey);
-                        } catch (IOException e) {
-                            logger.warn("GC: Could not delete {} from {}", kvsKey, kvStore);
-                            continue;
-                        }
-                        logger.debug("GC: deleted {} from {}", kvsKey, kvStore);
-                    }
+                    logger.debug("GC: deleted {} from {}", kvsKey, kvStore);
                 }
             }
         }
@@ -468,13 +452,11 @@ public class Hybris {
      */
     public void _emptyContainers() throws HybrisException {
         this.mds.emptyMetadataContainer();
-        synchronized(this.kvs.getKvStores()) {
-            for (Kvs kvStore : this.kvs.getKvStores())
-                try {
-                    this.kvs.emptyStorageContainer(kvStore);
-                } catch (IOException e) {
-                    logger.warn("Could not empty container for kvStore {}", kvStore);
-                }
-        }
+        for (Kvs kvStore : this.kvs.getKvStores())
+            try {
+                this.kvs.emptyStorageContainer(kvStore);
+            } catch (IOException e) {
+                logger.warn("Could not empty container for kvStore {}", kvStore);
+            }
     }
 }

@@ -49,12 +49,10 @@ public class HybrisGcTest extends HybrisAbstractTest {
     public void setUp() throws Exception {
         this.mds.emptyMetadataContainer();
         this.mds.emptyStaleAndOrphansContainers();
-        synchronized(this.kvs.getKvStores()) {
-            for (Kvs provider : this.kvs.getKvStores())
-                try{
-                    this.kvs.emptyStorageContainer(provider);
-                } catch (Exception e) {}
-        }
+        for (Kvs provider : this.kvs.getKvStores())
+            try{
+                this.kvs.emptyStorageContainer(provider);
+            } catch (Exception e) {}
     }
 
     @Test
@@ -73,11 +71,9 @@ public class HybrisGcTest extends HybrisAbstractTest {
         this.hybris.gc(key);
 
         // check that the outdated versions are gone
-        synchronized(this.kvs.getKvStores()) {
-            for (Kvs provider : this.kvs.getKvStores()) {
-                assertNull(this.kvs.get(provider, Utils.getKvsKey(key, new Timestamp(0, Utils.getClientId()))));
-                assertNull(this.kvs.get(provider, Utils.getKvsKey(key, new Timestamp(1, Utils.getClientId()))));
-            }
+        for (Kvs provider : this.kvs.getKvStores()) {
+            assertNull(this.kvs.get(provider, Utils.getKvsKey(key, new Timestamp(0, Utils.getClientId()))));
+            assertNull(this.kvs.get(provider, Utils.getKvsKey(key, new Timestamp(1, Utils.getClientId()))));
         }
 
         // check that right versions are still there
@@ -123,13 +119,11 @@ public class HybrisGcTest extends HybrisAbstractTest {
         this.hybris.gc();
 
         // check that stale keys and orphans are gone
-        synchronized(this.kvs.getKvStores()) {
-            for (Kvs provider : this.kvs.getKvStores()) {
-                assertNull(this.kvs.get(provider, Utils.getKvsKey(key1, new Timestamp(0, Utils.getClientId()))));
-                assertNull(this.kvs.get(provider, Utils.getKvsKey(key1, new Timestamp(1, Utils.getClientId()))));
+        for (Kvs provider : this.kvs.getKvStores()) {
+            assertNull(this.kvs.get(provider, Utils.getKvsKey(key1, new Timestamp(0, Utils.getClientId()))));
+            assertNull(this.kvs.get(provider, Utils.getKvsKey(key1, new Timestamp(1, Utils.getClientId()))));
 
-                assertNull(this.kvs.get(provider, Utils.getKvsKey(key2, new Timestamp(0, Utils.getClientId()))));
-            }
+            assertNull(this.kvs.get(provider, Utils.getKvsKey(key2, new Timestamp(0, Utils.getClientId()))));
         }
 
         for (Kvs provider : savedReplicas)
@@ -193,13 +187,11 @@ public class HybrisGcTest extends HybrisAbstractTest {
         assertNull(this.kvs.get(this.kvs.getKvStores().get(0), "malformedkey1"));
         assertNull(this.kvs.get(this.kvs.getKvStores().get(1), "malformedkey2"));
 
-        synchronized(this.kvs.getKvStores()) {
-            for (Kvs provider : this.kvs.getKvStores()) {
-                assertNull(this.kvs.get(provider, Utils.getKvsKey(key1, new Timestamp(0, Utils.getClientId()))));
-                assertNull(this.kvs.get(provider, Utils.getKvsKey(key1, new Timestamp(1, Utils.getClientId()))));
+        for (Kvs provider : this.kvs.getKvStores()) {
+            assertNull(this.kvs.get(provider, Utils.getKvsKey(key1, new Timestamp(0, Utils.getClientId()))));
+            assertNull(this.kvs.get(provider, Utils.getKvsKey(key1, new Timestamp(1, Utils.getClientId()))));
 
-                assertNull(this.kvs.get(provider, Utils.getKvsKey(key2, new Timestamp(0, Utils.getClientId()))));
-            }
+            assertNull(this.kvs.get(provider, Utils.getKvsKey(key2, new Timestamp(0, Utils.getClientId()))));
         }
 
         for (Kvs provider : savedReplicas)

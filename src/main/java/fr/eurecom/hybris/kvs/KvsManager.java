@@ -7,6 +7,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 
 import org.jclouds.rest.AuthorizationException;
 import org.slf4j.Logger;
@@ -47,7 +51,7 @@ public class KvsManager {
 
     public KvsManager(String accountsFile, String container, boolean testLatency) throws IOException {
 
-        this.kvStores = Collections.synchronizedList(new ArrayList<Kvs>());
+        this.kvStores = new ArrayList<Kvs>();
         this.conf = Config.getInstance();
         this.conf.loadAccountsProperties(accountsFile);
         String[] accountIds = this.conf.getAccountsIds();
@@ -96,10 +100,8 @@ public class KvsManager {
             this.testLatency();
             Collections.sort(this.kvStores);  // Sort kvStores according to cost and latency (see Driver.compareTo())
             logger.debug("Cloud kvStores sorted by performance/cost metrics:");
-            synchronized (this.kvStores) {
-                for(Kvs kvs : this.kvStores)
-                    logger.debug("\t* {}", kvs.toVerboseString());
-            }
+            for(Kvs kvs : this.kvStores)
+                logger.debug("\t* {}", kvs.toVerboseString());
         }
     }
 
@@ -131,6 +133,61 @@ public class KvsManager {
             } catch (Exception e) {
                 return null;
             }
+        }
+    }
+
+    /**
+     * Worker thread class in charge of testing read and
+     * write latencies of a KvStore.
+     * @author p.viotti
+     */
+    public class LatencyTester implements Runnable {
+
+        private final Kvs kvStore;
+
+        public LatencyTester(Kvs kvStore) {
+            this.kvStore = kvStore;
+        }
+
+        public void run() {
+
+            byte[] testData = TEST_VALUE.getBytes();
+            String testKey = TEST_KEY + new Random().nextInt(1000);
+            long start, end = 0;
+
+            // Write
+            try {
+                start = System.currentTimeMillis();
+                KvsManager.this.put(this.kvStore, testKey, testData);
+                end = System.currentTimeMillis();
+                this.kvStore.setWriteLatency(end - start);
+            } catch (Exception e) {
+                this.kvStore.setWriteLatency(Integer.MAX_VALUE);
+                if (e instanceof AuthorizationException)
+                    this.kvStore.setEnabled(false);
+                    return;
+            }
+
+            // Read
+            byte[] retrieved = null;
+            try {
+                start = System.currentTimeMillis();
+                retrieved = KvsManager.this.get(this.kvStore, testKey);
+                end = System.currentTimeMillis();
+            } catch (Exception e) {
+                this.kvStore.setReadLatency(Integer.MAX_VALUE);
+                if (e instanceof AuthorizationException)
+                    this.kvStore.setEnabled(false);
+            }
+            if (retrieved == null || !Arrays.equals(testData, retrieved))
+                this.kvStore.setReadLatency(Integer.MAX_VALUE);
+            else
+                this.kvStore.setReadLatency(end - start);
+
+            // Clean up
+            try {
+                KvsManager.this.delete(this.kvStore, testKey);
+            } catch (IOException e) {  }
         }
     }
 
@@ -204,49 +261,23 @@ public class KvsManager {
        --------------------------------------------------------------------------------------- */
 
 
-    private void testLatency() {    // TODO parallelize
+    private void testLatency() {
 
-        byte[] testData = TEST_VALUE.getBytes();
-        String testKey = TEST_KEY + new Random().nextInt(1000);
-        long start, end = 0;
-
-        synchronized(this.kvStores){
-            for (Kvs kvStore : this.kvStores) {
-
-                // write
-                try {
-                    start = System.currentTimeMillis();
-                    this.put(kvStore, testKey, testData);
-                    end = System.currentTimeMillis();
-                    kvStore.setWriteLatency(end - start);
-                } catch (Exception e) {
-                    kvStore.setWriteLatency(Integer.MAX_VALUE);
-                    if (e instanceof AuthorizationException)
-                        kvStore.setEnabled(false);
-                        continue;
-                }
-
-                // read
-                byte[] retrieved = null;
-                try {
-                    start = System.currentTimeMillis();
-                    retrieved = this.get(kvStore, testKey);
-                    end = System.currentTimeMillis();
-                } catch (Exception e) {
-                    kvStore.setReadLatency(Integer.MAX_VALUE);
-                    if (e instanceof AuthorizationException)
-                        kvStore.setEnabled(false);
-                }
-                if (retrieved == null || !Arrays.equals(testData, retrieved))
-                    kvStore.setReadLatency(Integer.MAX_VALUE);
-                else
-                    kvStore.setReadLatency(end - start);
-
-                // clean up
-                try {
-                    this.delete(kvStore, testKey);
-                } catch (IOException e) {  }
-            }
+        ExecutorService executor = Executors.newFixedThreadPool(this.kvStores.size());
+        List<FutureTask<Object>> futureLst = new ArrayList<FutureTask<Object>>(this.kvStores.size());
+        for (Kvs kvStore : this.kvStores) {
+            FutureTask<Object> f = new FutureTask<Object>(new LatencyTester(kvStore), null);
+            futureLst.add(f);
+            executor.execute(f);
         }
+
+        for (FutureTask<Object> future : futureLst)
+            try {
+                future.get();
+            } catch (InterruptedException | ExecutionException e) {
+                logger.warn("Exception while running latency test.", e);
+            }
+
+        executor.shutdown();
     }
 }
