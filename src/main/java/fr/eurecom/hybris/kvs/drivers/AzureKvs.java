@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -30,6 +31,7 @@ public class AzureKvs extends Kvs {
 
     private transient final CloudBlobClient blobClient;
     private transient CloudBlobContainer containerRef;
+    private transient HashMap<String, CloudBlockBlob> blobRefs;     // cached references of already used blobs
 
     public AzureKvs(String id, String accessKey, String secretKey,
                         String container, boolean enabled, int cost) throws IOException {
@@ -50,12 +52,15 @@ public class AzureKvs extends Kvs {
         }
 
         this.createContainer();
+        this.blobRefs = new HashMap<String, CloudBlockBlob>();
     }
 
     public void put(String key, byte[] value) throws IOException {
         try {
             CloudBlockBlob blob = this.containerRef.getBlockBlobReference(key);
+            blob.getProperties().setContentMD5(null);
             blob.upload(new ByteArrayInputStream(value), value.length);
+            this.blobRefs.put(key, blob);
         } catch (URISyntaxException | StorageException | IOException e) {
             throw new IOException(e);
         }
@@ -63,7 +68,9 @@ public class AzureKvs extends Kvs {
 
     public byte[] get(String key) throws IOException {
         try {
-            CloudBlockBlob blob = this.containerRef.getBlockBlobReference(key);
+            CloudBlockBlob blob = this.blobRefs.get(key);
+            if (blob == null)
+                blob = this.containerRef.getBlockBlobReference(key);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             blob.download(baos);
             return baos.toByteArray();
@@ -81,8 +88,11 @@ public class AzureKvs extends Kvs {
 
     public void delete(String key) throws IOException {
         try {
-            CloudBlockBlob blob = this.containerRef.getBlockBlobReference(key);
+            CloudBlockBlob blob = this.blobRefs.get(key);
+            if (blob == null)
+                blob = this.containerRef.getBlockBlobReference(key);
             blob.delete();
+            this.blobRefs.remove(key);
         } catch (URISyntaxException | StorageException e) {
 
             if (e instanceof StorageException) {
