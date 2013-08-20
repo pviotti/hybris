@@ -90,6 +90,11 @@
         <artifactId>cloudfiles-us</artifactId>
         <version>1.6.1-incubating</version>
     </dependency>
+    <!-- <dependency>   XXX to be added for testing depsky jar-with-dependencies
+        <groupId>org.apache.jclouds.provider</groupId>
+        <artifactId>azureblob</artifactId>
+        <version>1.6.1-incubating</version>
+    </dependency> -->
             
     
     <dependency>
