@@ -303,7 +303,15 @@ public class Hybris {
     public Map<String, Metadata> getAllMetadata() throws HybrisException {
         return this.mds.getAll();
     }
-    
+
+    /**
+     * Test cloud storage providers' latency and sort them accordingly.
+     * @param testDataSize [kB]
+     */
+    public void testLatencyAndSortClouds(int testDataSize) {
+        this.kvs.testLatencyAndSortClouds(testDataSize);
+    }
+
 
     public void shutdown() {
         for (Kvs kvStore : this.kvs.getKvStores())
