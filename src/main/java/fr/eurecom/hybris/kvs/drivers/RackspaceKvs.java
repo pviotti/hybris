@@ -29,7 +29,7 @@ public class RackspaceKvs extends Kvs {
 
     public RackspaceKvs(String id, String accessKey, String secretKey,
                             String container, boolean enabled, int cost) throws IOException {
-        super(id, accessKey, secretKey, container, enabled, cost);
+        super(id, container, enabled, cost);
 
         try {
             BlobStoreContext context = ContextBuilder.newBuilder(rackspaceId)

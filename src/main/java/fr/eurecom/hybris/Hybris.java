@@ -92,9 +92,10 @@ public class Hybris {
      * Write function: write a byte array associated with a key.
      * @param key
      * @param value
+     * @return the list of Kvs in which Hybris stored the data
      * @throws HybrisException
      */
-    public void write(String key, byte[] value) throws HybrisException {
+    public List<Kvs> write(String key, byte[] value) throws HybrisException {
 
         Timestamp ts;
         Stat stat = new Stat();
@@ -111,8 +112,9 @@ public class Hybris {
         String kvsKey = Utils.getKvsKey(key, ts);
         ExecutorService executor = Executors.newFixedThreadPool(this.quorum);
         List<Future<Kvs>> futureLst = new ArrayList<Future<Kvs>>(this.quorum);
-        int idxFrom = 0; int idxTo = this.quorum;
+        int idxFrom = 0; int idxTo = this.quorum; long start;
         do {
+            start = System.currentTimeMillis();
             for (Kvs kvStore : this.kvs.getKvStores().subList(idxFrom, idxTo))
                 futureLst.add(executor.submit(this.kvs.new KvsPutWorker(kvStore, kvsKey, value)));
 
@@ -121,7 +123,8 @@ public class Hybris {
                 try {
                     savedReplica = future.get(this.TIMEOUT_WRITE, TimeUnit.SECONDS);
                     if (savedReplica != null) {
-                        logger.debug("Data stored in {}", savedReplica);
+                        logger.debug("Data stored on {}, {} ms", savedReplica,
+                                        System.currentTimeMillis() - start);
                         savedReplicasLst.add(savedReplica);
                     }
                     if (savedReplicasLst.size() >= this.quorum)
@@ -155,6 +158,7 @@ public class Hybris {
         if (this.gcEnabled && overwritten) this.mds.new GcMarker(key).start();
 
         logger.info("Data successfully stored on: {}", savedReplicasLst);
+        return savedReplicasLst;
     }
 
     /**

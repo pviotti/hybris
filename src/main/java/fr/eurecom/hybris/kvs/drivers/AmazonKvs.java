@@ -34,7 +34,7 @@ public class AmazonKvs extends Kvs {
 
     public AmazonKvs(String id, final String accessKey, final String secretKey,
                             String container, boolean enabled, int cost) throws IOException {
-        super(id, accessKey, secretKey, container, enabled, cost);
+        super(id, container, enabled, cost);
 
         BasicAWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
         this.s3 = new AmazonS3Client(credentials);

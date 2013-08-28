@@ -4,18 +4,15 @@ Hybris
 Hybris is the prototype of a Java storage library which implements the 
 hybrid cloud based data storage described in [\[1\]][1].  
 
-Hybris code base is composed by two main modules: MdStore and KvStore, 
-the first being a thin wrapper layer of the metadata storage engine (i.e. Zookeeper),
+Hybris code base is composed by two main modules: MdsManager and KvsManager, 
+the first being a thin wrapper layer of the metadata distributed storage service (i.e. Zookeeper),
 while the latter implements the storage primitives towards the APIs of the main 
-public cloud storage services.  
+public cloud storage services - currenlty it supports Amazon S3, 
+Google Cloud Storage, Rackspace Cloudfiles and Windows Azure Blob.  
 
-In this context, the Hybris library exposes a simple set of APIs 
-and coordinates the two modules in order to achieve these general goals:
-
- * data availability
- * data integrity
- * byzantine fault tolerance
- * vendor lock-in avoidance
+In this context, Hybris exposes a simple set of APIs 
+and coordinates the two modules in order to provide guarantees of data availability 
+and integrity, byzantine fault tolerance and vendor lock-in avoidance.  
 
 For information about technical requirements and development please refer to the [development info wiki page][2].
 

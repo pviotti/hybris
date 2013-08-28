@@ -27,7 +27,7 @@ public class GoogleKvs extends Kvs {
 
     public GoogleKvs(String id, String accessKey, String secretKey,
                          String container, boolean enabled, int cost) throws IOException {
-        super(id, accessKey, secretKey, container, enabled, cost);
+        super(id, container, enabled, cost);
 
         GSCredentials gsCredentials = new GSCredentials(accessKey, secretKey);
         try {

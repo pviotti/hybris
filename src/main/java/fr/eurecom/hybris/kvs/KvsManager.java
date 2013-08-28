@@ -260,7 +260,7 @@ public class KvsManager {
 
 
     public void testLatencyAndSortClouds(int testDataSize) {
-        logger.info("Performing latency tests on cloud kvStores...");
+        logger.info("Performing {} kB latency tests on cloud kvStores..", testDataSize);
         this.testLatency(testDataSize);
         Collections.sort(this.kvStores);  // Sort kvStores according to cost and latency (see Driver.compareTo())
         logger.debug("Cloud kvStores sorted by performance/cost metrics:");

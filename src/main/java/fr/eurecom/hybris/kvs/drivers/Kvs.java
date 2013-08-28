@@ -17,8 +17,7 @@ public abstract class Kvs implements Comparable<Kvs>, Serializable {
 
     protected static final long serialVersionUID = 1L;
 
-    public Kvs(String id, String accessKey, String secretKey,
-                        String container, boolean enabled, int cost) {
+    public Kvs(String id, String container, boolean enabled, int cost) {
         this.id = id;
         this.enabled = enabled;
         this.cost = cost;

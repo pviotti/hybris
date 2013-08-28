@@ -12,7 +12,7 @@ public class TransientKvs extends Kvs {
 
     public TransientKvs(String id, String accessKey, String secretKey,
                             String container, boolean enabled, int cost) {
-        super(id, accessKey, secretKey, container, enabled, cost);
+        super(id, container, enabled, cost);
         this.hashMap = new HashMap<String, byte[]>();
     }
 

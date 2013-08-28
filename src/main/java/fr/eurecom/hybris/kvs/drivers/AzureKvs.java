@@ -35,7 +35,7 @@ public class AzureKvs extends Kvs {
 
     public AzureKvs(String id, String accessKey, String secretKey,
                         String container, boolean enabled, int cost) throws IOException {
-        super(id, accessKey, secretKey, container, enabled, cost);
+        super(id, container, enabled, cost);
 
         String storageConnectionString = "DefaultEndpointsProtocol=http;" +
                                             "AccountName=" + accessKey +
