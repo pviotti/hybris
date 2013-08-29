@@ -22,9 +22,9 @@ import fr.eurecom.hybris.Config;
 public class RackspaceKvs extends Kvs {
 
     private static final long serialVersionUID = 1L;
-    private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
+    private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
-    private final static String rackspaceId = "cloudfiles-us";
+    private final static String rackspaceId = "cloudfiles-uk";
     private transient final BlobStore blobStore;
 
     public RackspaceKvs(String id, String accessKey, String secretKey,

@@ -33,7 +33,7 @@ import fr.eurecom.hybris.kvs.drivers.TransientKvs;
  */
 public class KvsManager {
 
-    private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
+    private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
     private final Config conf;
     private final List<Kvs> kvStores;                   // kvStores sorted by cost and latency

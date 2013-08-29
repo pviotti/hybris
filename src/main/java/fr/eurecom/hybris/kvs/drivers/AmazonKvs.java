@@ -16,6 +16,7 @@ import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.amazonaws.services.s3.model.Region;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.s3.model.StorageClass;
@@ -27,7 +28,6 @@ import com.google.common.io.ByteStreams;
 public class AmazonKvs extends Kvs {
 
     private static final long serialVersionUID = 1L;
-    //private transient static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
     private transient final AmazonS3 s3;
     private transient final TransferManager tm;
@@ -115,7 +115,8 @@ public class AmazonKvs extends Kvs {
 
     protected void createContainer() throws IOException {
         try {
-            this.s3.createBucket(this.rootContainer);
+            if (!this.s3.doesBucketExist(this.rootContainer))
+                this.s3.createBucket(this.rootContainer, Region.EU_Ireland);    // XXX hardcoded bucket location
         } catch (AmazonClientException e) {
             throw new IOException(e);
         }

@@ -83,17 +83,17 @@
     <dependency>
       <groupId>org.apache.jclouds</groupId>
       <artifactId>jclouds-blobstore</artifactId>
-      <version>1.6.1-incubating</version>
+      <version>1.6.2-incubating</version>
     </dependency>
      <dependency>
         <groupId>org.apache.jclouds.provider</groupId>
-        <artifactId>cloudfiles-us</artifactId>
-        <version>1.6.1-incubating</version>
+        <artifactId>cloudfiles-uk</artifactId>
+        <version>1.6.2-incubating</version>
     </dependency>
     <!-- <dependency>   XXX to be added for testing depsky jar-with-dependencies
         <groupId>org.apache.jclouds.provider</groupId>
         <artifactId>azureblob</artifactId>
-        <version>1.6.1-incubating</version>
+        <version>1.6.2-incubating</version>
     </dependency> -->
             
     

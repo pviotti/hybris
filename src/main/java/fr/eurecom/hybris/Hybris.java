@@ -31,7 +31,7 @@ import fr.eurecom.hybris.mds.Metadata.Timestamp;
  */
 public class Hybris {
 
-    private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
+    private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
     private MdsManager mds;
     private KvsManager kvs;

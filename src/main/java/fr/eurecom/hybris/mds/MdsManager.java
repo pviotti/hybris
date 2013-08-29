@@ -30,7 +30,7 @@ import fr.eurecom.hybris.mds.Metadata.Timestamp;
  */
 public class MdsManager implements Watcher {
 
-    private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
+    private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
     private ZooKeeper zk;
     private final String storageRoot;

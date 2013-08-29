@@ -21,7 +21,7 @@ import fr.eurecom.hybris.Config;
 public class GoogleKvs extends Kvs {
 
     private static final long serialVersionUID = 1L;
-    private static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
+    private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
     private transient final GoogleStorageService gsService;
 
