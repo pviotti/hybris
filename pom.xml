@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>fr.eurecom.hybris</groupId>
   <artifactId>hybris</artifactId>
-  <version>0.0.3</version>
+  <version>0.0.4</version>
   <name>Hybris</name>
   <description>Hybris storage library</description>
   <properties>
@@ -36,6 +36,12 @@
             </exclusion>
         </exclusions>
 	</dependency>
+	
+	<dependency>
+        <groupId>org.apache.curator</groupId>
+        <artifactId>curator-framework</artifactId>
+        <version>2.2.0-incubating</version>
+    </dependency>
 	
 	<dependency> <!-- used for serialization -->
 		<groupId>org.apache.commons</groupId>

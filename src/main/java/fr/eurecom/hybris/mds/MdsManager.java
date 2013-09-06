@@ -7,12 +7,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.zookeeper.CreateMode;
+import org.apache.curator.RetryPolicy;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.state.ConnectionState;
+import org.apache.curator.framework.state.ConnectionStateListener;
+import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.ZooDefs.Ids;
-import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,11 +29,11 @@ import fr.eurecom.hybris.mds.Metadata.Timestamp;
  * Provides read&write access to the metadata storage.
  * @author p.viotti
  */
-public class MdsManager implements Watcher {
+public class MdsManager implements ConnectionStateListener {
 
     private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
-    private ZooKeeper zk;
+    private final CuratorFramework zkCli;
     private final String storageRoot;
 
     public static int NONODE = -1;      // integer marker to tell whether a znode has to be created
@@ -58,12 +59,15 @@ public class MdsManager implements Watcher {
         this.gcOrphansDir = this.gcRoot + "/orphans";
 
         try {
-            this.zk = new ZooKeeper(zkConnectionStr, 5000, this);
+            RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 3);
+            this.zkCli = CuratorFrameworkFactory.newClient(zkConnectionStr, retryPolicy);
+            this.zkCli.getConnectionStateListenable().addListener(this);
+            this.zkCli.start();
 
             for (String dir : new String[]{ this.storageRoot, this.gcRoot,
                     this.gcStaleDir, this.gcOrphansDir })
                 try {
-                    this.zk.create(dir, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                    this.zkCli.create().forPath(dir);
                     logger.debug("Created \"{}\".", dir);
                 } catch (KeeperException e) {
                     if (e.code() != KeeperException.Code.NODEEXISTS)
@@ -71,9 +75,15 @@ public class MdsManager implements Watcher {
                 }
 
         } catch (Exception e) {
-            logger.error("KeeperException, could not initialize the Zookeeper client. " + e.getMessage(), e);
+            logger.error("Exception, could not initialize the Zookeeper client. " + e.getMessage(), e);
             throw new IOException(e);
         }
+    }
+
+
+    public void stateChanged(CuratorFramework client, ConnectionState newState) {
+        if (!ConnectionState.CONNECTED.equals(newState))
+            logger.warn("Zookeeper connection state changed to: " + newState);
     }
 
 
@@ -110,12 +120,12 @@ public class MdsManager implements Watcher {
                     // create znode  <root>-gc/stale/<key>
                     path = MdsManager.this.gcStaleDir + "/" + this.key;
                     try {
-                        MdsManager.this.zk.create(path, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                        MdsManager.this.zkCli.create().forPath(path);
                         logger.debug("GcMarker: marked {} as stale", path);
                     } catch (KeeperException e){
                         if (e.code() != KeeperException.Code.NODEEXISTS)
                             logger.warn("GcMarker: could not create stale node " + path, e);
-                    } catch (InterruptedException e) {
+                    } catch (Exception e) {
                         logger.warn("GcMarker: could not create stale node " + path, e);
                     }
                     break;
@@ -124,12 +134,12 @@ public class MdsManager implements Watcher {
                     path = MdsManager.this.gcOrphansDir + "/" + Utils.getKvsKey(this.key, this.ts);
                     byte[] value = new Metadata(this.ts, null, this.replicas).serialize();
                     try {
-                        MdsManager.this.zk.create(path, value, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                        MdsManager.this.zkCli.create().forPath(path, value);
                         logger.debug("GcMarker: marked {} as orphan", path);
                     } catch (KeeperException e){
                         if (e.code() != KeeperException.Code.NODEEXISTS)
                             logger.warn("GcMarker: could not create orphan node " + path, e);
-                    } catch (InterruptedException e) {
+                    } catch (Exception e) {
                         logger.warn("GcMarker: could not create orphan node " + path, e);
                     }
                     break;
@@ -155,11 +165,11 @@ public class MdsManager implements Watcher {
         String path = this.storageRoot + "/" + key;
         try {
             if (zkVersion == NONODE){
-                this.zk.create(path, md.serialize(), Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                this.zkCli.create().forPath(path, md.serialize());
                 logger.debug("ZNode {} created.", path);
                 return false;
             } else {
-                this.zk.setData(path, md.serialize(), zkVersion);
+                this.zkCli.setData().withVersion(zkVersion).forPath(path, md.serialize());
                 logger.debug("ZNode {} modified.", path);
                 return true;
             }
@@ -171,10 +181,8 @@ public class MdsManager implements Watcher {
                 Stat stat = new Stat();
                 byte[] newValue = null;
                 try {
-                    newValue = this.zk.getData(path, false, stat);
-                } catch (KeeperException e1) {
-                    throw new HybrisException(e1);
-                } catch (InterruptedException e1) {
+                    newValue = this.zkCli.getData().storingStatIn(stat).forPath(path);
+                } catch (Exception e1) {
                     throw new HybrisException(e1);
                 }
 
@@ -192,9 +200,9 @@ public class MdsManager implements Watcher {
                 throw new HybrisException("KeeperException, could not write the key.", e);
             }
 
-        } catch (InterruptedException e) {
-            logger.error("InterruptedException, could not write the key.", e);
-            throw new HybrisException("InterruptedException, could not write the key. " + e.getMessage(), e);
+        } catch (Exception e) {
+            logger.error("Exception, could not write the key.", e);
+            throw new HybrisException("Exception, could not write the key. " + e.getMessage(), e);
         }
     }
 
@@ -212,12 +220,12 @@ public class MdsManager implements Watcher {
 
         String path = this.storageRoot + "/" + key;
         try {
-            this.zk.sync(path, null, null);
+            this.zkCli.sync().forPath(path);
             /* NOTE: There is no synchronous version of this ZK API
              * (https://issues.apache.org/jira/browse/ZOOKEEPER-1167ordering)
              * however, order guarantees among operations allow not to wait for asynchronous callback to be called
              */
-            byte[] rawMd = this.zk.getData(path, false, stat);
+            byte[] rawMd = this.zkCli.getData().storingStatIn(stat).forPath(path);
             Metadata md = new Metadata(rawMd);
             if (!md.isTombstone())
                 return md;
@@ -231,9 +239,9 @@ public class MdsManager implements Watcher {
                 throw new HybrisException("KeeperException, could not read the ZNode " + path, e);
             }
 
-        } catch (InterruptedException e) {
-            logger.error("InterruptedException, could not read the ZNode " + path, e);
-            throw new HybrisException("InterruptedException, could not read the key. " + e.getMessage(), e);
+        } catch (Exception e) {
+            logger.error("Exception, could not read the ZNode " + path, e);
+            throw new HybrisException("Exception, could not read the key. " + e.getMessage(), e);
         }
     }
 
@@ -247,10 +255,10 @@ public class MdsManager implements Watcher {
 
         List<String> znodes;
         try {
-            znodes = this.zk.getChildren(this.storageRoot, false);
-        } catch (KeeperException | InterruptedException e1) {
-            logger.error("Could not list the children of znode " + this.storageRoot, e1);
-            throw new HybrisException(e1);
+            znodes = this.zkCli.getChildren().forPath(this.storageRoot);
+        } catch (Exception e) {
+            logger.error("Could not list the children of znode " + this.storageRoot, e);
+            throw new HybrisException(e);
         }
 
         HashMap<String, Metadata> retMap = new HashMap<String, Metadata>();
@@ -258,8 +266,8 @@ public class MdsManager implements Watcher {
             String znodePath = this.storageRoot + "/" + znode;
             byte[] rawMd = null;
             try {
-                rawMd = this.zk.getData(znodePath, false, null);
-            } catch (KeeperException | InterruptedException e) {
+                rawMd = this.zkCli.getData().forPath(znodePath);
+            } catch (Exception e) {
                 logger.warn("Could not read metadata for key " + znodePath, e);
             }
             Metadata md = new Metadata(rawMd);
@@ -279,10 +287,10 @@ public class MdsManager implements Watcher {
 
         List<String> znodes;
         try {
-            znodes = this.zk.getChildren(this.gcOrphansDir, false);
-        } catch (KeeperException | InterruptedException e1) {
-            logger.error("Could not list the children of znode " + this.storageRoot, e1);
-            throw new HybrisException(e1);
+            znodes = this.zkCli.getChildren().forPath(this.gcOrphansDir);
+        } catch (Exception e) {
+            logger.error("Could not list the children of znode " + this.storageRoot, e);
+            throw new HybrisException(e);
         }
 
         HashMap<String, Metadata> retMap = new HashMap<String, Metadata>();
@@ -290,8 +298,8 @@ public class MdsManager implements Watcher {
             String znodePath = this.gcOrphansDir + "/" + znode;
             byte[] rawMd = null;
             try {
-                rawMd = this.zk.getData(znodePath, false, null);
-            } catch (KeeperException | InterruptedException e) {
+                rawMd = this.zkCli.getData().forPath(znodePath);
+            } catch (Exception e) {
                 logger.warn("Could not read metadata for key " + znodePath, e);
             }
             Metadata md = new Metadata(rawMd);
@@ -311,12 +319,12 @@ public class MdsManager implements Watcher {
         for (String key : orphanKeys) {
             String znodePath = this.gcOrphansDir + "/" + key;
             try {
-                this.zk.delete(znodePath, -1);
-            } catch (InterruptedException e) {
-                logger.warn("Could not delete orphan key " + znodePath, e);
+                this.zkCli.delete().forPath(znodePath);
             } catch (KeeperException e) {
                 if (e.code() != KeeperException.Code.NONODE)
                     logger.warn("Could not delete orphan key " + znodePath, e);
+            } catch (Exception e) {
+                logger.warn("Could not delete orphan key " + znodePath, e);
             }
         }
     }
@@ -330,10 +338,10 @@ public class MdsManager implements Watcher {
     public List<String> getStaleKeys() throws HybrisException {
 
         try {
-            return this.zk.getChildren(this.gcStaleDir, false);
-        } catch (KeeperException | InterruptedException e1) {
-            logger.error("Could not list the children of znode " + this.storageRoot, e1);
-            throw new HybrisException(e1);
+            return this.zkCli.getChildren().forPath(this.gcStaleDir);
+        } catch (Exception e) {
+            logger.error("Could not list the children of znode " + this.storageRoot, e);
+            throw new HybrisException(e);
         }
     }
 
@@ -347,12 +355,12 @@ public class MdsManager implements Watcher {
 
         String znodePath = this.gcStaleDir + "/" + staleKey;
         try {
-            this.zk.delete(znodePath, -1);
-        } catch (InterruptedException e) {
-            logger.warn("Could not delete orphan key " + znodePath, e);
+            this.zkCli.delete().forPath(znodePath);
         } catch (KeeperException e) {
             if (e.code() != KeeperException.Code.NONODE)
                 logger.warn("Could not delete orphan key " + znodePath, e);
+        } catch (Exception e) {
+            logger.warn("Could not delete orphan key " + znodePath, e);
         }
     }
 
@@ -366,10 +374,10 @@ public class MdsManager implements Watcher {
 
         List<String> znodes;
         try {
-            znodes = this.zk.getChildren(this.storageRoot, false);
-        } catch (KeeperException | InterruptedException e1) {
-            logger.error("Could not list the children of znode " + this.storageRoot, e1);
-            throw new HybrisException(e1);
+            znodes = this.zkCli.getChildren().forPath(this.storageRoot);
+        } catch (Exception e) {
+            logger.error("Could not list the children of znode " + this.storageRoot, e);
+            throw new HybrisException(e);
         }
 
         for (Iterator<String> it = znodes.iterator(); it.hasNext(); ) {
@@ -377,8 +385,8 @@ public class MdsManager implements Watcher {
             String znodePath = this.storageRoot + "/" + znode;
             byte[] rawMd = null;
             try {
-                rawMd = this.zk.getData(znodePath, false, null);
-            } catch (KeeperException | InterruptedException e) {
+                rawMd = this.zkCli.getData().forPath(znodePath);
+            } catch (Exception e) {
                 logger.warn("Could not read metadata for key " + znodePath, e);
             }
             Metadata md = new Metadata(rawMd);
@@ -390,7 +398,7 @@ public class MdsManager implements Watcher {
 
 
     /**
-     * Mark a key as deleted (write a tombstone value).
+     * Mark a key as deleted writing a tombstone value.
      * @param key
      * @throws HybrisException
      */
@@ -399,7 +407,7 @@ public class MdsManager implements Watcher {
         String path = this.storageRoot + "/" + key;
         try {
             Metadata tombstoneMd = new Metadata(null, null, null);
-            this.zk.setData(path, tombstoneMd.serialize(), -1);
+            this.zkCli.setData().forPath(path, tombstoneMd.serialize());
         } catch (KeeperException e) {
 
             if (e.code() == KeeperException.Code.NONODE)
@@ -409,9 +417,9 @@ public class MdsManager implements Watcher {
                 throw new HybrisException("KeeperException, could not delete the ZNode " + path, e);
             }
 
-        } catch (InterruptedException e) {
-            logger.error("InterruptedException, could not delete the ZNode " + path, e);
-            throw new HybrisException("InterruptedException, could not delete the ZNode " + path, e);
+        } catch (Exception e) {
+            logger.error("Exception, could not delete the ZNode " + path, e);
+            throw new HybrisException("Exception, could not delete the ZNode " + path, e);
         }
     }
 
@@ -428,9 +436,9 @@ public class MdsManager implements Watcher {
         } catch (KeeperException e) {
             logger.warn("KeeperException, could not empty the container", e);
             throw new HybrisException("KeeperException, could not empty the container", e);
-        } catch (InterruptedException e) {
-            logger.warn("InterruptedException, could not empty the container", e);
-            throw new HybrisException("InterruptedException, could not empty the container", e);
+        } catch (Exception e) {
+            logger.warn("Exception, could not empty the container", e);
+            throw new HybrisException("Exception, could not empty the container", e);
         }
     }
 
@@ -447,36 +455,27 @@ public class MdsManager implements Watcher {
         } catch (KeeperException e) {
             logger.warn("KeeperException, could not empty the container", e);
             throw new HybrisException("KeeperException, could not empty the container", e);
-        } catch (InterruptedException e) {
-            logger.warn("InterruptedException, could not empty the container", e);
-            throw new HybrisException("InterruptedException, could not empty the container", e);
+        } catch (Exception e) {
+            logger.warn("Exception, could not empty the container", e);
+            throw new HybrisException("Exception, could not empty the container", e);
         }
     }
 
 
     public void shutdown() {
-        try {
-            this.zk.close();
-        } catch (InterruptedException e) {
-            logger.warn("Error during Zookeeper client shutdown", e);
-        }
+        this.zkCli.close();
     }
 
-
-    @Override
-    public void process(WatchedEvent event) {
-        // XXX Auto-generated method stub
-    }
 
     /* ---------------------------------------------------------------------------------------
                                         Private methods
        --------------------------------------------------------------------------------------- */
 
 
-    private void emptyContainer(String path) throws KeeperException, InterruptedException {
-        Stat s = this.zk.exists(path, false);
+    private void emptyContainer(String path) throws Exception {
+        Stat s = this.zkCli.checkExists().forPath(path);
         if (s != null) {
-            List<String> children = this.zk.getChildren(path, false);
+            List<String> children = this.zkCli.getChildren().forPath(path);
             for (String child : children) {
                 String node = path + "/" + child;
                 this.recursiveDelete(node);
@@ -484,15 +483,15 @@ public class MdsManager implements Watcher {
         }
     }
 
-    private void recursiveDelete(String key) throws KeeperException, InterruptedException {
-        Stat s = this.zk.exists(key, false);
+    private void recursiveDelete(String key) throws Exception {
+        Stat s = this.zkCli.checkExists().forPath(key);
         if (s != null) {
-            List<String> children = this.zk.getChildren(key, false);
+            List<String> children = this.zkCli.getChildren().forPath(key);
             for (String child : children) {
                 String node = key + "/" + child;
                 this.recursiveDelete(node);
             }
-            this.zk.delete(key, -1);         // delete no matter which version
+            this.zkCli.delete().forPath(key);
         }
     }
 }

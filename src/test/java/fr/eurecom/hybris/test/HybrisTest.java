@@ -87,7 +87,7 @@ public class HybrisTest extends HybrisAbstractTest {
         start = System.currentTimeMillis();
         hybris.write(key1, payload);
         end = System.currentTimeMillis();
-        System.out.println("Parallel: " + (end - start) + " ms");
+        System.out.println("Parallel write: " + (end - start) + " ms");
         hybris.delete(key1);
     }
 }

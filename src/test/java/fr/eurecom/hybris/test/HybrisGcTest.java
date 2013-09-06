@@ -38,7 +38,7 @@ public class HybrisGcTest extends HybrisAbstractTest {
 
     public HybrisGcTest() throws HybrisException, IOException {
         this.hybris = new Hybris(this.MDS_ADDRESS, this.MDS_TEST_ROOT, this.KVS_ACCOUNTS_FILE,
-                                this.KVS_ROOT, false, 0, 600, 600, true);
+                this.KVS_ROOT, false, 0, 600, 600, true);
 
         this.mds = new MdsManager(this.MDS_ADDRESS, this.MDS_TEST_ROOT);
         this.kvs = new KvsManager(this.KVS_ACCOUNTS_FILE, this.KVS_ROOT, false);
