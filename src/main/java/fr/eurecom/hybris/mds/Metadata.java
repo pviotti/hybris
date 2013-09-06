@@ -42,7 +42,7 @@ public class Metadata implements Serializable {
 
         public boolean isGreater(Timestamp ts) {
             if (ts == null || this.num > ts.num ||
-                this.num == ts.num && this.cid.compareTo(ts.cid) < 0)
+                    this.num == ts.num && this.cid.compareTo(ts.cid) < 0)
                 return true;
             return false;
         }
@@ -86,7 +86,7 @@ public class Metadata implements Serializable {
         }
     }
 
-    // TODO use protobuf instead of Java serialization
+    // TODO use Protobuf, Thrift, Avro, or Cap'n Proto instead of Java serialization
     private static final long serialVersionUID = -2127132184699014357L;
 
     private Timestamp ts;
@@ -108,6 +108,10 @@ public class Metadata implements Serializable {
         this.ts = md.ts;
         this.replicasLst = md.replicasLst;
         this.hash = md.getHash();
+    }
+
+    public static Metadata getTombstone() {
+        return new Metadata(null, null, null);
     }
 
     public byte[] serialize() {

@@ -27,7 +27,7 @@ import fr.eurecom.hybris.mds.Metadata.Timestamp;
 /**
  * Wraps the Zookeeper client and
  * Provides read&write access to the metadata storage.
- * @author p.viotti
+ * @author P. Viotti
  */
 public class MdsManager implements ConnectionStateListener {
 
@@ -45,10 +45,10 @@ public class MdsManager implements ConnectionStateListener {
     enum GcType { STALE, ORPHAN };
 
     /**
-     * Constructs a new MdStore.
+     * Constructs a new MdsManager.
      * @param zkConnectionStr Zookeeper cluster connection string (e.g. "zksrv1.net:2181,zksrv2.net:2181")
-     * @param zkRoot the hybris metadata root folder
-     * @throws IOException thrown in case of error while initializing the ZK client
+     * @param zkRoot the Hybris metadata root folder
+     * @throws IOException thrown in case of error while initializing the Zookeeper client
      */
     public MdsManager(String zkConnectionStr, String zkRoot) throws IOException {
 
@@ -68,14 +68,14 @@ public class MdsManager implements ConnectionStateListener {
                     this.gcStaleDir, this.gcOrphansDir })
                 try {
                     this.zkCli.create().forPath(dir);
-                    logger.debug("Created \"{}\".", dir);
+                    logger.debug("Created {}.", dir);
                 } catch (KeeperException e) {
                     if (e.code() != KeeperException.Code.NODEEXISTS)
                         throw e;
                 }
 
         } catch (Exception e) {
-            logger.error("Exception, could not initialize the Zookeeper client. " + e.getMessage(), e);
+            logger.error("Could not initialize the Zookeeper client. " + e.getMessage(), e);
             throw new IOException(e);
         }
     }
@@ -89,7 +89,6 @@ public class MdsManager implements ConnectionStateListener {
 
     /**
      * Worker thread class in charge of marking stale and orphan keys.
-     * @author p.viotti
      */
     public class GcMarker extends Thread {
 
@@ -117,7 +116,7 @@ public class MdsManager implements ConnectionStateListener {
             switch(this.type) {
 
                 case STALE:
-                    // create znode  <root>-gc/stale/<key>
+                    // create ZNode  <root>-gc/stale/<key>
                     path = MdsManager.this.gcStaleDir + "/" + this.key;
                     try {
                         MdsManager.this.zkCli.create().forPath(path);
@@ -130,7 +129,7 @@ public class MdsManager implements ConnectionStateListener {
                     }
                     break;
                 case ORPHAN:
-                    // create znode <root>-gc/orphans/<KvsKey>
+                    // create ZNode <root>-gc/orphans/<KvsKey>
                     path = MdsManager.this.gcOrphansDir + "/" + Utils.getKvsKey(this.key, this.ts);
                     byte[] value = new Metadata(this.ts, null, this.replicas).serialize();
                     try {
@@ -196,13 +195,13 @@ public class MdsManager implements ConnectionStateListener {
                 }
 
             } else {
-                logger.error("KeeperException, could not write the key.", e);
-                throw new HybrisException("KeeperException, could not write the key.", e);
+                logger.error("Could not write ZNode " + key, e);
+                throw new HybrisException("Could not write the ZNode " + key, e);
             }
 
         } catch (Exception e) {
-            logger.error("Exception, could not write the key.", e);
-            throw new HybrisException("Exception, could not write the key. " + e.getMessage(), e);
+            logger.error("Could not write ZNode " + key, e);
+            throw new HybrisException("Could not write ZNode " + key + ": " + e.getMessage(), e);
         }
     }
 
@@ -227,140 +226,22 @@ public class MdsManager implements ConnectionStateListener {
              */
             byte[] rawMd = this.zkCli.getData().storingStatIn(stat).forPath(path);
             Metadata md = new Metadata(rawMd);
-            if (!md.isTombstone())
+            if (md.isTombstone())
+                return null;
+            else
                 return md;
-            return null;
         } catch (KeeperException e) {
 
             if (e.code() == KeeperException.Code.NONODE)
                 return null;
             else {
-                logger.error("KeeperException, could not read the ZNode " + path, e);
-                throw new HybrisException("KeeperException, could not read the ZNode " + path, e);
+                logger.error("Could not read ZNode " + path, e);
+                throw new HybrisException("Could not read the ZNode " + path, e);
             }
 
         } catch (Exception e) {
-            logger.error("Exception, could not read the ZNode " + path, e);
-            throw new HybrisException("Exception, could not read the key. " + e.getMessage(), e);
-        }
-    }
-
-
-    /**
-     * Get all the stored metadata (filtering out tombstone values).
-     * @return a map of keys (String) and Metadata objects
-     * @throws HybrisException
-     */
-    public Map<String, Metadata> getAll() throws HybrisException {
-
-        List<String> znodes;
-        try {
-            znodes = this.zkCli.getChildren().forPath(this.storageRoot);
-        } catch (Exception e) {
-            logger.error("Could not list the children of znode " + this.storageRoot, e);
-            throw new HybrisException(e);
-        }
-
-        HashMap<String, Metadata> retMap = new HashMap<String, Metadata>();
-        for (String znode : znodes) {
-            String znodePath = this.storageRoot + "/" + znode;
-            byte[] rawMd = null;
-            try {
-                rawMd = this.zkCli.getData().forPath(znodePath);
-            } catch (Exception e) {
-                logger.warn("Could not read metadata for key " + znodePath, e);
-            }
-            Metadata md = new Metadata(rawMd);
-            if (!md.isTombstone())
-                retMap.put(znode, md);
-        }
-        return retMap;
-    }
-
-
-    /**
-     * Get orphan keys and their metadata.
-     * @return
-     * @throws HybrisException
-     */
-    public Map<String, Metadata> getOrphans() throws HybrisException {
-
-        List<String> znodes;
-        try {
-            znodes = this.zkCli.getChildren().forPath(this.gcOrphansDir);
-        } catch (Exception e) {
-            logger.error("Could not list the children of znode " + this.storageRoot, e);
-            throw new HybrisException(e);
-        }
-
-        HashMap<String, Metadata> retMap = new HashMap<String, Metadata>();
-        for (String znode : znodes) {
-            String znodePath = this.gcOrphansDir + "/" + znode;
-            byte[] rawMd = null;
-            try {
-                rawMd = this.zkCli.getData().forPath(znodePath);
-            } catch (Exception e) {
-                logger.warn("Could not read metadata for key " + znodePath, e);
-            }
-            Metadata md = new Metadata(rawMd);
-            if (!md.isTombstone())
-                retMap.put(znode, md);
-        }
-        return retMap;
-    }
-
-
-    /**
-     * Delete the set of orphan keys passed as argument.
-     * @param orphanKeys
-     */
-    public void removeOrphanKeys(Set<String> orphanKeys) {
-
-        for (String key : orphanKeys) {
-            String znodePath = this.gcOrphansDir + "/" + key;
-            try {
-                this.zkCli.delete().forPath(znodePath);
-            } catch (KeeperException e) {
-                if (e.code() != KeeperException.Code.NONODE)
-                    logger.warn("Could not delete orphan key " + znodePath, e);
-            } catch (Exception e) {
-                logger.warn("Could not delete orphan key " + znodePath, e);
-            }
-        }
-    }
-
-
-    /**
-     * Get stale keys.
-     * @return
-     * @throws HybrisException
-     */
-    public List<String> getStaleKeys() throws HybrisException {
-
-        try {
-            return this.zkCli.getChildren().forPath(this.gcStaleDir);
-        } catch (Exception e) {
-            logger.error("Could not list the children of znode " + this.storageRoot, e);
-            throw new HybrisException(e);
-        }
-    }
-
-
-    /**
-     * Delete the key passed as argument from the list of keys
-     * to be checked as outdated for gc.
-     * @param staleKeys
-     */
-    public void removeStaleKey(String staleKey) {
-
-        String znodePath = this.gcStaleDir + "/" + staleKey;
-        try {
-            this.zkCli.delete().forPath(znodePath);
-        } catch (KeeperException e) {
-            if (e.code() != KeeperException.Code.NONODE)
-                logger.warn("Could not delete orphan key " + znodePath, e);
-        } catch (Exception e) {
-            logger.warn("Could not delete orphan key " + znodePath, e);
+            logger.error("Could not read ZNode " + path, e);
+            throw new HybrisException("Could not read the ZNode " + path + e.getMessage(), e);
         }
     }
 
@@ -376,7 +257,7 @@ public class MdsManager implements ConnectionStateListener {
         try {
             znodes = this.zkCli.getChildren().forPath(this.storageRoot);
         } catch (Exception e) {
-            logger.error("Could not list the children of znode " + this.storageRoot, e);
+            logger.error("Could not list the children of ZNode " + this.storageRoot, e);
             throw new HybrisException(e);
         }
 
@@ -387,7 +268,7 @@ public class MdsManager implements ConnectionStateListener {
             try {
                 rawMd = this.zkCli.getData().forPath(znodePath);
             } catch (Exception e) {
-                logger.warn("Could not read metadata for key " + znodePath, e);
+                logger.warn("Could not read metadata for ZNode " + znodePath, e);
             }
             Metadata md = new Metadata(rawMd);
             if (md.isTombstone())
@@ -406,13 +287,11 @@ public class MdsManager implements ConnectionStateListener {
 
         String path = this.storageRoot + "/" + key;
         try {
-            Metadata tombstoneMd = new Metadata(null, null, null);
+            Metadata tombstoneMd = Metadata.getTombstone();
             this.zkCli.setData().forPath(path, tombstoneMd.serialize());
         } catch (KeeperException e) {
 
-            if (e.code() == KeeperException.Code.NONODE)
-                return;
-            else {
+            if (e.code() != KeeperException.Code.NONODE) {
                 logger.error("KeeperException, could not delete the ZNode " + path, e);
                 throw new HybrisException("KeeperException, could not delete the ZNode " + path, e);
             }
@@ -425,20 +304,16 @@ public class MdsManager implements ConnectionStateListener {
 
 
     /**
-     * Empty stale and orphan keys containers.
+     * Get all the stored metadata (filtering out tombstone values).
+     * @return a map of keys (String) and Metadata objects
      * @throws HybrisException
      */
-    public void emptyStaleAndOrphansContainers() throws HybrisException {
-
+    public Map<String, Metadata> getAll() throws HybrisException {
         try {
-            for (String path : new String[]{this.gcOrphansDir, this.gcStaleDir})
-                this.emptyContainer(path);
-        } catch (KeeperException e) {
-            logger.warn("KeeperException, could not empty the container", e);
-            throw new HybrisException("KeeperException, could not empty the container", e);
+            return this.getAllChildrenMetadata(this.storageRoot);
         } catch (Exception e) {
-            logger.warn("Exception, could not empty the container", e);
-            throw new HybrisException("Exception, could not empty the container", e);
+            logger.error("Could not get all the metadata from children ZNodes of " + this.gcRoot, e);
+            throw new HybrisException(e);
         }
     }
 
@@ -451,13 +326,14 @@ public class MdsManager implements ConnectionStateListener {
     public void emptyMetadataContainer() throws HybrisException {
 
         try {
-            this.emptyContainer(this.storageRoot);
-        } catch (KeeperException e) {
-            logger.warn("KeeperException, could not empty the container", e);
-            throw new HybrisException("KeeperException, could not empty the container", e);
+            List<String> znodes = this.zkCli.getChildren().forPath(this.storageRoot);
+            for (String key : znodes) {
+                String path = this.storageRoot + "/" + key;
+                this.recursiveDelete(path);
+            }
         } catch (Exception e) {
-            logger.warn("Exception, could not empty the container", e);
-            throw new HybrisException("Exception, could not empty the container", e);
+            logger.warn("Could not empty the root container", e);
+            throw new HybrisException("Could not empty the root container", e);
         }
     }
 
@@ -467,22 +343,140 @@ public class MdsManager implements ConnectionStateListener {
     }
 
 
-    /* ---------------------------------------------------------------------------------------
-                                        Private methods
-       --------------------------------------------------------------------------------------- */
+    /* -------------------------------------- GC functions -------------------------------------- */
+
+    /**
+     * Get orphan keys and their metadata.
+     * @return
+     * @throws HybrisException
+     */
+    public Map<String, Metadata> getOrphans() throws HybrisException {
+        try {
+            return this.getAllChildrenMetadata(this.gcOrphansDir);
+        } catch (Exception e) {
+            logger.error("Could not get all the metadata from children ZNodes of " + this.gcOrphansDir, e);
+            throw new HybrisException(e);
+        }
+    }
 
 
-    private void emptyContainer(String path) throws Exception {
-        Stat s = this.zkCli.checkExists().forPath(path);
-        if (s != null) {
-            List<String> children = this.zkCli.getChildren().forPath(path);
-            for (String child : children) {
-                String node = path + "/" + child;
-                this.recursiveDelete(node);
+    /**
+     * Get stale keys.
+     * @return
+     * @throws HybrisException
+     */
+    public List<String> getStaleKeys() throws HybrisException {
+
+        try {
+            return this.zkCli.getChildren().forPath(this.gcStaleDir);
+        } catch (Exception e) {
+            logger.error("Could not list the children of ZNode " + this.storageRoot, e);
+            throw new HybrisException(e);
+        }
+    }
+
+
+    /**
+     * Delete the set of orphan keys passed as argument.
+     * @param orphanKeys
+     */
+    public void removeOrphanKeys(Set<String> orphanKeys) {
+
+        for (String key : orphanKeys) {
+            String znodePath = this.gcOrphansDir + "/" + key;
+            try {
+                this.zkCli.delete().forPath(znodePath);
+            } catch (KeeperException e) {
+                if (e.code() != KeeperException.Code.NONODE)
+                    logger.warn("Could not delete orphan ZNode " + znodePath, e);
+            } catch (Exception e) {
+                logger.warn("Could not delete orphan ZNode " + znodePath, e);
             }
         }
     }
 
+
+    /**
+     * Delete the key passed as argument from the list of keys
+     * to be checked as outdated for gc.
+     * @param staleKeys
+     */
+    public void removeStaleKey(String staleKey) {
+
+        String znodePath = this.gcStaleDir + "/" + staleKey;
+        try {
+            this.zkCli.delete().forPath(znodePath);
+        } catch (KeeperException e) {
+            if (e.code() != KeeperException.Code.NONODE)
+                logger.warn("Could not delete orphan ZNode " + znodePath, e);
+        } catch (Exception e) {
+            logger.warn("Could not delete orphan ZNode " + znodePath, e);
+        }
+    }
+
+
+    /**
+     * Empty stale and orphan keys containers.
+     * @throws HybrisException
+     */
+    public void emptyStaleAndOrphansContainers() throws HybrisException {
+
+        try {
+            for (String path : new String[]{this.gcOrphansDir, this.gcStaleDir}) {
+                List<String> znodes = this.zkCli.getChildren().forPath(path);
+                for (String key : znodes) {
+                    String znode = path + "/" + key;
+                    this.recursiveDelete(znode);
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Could not empty the GC containers", e);
+            throw new HybrisException("Could not empty the GC containers", e);
+        }
+    }
+
+
+    /* ---------------------------------------------------------------------------------------
+                                        Private methods
+       --------------------------------------------------------------------------------------- */
+
+    /**
+     * Retrieve all Metadata objects associated to the children of a certain key.
+     * @param key
+     * @return a Map<String, Metadata> of all metadata associated with the ZNode children of key
+     * @throws Exception
+     */
+    public Map<String, Metadata> getAllChildrenMetadata(String key) throws Exception {
+
+        List<String> znodes;
+        try {
+            znodes = this.zkCli.getChildren().forPath(key);
+        } catch (Exception e) {
+            throw e;
+        }
+
+        HashMap<String, Metadata> retMap = new HashMap<String, Metadata>();
+        for (String znode : znodes) {
+            String znodePath = key + "/" + znode;
+            byte[] rawMd = null;
+            try {
+                rawMd = this.zkCli.getData().forPath(znodePath);
+            } catch (Exception e) {
+                logger.warn("Could not read metadata for ZNode " + znodePath, e);
+            }
+            Metadata md = new Metadata(rawMd);
+            if (!md.isTombstone())
+                retMap.put(znode, md);
+        }
+        return retMap;
+    }
+
+
+    /**
+     * Recursively delete a key and all its children.
+     * @param key
+     * @throws Exception
+     */
     private void recursiveDelete(String key) throws Exception {
         Stat s = this.zkCli.checkExists().forPath(key);
         if (s != null) {
