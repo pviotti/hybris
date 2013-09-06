@@ -14,13 +14,14 @@ public class HybrisTestCli implements Runnable {
 
     private final Hybris hybris;
     private static String HELP_STRING = "Usage:\n" +
-                                        "\th - help\n" +
-                                        "\tq - quit\n" +
-                                        "\tw [key] [value] - write\n" +
-                                        "\tr [key] - read\n" +
-                                        "\td [key] - delete\n" +
-                                        "\tl - list\n" +
-                                        "\tla - list all";
+            "\th - help\n" +
+            "\tq - quit\n" +
+            "\tw [key] [value] - write\n" +
+            "\tr [key] - read\n" +
+            "\td [key] - delete\n" +
+            "\tl - list\n" +
+            "\tla - list all\n" +
+            "\tec - empty containers";
 
     public HybrisTestCli() throws HybrisException {
         this.hybris = new Hybris("hybris.properties");
@@ -66,20 +67,22 @@ public class HybrisTestCli implements Runnable {
                     Map<String, Metadata> map = this.getAllMetadata();
                     for(String key : map.keySet())
                         System.out.println("\t - " + key + ": " + map.get(key));
-                } else
+                } else if (line.equals("ec"))
+                    this.emptyContainers();
+                else
                     System.out.println("* Unknown command.");
 
-             } catch (IOException e) {
+            } catch (IOException e) {
                 e.printStackTrace();
-             } catch (ArrayIndexOutOfBoundsException e) {
-                 System.out.println("* Unknown command.");
-             }
+            } catch (ArrayIndexOutOfBoundsException e) {
+                System.out.println("* Unknown command.");
+            }
+
+        /*try {
+            this.hybris.gc();
+        } catch (HybrisException e) { e.printStackTrace(); }*/
 
         this.hybris.shutdown();
-
-        try {
-            this.hybris.gc();
-        } catch (HybrisException e) { e.printStackTrace(); }
     }
 
     private void write(String key, byte[] value) {
@@ -122,6 +125,14 @@ public class HybrisTestCli implements Runnable {
         } catch (HybrisException e) {
             e.printStackTrace();
             return null;
+        }
+    }
+
+    private void emptyContainers() {
+        try {
+            this.hybris._emptyContainers();
+        } catch (HybrisException e) {
+            e.printStackTrace();
         }
     }
 

@@ -34,18 +34,18 @@ public class AzureKvs extends Kvs {
     private transient HashMap<String, CloudBlockBlob> blobRefs;     // cached references of already used blobs
 
     public AzureKvs(String id, String accessKey, String secretKey,
-                        String container, boolean enabled, int cost) throws IOException {
+            String container, boolean enabled, int cost) throws IOException {
         super(id, container, enabled, cost);
 
         String storageConnectionString = "DefaultEndpointsProtocol=http;" +
-                                            "AccountName=" + accessKey +
-                                            ";AccountKey=" + secretKey;
+                "AccountName=" + accessKey +
+                ";AccountKey=" + secretKey;
         CloudStorageAccount storageAccount;
         try {
             storageAccount = CloudStorageAccount.parse(storageConnectionString);
             this.blobClient = storageAccount.createCloudBlobClient();
             this.blobClient.setSingleBlobPutThresholdInBytes(30000000);  // 30 MB
-            this.blobClient.setConcurrentRequestCount(4);
+            this.blobClient.setConcurrentRequestCount(200);
         } catch (InvalidKeyException | URISyntaxException e) {
             logger.error("Could not initialize {} KvStore", id, e);
             throw new IOException(e);

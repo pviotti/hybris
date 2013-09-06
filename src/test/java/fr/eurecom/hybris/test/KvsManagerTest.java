@@ -22,7 +22,7 @@ import fr.eurecom.hybris.kvs.KvsManager;
 import fr.eurecom.hybris.kvs.drivers.Kvs;
 
 
-public class KvStoreTest extends HybrisAbstractTest {
+public class KvsManagerTest extends HybrisAbstractTest {
 
     private static KvsManager kvs;
 

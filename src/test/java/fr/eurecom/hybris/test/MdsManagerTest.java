@@ -31,7 +31,7 @@ import fr.eurecom.hybris.mds.Metadata;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 
-public class MdStoreTest extends HybrisAbstractTest {
+public class MdsManagerTest extends HybrisAbstractTest {
 
     private static MdsManager mds;
 
