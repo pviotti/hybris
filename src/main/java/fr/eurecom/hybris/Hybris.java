@@ -7,12 +7,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -50,10 +50,10 @@ public class Hybris {
         try {
             conf.loadProperties(propertiesFile);
             this.mds = new MdsManager(conf.getProperty(Config.MDS_ADDR),
-                                conf.getProperty(Config.MDS_ROOT));
+                    conf.getProperty(Config.MDS_ROOT));
             this.kvs = new KvsManager(conf.getProperty(Config.KVS_ACCOUNTSFILE),
-                                conf.getProperty(Config.KVS_ROOT),
-                                Boolean.parseBoolean(conf.getProperty(Config.KVS_TESTSONSTARTUP)));
+                    conf.getProperty(Config.KVS_ROOT),
+                    Boolean.parseBoolean(conf.getProperty(Config.KVS_TESTSONSTARTUP)));
         } catch (IOException e) {
             logger.error("Could not initialize Zookeeper or the cloud storage KvStores.", e);
             throw new HybrisException("Could not initialize Zookeeper or the cloud storage KvStores.", e);
@@ -66,9 +66,9 @@ public class Hybris {
         this.gcEnabled = Boolean.parseBoolean(conf.getProperty(Config.HS_GC));
     }
 
-    public Hybris(String zkAddress, String zkRoot,
-                    String kvsAccountFile, String kvsRoot, boolean kvsTestOnStartup,
-                    int t, int writeTimeout, int readTimeout, boolean gcEnabled) throws HybrisException {
+    public Hybris(String zkAddress, String zkRoot, 
+            String kvsAccountFile, String kvsRoot, boolean kvsTestOnStartup,
+            int t, int writeTimeout, int readTimeout, boolean gcEnabled) throws HybrisException {
         try {
             this.mds = new MdsManager(zkAddress, zkRoot);
             this.kvs = new KvsManager(kvsAccountFile, kvsRoot, kvsTestOnStartup);
@@ -99,7 +99,7 @@ public class Hybris {
 
         Timestamp ts;
         Stat stat = new Stat();
-        stat.setVersion(MdsManager.NONODE);    // if it stays unchanged after the read, the znode does not exist
+        stat.setVersion(MdsManager.NONODE);    // If it remains unchanged after the read, the ZNode does not exist
         Metadata md = this.mds.tsRead(key, stat);
         if (md == null)
             ts = new Timestamp(0, Utils.getClientId());
@@ -111,31 +111,32 @@ public class Hybris {
         List<Kvs> savedReplicasLst = new ArrayList<Kvs>();
         String kvsKey = Utils.getKvsKey(key, ts);
         ExecutorService executor = Executors.newFixedThreadPool(this.quorum);
-        List<Future<Kvs>> futureLst = new ArrayList<Future<Kvs>>(this.quorum);
+        CompletionService<Kvs> compServ = new ExecutorCompletionService<Kvs>(executor);
         int idxFrom = 0; int idxTo = this.quorum; long start;
         do {
+            List<Kvs> kvsSublst = this.kvs.getKvStores().subList(idxFrom, idxTo);
             start = System.currentTimeMillis();
-            for (Kvs kvStore : this.kvs.getKvStores().subList(idxFrom, idxTo))
-                futureLst.add(executor.submit(this.kvs.new KvsPutWorker(kvStore, kvsKey, value)));
+            for (Kvs kvStore : kvsSublst)
+                compServ.submit(this.kvs.new KvsPutWorker(kvStore, kvsKey, value));
 
             Kvs savedReplica = null;
-            for (Future<Kvs> future : futureLst)
+            for (int i=0; i<kvsSublst.size(); i++)
                 try {
-                    savedReplica = future.get(this.TIMEOUT_WRITE, TimeUnit.SECONDS);
+                    savedReplica = compServ.poll(this.TIMEOUT_WRITE, TimeUnit.SECONDS).get();
                     if (savedReplica != null) {
                         logger.debug("Data stored on {}, {} ms", savedReplica,
-                                        System.currentTimeMillis() - start);
+                                System.currentTimeMillis() - start);
                         savedReplicasLst.add(savedReplica);
+                        if (savedReplicasLst.size() >= this.quorum)
+                            break;
                     }
-                    if (savedReplicasLst.size() >= this.quorum)
-                        break;
-                } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                } catch (InterruptedException | ExecutionException e) {
                     logger.warn("Exception on the parallel task execution", e);
                 }
 
             idxFrom = idxTo;
             idxTo = this.kvs.getKvStores().size() > idxTo + this.quorum ?
-                        idxTo + this.quorum : this.kvs.getKvStores().size();
+                    idxTo + this.quorum : this.kvs.getKvStores().size();
 
         } while (savedReplicasLst.size() < this.quorum && idxFrom < idxTo);
         executor.shutdown();
@@ -250,17 +251,18 @@ public class Hybris {
                 if (Arrays.equals(md.getHash(), Utils.getHash(value))) {
                     logger.info("Value successfully retrieved from kvStore {}", kvStore);
                     return value;
-                } else      // the hash doesn't match: byzantine fault: let's try with the other ones
+                } else      // The hash doesn't match: byzantine fault: let's try with the other ones
                     continue;
-            } else {        /* this could be due to:
-                             * a. byzantine replicas
-                             * b. concurrent gc
-                             */
+            } else {
+                /* This could be due to:
+                 * a. byzantine replicas
+                 * b. concurrent gc
+                 */
                 Metadata newMd = this.mds.tsRead(key, null);
                 if (newMd != null) {
                     if (newMd.getTs().isGreater(md.getTs())) {    // it's because of concurrent gc
                         logger.warn("Could not get the value of {} from replica {} because of concurrent gc. Restarting read.",
-                                    key, kvStore);
+                                key, kvStore);
                         return this.read(key);                               // trigger recursive read
                     } else
                         continue;                                       // otherwise it's because of b.: let's try with the other ones
@@ -450,7 +452,7 @@ public class Hybris {
                 }
 
                 if ( malformedKey || !mdMap.keySet().contains(key) ||
-                       mdMap.get(key).getTs().isGreater(kvTs) ) {
+                        mdMap.get(key).getTs().isGreater(kvTs) ) {
                     try {
                         this.kvs.delete(kvStore, kvsKey);
                     } catch (IOException e) {
