@@ -78,9 +78,9 @@ public class HybrisTestCli implements Runnable {
                 System.out.println("* Unknown command.");
             }
 
-        /*try {
+        try {
             this.hybris.gc();
-        } catch (HybrisException e) { e.printStackTrace(); }*/
+        } catch (HybrisException e) { e.printStackTrace(); }
 
         this.hybris.shutdown();
     }

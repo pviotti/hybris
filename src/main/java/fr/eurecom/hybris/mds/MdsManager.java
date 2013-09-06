@@ -45,11 +45,11 @@ public class MdsManager implements Watcher {
 
     /**
      * Constructs a new MdStore.
-     * @param zkAddress the address of ZK server
+     * @param zkConnectionStr Zookeeper cluster connection string (e.g. "zksrv1.net:2181,zksrv2.net:2181")
      * @param zkRoot the hybris metadata root folder
      * @throws IOException thrown in case of error while initializing the ZK client
      */
-    public MdsManager(String zkAddress, String zkRoot) throws IOException {
+    public MdsManager(String zkConnectionStr, String zkRoot) throws IOException {
 
         this.storageRoot = "/" + zkRoot;
 
@@ -58,24 +58,20 @@ public class MdsManager implements Watcher {
         this.gcOrphansDir = this.gcRoot + "/orphans";
 
         try {
-            this.zk = new ZooKeeper(zkAddress, 5000, this);
+            this.zk = new ZooKeeper(zkConnectionStr, 5000, this);
 
             for (String dir : new String[]{ this.storageRoot, this.gcRoot,
-                                            this.gcStaleDir, this.gcOrphansDir }) {
-                this.zk.create(this.storageRoot, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                logger.debug("Created \"{}\".", dir);
-            }
+                    this.gcStaleDir, this.gcOrphansDir })
+                try {
+                    this.zk.create(dir, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                    logger.debug("Created \"{}\".", dir);
+                } catch (KeeperException e) {
+                    if (e.code() != KeeperException.Code.NODEEXISTS)
+                        throw e;
+                }
 
-        } catch (KeeperException e) {
-            if (e.code() != KeeperException.Code.NODEEXISTS) {
-                logger.error("KeeperException, could not initialize the Zookeeper client. " + e.getMessage(), e);
-                throw new IOException(e);
-            }
-        } catch (IOException e) {
+        } catch (Exception e) {
             logger.error("KeeperException, could not initialize the Zookeeper client. " + e.getMessage(), e);
-            throw new IOException(e);
-        } catch (InterruptedException e) {
-            logger.error("InterruptedException, could not initialize the Zookeeper client.", e);
             throw new IOException(e);
         }
     }
@@ -93,7 +89,7 @@ public class MdsManager implements Watcher {
         private final GcType type;
 
         public GcMarker(String key, Timestamp ts,
-                            List<Kvs> savedReplicas) {
+                List<Kvs> savedReplicas) {
             this.key = key;
             this.ts = ts;
             this.replicas = savedReplicas;
@@ -110,33 +106,33 @@ public class MdsManager implements Watcher {
             String path;
             switch(this.type) {
 
-            case STALE:
-                // create znode  <root>-gc/stale/<key>
-                path = MdsManager.this.gcStaleDir + "/" + this.key;
-                try {
-                    MdsManager.this.zk.create(path, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                    logger.debug("GcMarker: marked {} as stale", path);
-                } catch (KeeperException e){
-                    if (e.code() != KeeperException.Code.NODEEXISTS)
+                case STALE:
+                    // create znode  <root>-gc/stale/<key>
+                    path = MdsManager.this.gcStaleDir + "/" + this.key;
+                    try {
+                        MdsManager.this.zk.create(path, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                        logger.debug("GcMarker: marked {} as stale", path);
+                    } catch (KeeperException e){
+                        if (e.code() != KeeperException.Code.NODEEXISTS)
+                            logger.warn("GcMarker: could not create stale node " + path, e);
+                    } catch (InterruptedException e) {
                         logger.warn("GcMarker: could not create stale node " + path, e);
-                } catch (InterruptedException e) {
-                    logger.warn("GcMarker: could not create stale node " + path, e);
-                }
-                break;
-            case ORPHAN:
-                // create znode <root>-gc/orphans/<KvsKey>
-                path = MdsManager.this.gcOrphansDir + "/" + Utils.getKvsKey(this.key, this.ts);
-                byte[] value = new Metadata(this.ts, null, this.replicas).serialize();
-                try {
-                    MdsManager.this.zk.create(path, value, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                    logger.debug("GcMarker: marked {} as orphan", path);
-                } catch (KeeperException e){
-                    if (e.code() != KeeperException.Code.NODEEXISTS)
+                    }
+                    break;
+                case ORPHAN:
+                    // create znode <root>-gc/orphans/<KvsKey>
+                    path = MdsManager.this.gcOrphansDir + "/" + Utils.getKvsKey(this.key, this.ts);
+                    byte[] value = new Metadata(this.ts, null, this.replicas).serialize();
+                    try {
+                        MdsManager.this.zk.create(path, value, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                        logger.debug("GcMarker: marked {} as orphan", path);
+                    } catch (KeeperException e){
+                        if (e.code() != KeeperException.Code.NODEEXISTS)
+                            logger.warn("GcMarker: could not create orphan node " + path, e);
+                    } catch (InterruptedException e) {
                         logger.warn("GcMarker: could not create orphan node " + path, e);
-                } catch (InterruptedException e) {
-                    logger.warn("GcMarker: could not create orphan node " + path, e);
-                }
-                break;
+                    }
+                    break;
             }
         }
     }
@@ -191,10 +187,10 @@ public class MdsManager implements Watcher {
                     throw new HybrisException("KeeperException, could not write the key.", e);
                 }
 
-          } else {
-              logger.error("KeeperException, could not write the key.", e);
-              throw new HybrisException("KeeperException, could not write the key.", e);
-          }
+            } else {
+                logger.error("KeeperException, could not write the key.", e);
+                throw new HybrisException("KeeperException, could not write the key.", e);
+            }
 
         } catch (InterruptedException e) {
             logger.error("InterruptedException, could not write the key.", e);
@@ -216,8 +212,11 @@ public class MdsManager implements Watcher {
 
         String path = this.storageRoot + "/" + key;
         try {
-            this.zk.sync(path, null, null);      // NOTE: There is no synchronous version of this ZK API (https://issues.apache.org/jira/browse/ZOOKEEPER-1167ordering)
-                                            // however, order guarantees among operations allow not to wait for asynchronous callback to be called
+            this.zk.sync(path, null, null);
+            /* NOTE: There is no synchronous version of this ZK API
+             * (https://issues.apache.org/jira/browse/ZOOKEEPER-1167ordering)
+             * however, order guarantees among operations allow not to wait for asynchronous callback to be called
+             */
             byte[] rawMd = this.zk.getData(path, false, stat);
             Metadata md = new Metadata(rawMd);
             if (!md.isTombstone())
