@@ -2,9 +2,10 @@ package fr.eurecom.hybris.kvs.drivers;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Comparator;
 import java.util.List;
 
-public abstract class Kvs implements Comparable<Kvs>, Serializable {
+public abstract class Kvs implements Serializable {
 
     protected final String id;
     protected transient boolean enabled;
@@ -16,6 +17,31 @@ public abstract class Kvs implements Comparable<Kvs>, Serializable {
     protected transient int cost; // $ cents per GB
 
     protected static final long serialVersionUID = 1L;
+
+    /**
+     * Static Comparator objects for ordering the Kvs list
+     * according to both read and write latencies.
+     */
+    public transient static final Comparator<Kvs> COMPARATOR_BY_READS = new Comparator<Kvs>() {
+        public int compare(Kvs kvs1, Kvs kvs2) {
+            if (kvs1.getReadLatency() < kvs2.getReadLatency() || !kvs2.isEnabled())
+                return -1;
+            else if (kvs1.getReadLatency() > kvs2.getReadLatency() || !kvs1.isEnabled())
+                return 1;
+            else
+                return 0;
+        }
+    };
+    public transient static final Comparator<Kvs> COMPARATOR_BY_WRITES = new Comparator<Kvs>() {
+        public int compare(Kvs kvs1, Kvs kvs2) {
+            if (kvs1.getWriteLatency() < kvs2.getWriteLatency() || !kvs2.isEnabled())
+                return -1;
+            else if (kvs1.getWriteLatency() > kvs2.getWriteLatency() || !kvs1.isEnabled())
+                return 1;
+            else
+                return 0;
+        }
+    };
 
     public Kvs(String id, String container, boolean enabled, int cost) {
         this.id = id;
@@ -45,33 +71,6 @@ public abstract class Kvs implements Comparable<Kvs>, Serializable {
     protected abstract void createContainer() throws IOException;
     public abstract void shutdown() throws IOException;
 
-    /*
-     * TODO should they be comparable both in terms of cost and latency? if so,
-     * which weight should be given to each of them
-     */
-    @Override
-    public int compareTo(Kvs o) {
-        if (this.writeLatency + this.readLatency < o.getWriteLatency()
-                + o.getReadLatency()
-                || !o.isEnabled())
-            return -1;
-        else if (this.writeLatency + this.readLatency > o.getWriteLatency()
-                + o.getReadLatency()
-                || !this.isEnabled())
-            return 1;
-        else
-            return 0;
-    }
-
-    @Override
-    public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + (this.id == null ? 0 : this.id.hashCode());
-        return result;
-    }
-
-    @Override
     public boolean equals(Object obj) {
         if (this == obj)
             return true;

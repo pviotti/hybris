@@ -49,7 +49,7 @@ public class HybrisGcTest extends HybrisAbstractTest {
     public void setUp() throws Exception {
         this.mds.emptyMetadataContainer();
         this.mds.emptyStaleAndOrphansContainers();
-        for (Kvs provider : this.kvs.getKvStores())
+        for (Kvs provider : this.kvs.getKvsList())
             try{
                 this.kvs.emptyStorageContainer(provider);
             } catch (Exception e) {}
@@ -71,7 +71,7 @@ public class HybrisGcTest extends HybrisAbstractTest {
         this.hybris.gc(key);
 
         // check that the outdated versions are gone
-        for (Kvs provider : this.kvs.getKvStores()) {
+        for (Kvs provider : this.kvs.getKvsList()) {
             assertNull(this.kvs.get(provider, Utils.getKvsKey(key, new Timestamp(0, Utils.getClientId()))));
             assertNull(this.kvs.get(provider, Utils.getKvsKey(key, new Timestamp(1, Utils.getClientId()))));
         }
@@ -106,8 +106,8 @@ public class HybrisGcTest extends HybrisAbstractTest {
         // populate orphans
         Timestamp ts = new Timestamp(1, Utils.getClientId());
         List<Kvs> savedReplicas = new ArrayList<Kvs>();
-        savedReplicas.add(this.kvs.getKvStores().get(0));
-        savedReplicas.add(this.kvs.getKvStores().get(1));
+        savedReplicas.add(this.kvs.getKvsList().get(0));
+        savedReplicas.add(this.kvs.getKvsList().get(1));
         this.kvs.put(savedReplicas.get(0), Utils.getKvsKey(key3, ts), value6);
         this.kvs.put(savedReplicas.get(1), Utils.getKvsKey(key3, ts), value6);
 
@@ -119,7 +119,7 @@ public class HybrisGcTest extends HybrisAbstractTest {
         this.hybris.gc();
 
         // check that stale keys and orphans are gone
-        for (Kvs provider : this.kvs.getKvStores()) {
+        for (Kvs provider : this.kvs.getKvsList()) {
             assertNull(this.kvs.get(provider, Utils.getKvsKey(key1, new Timestamp(0, Utils.getClientId()))));
             assertNull(this.kvs.get(provider, Utils.getKvsKey(key1, new Timestamp(1, Utils.getClientId()))));
 
@@ -146,8 +146,8 @@ public class HybrisGcTest extends HybrisAbstractTest {
     public void testBatchGc() throws HybrisException, IOException, InterruptedException {
 
         // write random  stuff on kvs
-        this.kvs.put(this.kvs.getKvStores().get(0), "malformedkey1", "fakevalue1".getBytes());
-        this.kvs.put(this.kvs.getKvStores().get(1), "malformedkey2", "fakevalue2".getBytes());
+        this.kvs.put(this.kvs.getKvsList().get(0), "malformedkey1", "fakevalue1".getBytes());
+        this.kvs.put(this.kvs.getKvsList().get(1), "malformedkey2", "fakevalue2".getBytes());
 
         // write a couple of stales
         String key1 = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
@@ -171,8 +171,8 @@ public class HybrisGcTest extends HybrisAbstractTest {
         // make up a couple of orphans
         Timestamp ts = new Timestamp(1, Utils.getClientId());
         List<Kvs> savedReplicas = new ArrayList<Kvs>();
-        savedReplicas.add(this.kvs.getKvStores().get(0));
-        savedReplicas.add(this.kvs.getKvStores().get(1));
+        savedReplicas.add(this.kvs.getKvsList().get(0));
+        savedReplicas.add(this.kvs.getKvsList().get(1));
         this.kvs.put(savedReplicas.get(0), Utils.getKvsKey(key3, ts), value6);
         this.kvs.put(savedReplicas.get(1), Utils.getKvsKey(key3, ts), value6);
 
@@ -184,10 +184,10 @@ public class HybrisGcTest extends HybrisAbstractTest {
         this.hybris.batchGc();
 
         // make sure stales and orphans are gone
-        assertNull(this.kvs.get(this.kvs.getKvStores().get(0), "malformedkey1"));
-        assertNull(this.kvs.get(this.kvs.getKvStores().get(1), "malformedkey2"));
+        assertNull(this.kvs.get(this.kvs.getKvsList().get(0), "malformedkey1"));
+        assertNull(this.kvs.get(this.kvs.getKvsList().get(1), "malformedkey2"));
 
-        for (Kvs provider : this.kvs.getKvStores()) {
+        for (Kvs provider : this.kvs.getKvsList()) {
             assertNull(this.kvs.get(provider, Utils.getKvsKey(key1, new Timestamp(0, Utils.getClientId()))));
             assertNull(this.kvs.get(provider, Utils.getKvsKey(key1, new Timestamp(1, Utils.getClientId()))));
 

@@ -37,7 +37,7 @@ public class KvsManagerTest extends HybrisAbstractTest {
     // Executed before each test
     @Before
     public void setUp() throws Exception {
-        for (Kvs provider : kvs.getKvStores())
+        for (Kvs provider : kvs.getKvsList())
             kvs.emptyStorageContainer(provider);
     }
 
@@ -51,7 +51,7 @@ public class KvsManagerTest extends HybrisAbstractTest {
         byte[] value = new BigInteger(50, this.random).toString(32).getBytes();
 
         List<Kvs> replicas = new ArrayList<Kvs>();
-        for (Kvs provider : kvs.getKvStores())
+        for (Kvs provider : kvs.getKvsList())
             try {
                 kvs.put(provider, key, value);
                 replicas.add(provider);
@@ -79,7 +79,7 @@ public class KvsManagerTest extends HybrisAbstractTest {
         byte[] value1 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".getBytes();
         byte[] value2 = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB".getBytes();
 
-        for (Kvs provider : kvs.getKvStores())
+        for (Kvs provider : kvs.getKvsList())
             try {
                 kvs.put(provider, key, value1);
                 kvs.put(provider, key, value2);
@@ -99,7 +99,7 @@ public class KvsManagerTest extends HybrisAbstractTest {
 
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
 
-        for (Kvs provider : kvs.getKvStores())
+        for (Kvs provider : kvs.getKvsList())
             try {
                 kvs.delete(provider, key);
             } catch(Throwable t) {
@@ -114,7 +114,7 @@ public class KvsManagerTest extends HybrisAbstractTest {
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         byte[] value = null;
 
-        for (Kvs provider : kvs.getKvStores())
+        for (Kvs provider : kvs.getKvsList())
             try {
                 value = kvs.get(provider, key);
                 assertNull(value);
@@ -137,7 +137,7 @@ public class KvsManagerTest extends HybrisAbstractTest {
         byte[] value4 = "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD".getBytes();
 
         List<Kvs> replicas = new ArrayList<Kvs>();
-        for (Kvs provider : kvs.getKvStores())
+        for (Kvs provider : kvs.getKvsList())
             try {
                 kvs.put(provider, key1, value1);
                 kvs.put(provider, key2, value2);
@@ -199,7 +199,7 @@ public class KvsManagerTest extends HybrisAbstractTest {
         String key1 = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
 
         List<Kvs> replicas = new ArrayList<Kvs>();
-        for (Kvs provider : kvs.getKvStores()) {
+        for (Kvs provider : kvs.getKvsList()) {
             kvs.put(provider, key1, payload);
             replicas.add(provider);
         }

@@ -66,7 +66,7 @@ public class Hybris {
         this.gcEnabled = Boolean.parseBoolean(conf.getProperty(Config.HS_GC));
     }
 
-    public Hybris(String zkAddress, String zkRoot, 
+    public Hybris(String zkAddress, String zkRoot,
             String kvsAccountFile, String kvsRoot, boolean kvsTestOnStartup,
             int t, int writeTimeout, int readTimeout, boolean gcEnabled) throws HybrisException {
         try {
@@ -114,7 +114,7 @@ public class Hybris {
         CompletionService<Kvs> compServ = new ExecutorCompletionService<Kvs>(executor);
         int idxFrom = 0; int idxTo = this.quorum; long start;
         do {
-            List<Kvs> kvsSublst = this.kvs.getKvStores().subList(idxFrom, idxTo);
+            List<Kvs> kvsSublst = this.kvs.getKvsSortedByWriteLatency().subList(idxFrom, idxTo);
             start = System.currentTimeMillis();
             for (Kvs kvStore : kvsSublst)
                 compServ.submit(this.kvs.new KvsPutWorker(kvStore, kvsKey, value));
@@ -135,8 +135,8 @@ public class Hybris {
                 }
 
             idxFrom = idxTo;
-            idxTo = this.kvs.getKvStores().size() > idxTo + this.quorum ?
-                    idxTo + this.quorum : this.kvs.getKvStores().size();
+            idxTo = this.kvs.getKvsList().size() > idxTo + this.quorum ?
+                    idxTo + this.quorum : this.kvs.getKvsList().size();
 
         } while (savedReplicasLst.size() < this.quorum && idxFrom < idxTo);
         executor.shutdown();
@@ -185,7 +185,7 @@ public class Hybris {
         List<Kvs> savedReplicasLst = new ArrayList<Kvs>();
         String kvsKey = Utils.getKvsKey(key, ts);
 
-        for (Kvs kvStore : this.kvs.getKvStores())
+        for (Kvs kvStore : this.kvs.getKvsSortedByWriteLatency())
             try {                                           // NB: serial put
                 logger.debug("Storing {} on {}...", key, kvStore);
                 this.kvs.put(kvStore, kvsKey, value);
@@ -236,7 +236,7 @@ public class Hybris {
         byte[] value = null;
         String kvsKey = Utils.getKvsKey(key, md.getTs());
 
-        for (Kvs kvStore : this.kvs.getKvStores()) {
+        for (Kvs kvStore : this.kvs.getKvsSortedByReadLatency()) {
 
             if (!md.getReplicasLst().contains(kvStore))
                 continue;
@@ -263,7 +263,7 @@ public class Hybris {
                     if (newMd.getTs().isGreater(md.getTs())) {    // it's because of concurrent gc
                         logger.warn("Could not get the value of {} from replica {} because of concurrent gc. Restarting read.",
                                 key, kvStore);
-                        return this.read(key);                               // trigger recursive read
+                        return this.read(key);                          // trigger recursive read
                     } else
                         continue;                                       // otherwise it's because of b.: let's try with the other ones
                 } else {                                                // the value does not exist anymore because of concurrent gc
@@ -287,7 +287,7 @@ public class Hybris {
         }
 
         String kvsKey = Utils.getKvsKey(key, md.getTs());
-        for (Kvs kvStore : this.kvs.getKvStores()) {
+        for (Kvs kvStore : this.kvs.getKvsList()) {
 
             if (!md.getReplicasLst().contains(kvStore))
                 continue;
@@ -320,7 +320,7 @@ public class Hybris {
 
 
     public void shutdown() {
-        for (Kvs kvStore : this.kvs.getKvStores())
+        for (Kvs kvStore : this.kvs.getKvsList())
             this.kvs.shutdown(kvStore);
         this.mds.shutdown();
     }
@@ -342,7 +342,7 @@ public class Hybris {
             Metadata md = orphans.get(kvsKey);
             boolean error = false;
 
-            for (Kvs kvStore : this.kvs.getKvStores()) {
+            for (Kvs kvStore : this.kvs.getKvsList()) {
 
                 if (!md.getReplicasLst().contains(kvStore))
                     continue;
@@ -383,7 +383,7 @@ public class Hybris {
             return;
         }
 
-        for (Kvs kvStore : this.kvs.getKvStores()) {
+        for (Kvs kvStore : this.kvs.getKvsList()) {
 
             List<String> kvsKeys;
             try {
@@ -430,7 +430,7 @@ public class Hybris {
 
         Map<String, Metadata> mdMap = this.mds.getAll();     // !! heavy operation
 
-        for (Kvs kvStore : this.kvs.getKvStores()) {
+        for (Kvs kvStore : this.kvs.getKvsList()) {
 
             List<String> kvsKeys;
             try {
@@ -475,7 +475,7 @@ public class Hybris {
      */
     public void _emptyContainers() throws HybrisException {
         this.mds.emptyMetadataContainer();
-        for (Kvs kvStore : this.kvs.getKvStores())
+        for (Kvs kvStore : this.kvs.getKvsList())
             try {
                 this.kvs.emptyStorageContainer(kvStore);
             } catch (IOException e) {

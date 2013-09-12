@@ -36,7 +36,9 @@ public class KvsManager {
     private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
     private final Config conf;
-    private final List<Kvs> kvStores;                   // kvStores sorted by cost and latency
+    private final List<Kvs> kvsLst;                     // kvStores list (not sorted)
+    private final List<Kvs> kvsLstByReads;              // kvStores sorted by read latency
+    private final List<Kvs> kvsLstByWrites;             // kvStores sorted by write latency
 
     private final int LATENCY_TEST_DATA_SIZE = 100;     // default value: 100kB
 
@@ -52,7 +54,11 @@ public class KvsManager {
 
         this.conf = Config.getInstance();
         this.conf.loadAccountsProperties(accountsFile);
-        this.kvStores = new ArrayList<Kvs>();
+
+        this.kvsLst = new ArrayList<Kvs>();
+        this.kvsLstByReads = new ArrayList<Kvs>();
+        this.kvsLstByWrites = new ArrayList<Kvs>();
+
         String[] accountIds = this.conf.getAccountsIds();
 
         Kvs kvStore;
@@ -70,23 +76,23 @@ public class KvsManager {
                 switch (KvsId.valueOf(accountId.toUpperCase())) {
                     case AMAZON:
                         kvStore = new AmazonKvs(accountId, accessKey, secretKey,
-                                                        container, enabled, cost);
+                                container, enabled, cost);
                         break;
                     case AZURE:
                         kvStore = new AzureKvs(accountId, accessKey, secretKey,
-                                                        container, enabled, cost);
+                                container, enabled, cost);
                         break;
                     case GOOGLE:
                         kvStore = new GoogleKvs(accountId, accessKey, secretKey,
-                                                        container, enabled, cost);
+                                container, enabled, cost);
                         break;
                     case RACKSPACE:
                         kvStore = new RackspaceKvs(accountId, accessKey, secretKey,
-                                                            container, enabled, cost);
+                                container, enabled, cost);
                         break;
                     case TRANSIENT:
                         kvStore = new TransientKvs(accountId, accessKey, secretKey,
-                                                          container, enabled, cost);
+                                container, enabled, cost);
                         break;
                     default:
                         logger.error("Hybris could not find any driver for {} KvStore", accountId);
@@ -97,15 +103,21 @@ public class KvsManager {
                 throw new IOException(e);
             }
 
-            this.kvStores.add(kvStore);
+            this.kvsLst.add(kvStore);
         }
+
+        this.kvsLstByReads.addAll(this.kvsLst);
+        this.kvsLstByWrites.addAll(this.kvsLst);
 
         if (testLatency)
             this.testLatencyAndSortClouds(this.LATENCY_TEST_DATA_SIZE);
     }
 
 
-    public List<Kvs> getKvStores()   { return this.kvStores; }
+    public List<Kvs> getKvsList()                   { return this.kvsLst; }
+    public List<Kvs> getKvsSortedByReadLatency()    { return this.kvsLstByReads; }
+    public List<Kvs> getKvsSortedByWriteLatency()   { return this.kvsLstByWrites; }
+
 
     /**
      * Worker thread class in charge of asynchronously performing
@@ -175,7 +187,7 @@ public class KvsManager {
                 this.kvStore.setWriteLatency(Integer.MAX_VALUE);
                 if (e instanceof AuthorizationException)
                     this.kvStore.setEnabled(false);
-                    return;
+                return;
             }
 
             // Read
@@ -207,13 +219,13 @@ public class KvsManager {
        --------------------------------------------------------------------------------------- */
 
 
-   public void put(Kvs kvStore, String key, byte[] data) throws IOException {
-       try {
-           kvStore.put(key, data);
-       } catch (IOException e) {
-           logger.warn("Could not put " + key + " on " + kvStore.getId(), e);
-           throw e;
-       }
+    public void put(Kvs kvStore, String key, byte[] data) throws IOException {
+        try {
+            kvStore.put(key, data);
+        } catch (IOException e) {
+            logger.warn("Could not put " + key + " on " + kvStore.getId(), e);
+            throw e;
+        }
     }
 
 
@@ -260,12 +272,21 @@ public class KvsManager {
 
 
     public void testLatencyAndSortClouds(int testDataSize) {
+
         logger.info("Performing {} kB latency tests on cloud kvStores..", testDataSize);
         this.testLatency(testDataSize);
-        Collections.sort(this.kvStores);  // Sort kvStores according to cost and latency (see Driver.compareTo())
-        logger.debug("Cloud kvStores sorted by performance/cost metrics:");
-        for(Kvs kvs : this.kvStores)
-            logger.debug("\t* {}", kvs.toVerboseString());
+
+        Collections.sort(this.kvsLstByReads, Kvs.COMPARATOR_BY_READS);
+        Collections.sort(this.kvsLstByWrites, Kvs.COMPARATOR_BY_WRITES);
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("Cloud kvStores sorted by writes latency:");
+            for(Kvs kvs : this.kvsLstByWrites)
+                logger.debug("\t* {}", kvs.toVerboseString());
+            logger.debug("Cloud kvStores sorted by read latency:");
+            for(Kvs kvs : this.kvsLstByReads)
+                logger.debug("\t* {}", kvs.toVerboseString());
+        }
     }
 
 
@@ -289,9 +310,9 @@ public class KvsManager {
 
 
     private void testLatency(int testDataSize) {
-        ExecutorService executor = Executors.newFixedThreadPool(this.kvStores.size());
-        List<FutureTask<Object>> futureLst = new ArrayList<FutureTask<Object>>(this.kvStores.size());
-        for (Kvs kvStore : this.kvStores) {
+        ExecutorService executor = Executors.newFixedThreadPool(this.kvsLst.size());
+        List<FutureTask<Object>> futureLst = new ArrayList<FutureTask<Object>>(this.kvsLst.size());
+        for (Kvs kvStore : this.kvsLst) {
             FutureTask<Object> f = new FutureTask<Object>(new LatencyTester(kvStore, testDataSize), null);
             futureLst.add(f);
             executor.execute(f);
