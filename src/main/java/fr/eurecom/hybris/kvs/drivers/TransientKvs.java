@@ -1,9 +1,9 @@
 package fr.eurecom.hybris.kvs.drivers;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class TransientKvs extends Kvs {
 
@@ -11,9 +11,9 @@ public class TransientKvs extends Kvs {
     private transient final Map<String, byte[]> hashMap;
 
     public TransientKvs(String id, String accessKey, String secretKey,
-                            String container, boolean enabled, int cost) {
+            String container, boolean enabled, int cost) {
         super(id, container, enabled, cost);
-        this.hashMap = new HashMap<String, byte[]>();
+        this.hashMap = new ConcurrentHashMap<String, byte[]>();
     }
 
     public void put(String key, byte[] value) {

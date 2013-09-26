@@ -12,6 +12,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.zookeeper.data.Stat;
@@ -112,7 +113,7 @@ public class Hybris {
         String kvsKey = Utils.getKvsKey(key, ts);
         ExecutorService executor = Executors.newFixedThreadPool(this.quorum);
         CompletionService<Kvs> compServ = new ExecutorCompletionService<Kvs>(executor);
-        int idxFrom = 0; int idxTo = this.quorum; long start;
+        int idxFrom = 0; int idxTo = this.quorum; long start; Future<Kvs> future;
         do {
             List<Kvs> kvsSublst = this.kvs.getKvsSortedByWriteLatency().subList(idxFrom, idxTo);
             start = System.currentTimeMillis();
@@ -122,13 +123,16 @@ public class Hybris {
             Kvs savedReplica = null;
             for (int i=0; i<kvsSublst.size(); i++)
                 try {
-                    savedReplica = compServ.poll(this.TIMEOUT_WRITE, TimeUnit.SECONDS).get();
-                    if (savedReplica != null) {
-                        logger.debug("Data stored on {}, {} ms", savedReplica,
-                                System.currentTimeMillis() - start);
-                        savedReplicasLst.add(savedReplica);
-                        if (savedReplicasLst.size() >= this.quorum)
-                            break;
+                    future =  compServ.poll(this.TIMEOUT_WRITE, TimeUnit.SECONDS);
+                    if (future != null) {
+                        savedReplica = future.get();
+                        if (savedReplica != null) {
+                            logger.debug("Data stored on {}, {} ms", savedReplica,
+                                    System.currentTimeMillis() - start);
+                            savedReplicasLst.add(savedReplica);
+                            if (savedReplicasLst.size() >= this.quorum)
+                                break;
+                        }
                     }
                 } catch (InterruptedException | ExecutionException e) {
                     logger.warn("Exception on the parallel task execution", e);

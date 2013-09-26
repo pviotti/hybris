@@ -280,7 +280,7 @@ public class KvsManager {
         Collections.sort(this.kvsLstByWrites, Kvs.COMPARATOR_BY_WRITES);
 
         if (logger.isDebugEnabled()) {
-            logger.debug("Cloud kvStores sorted by writes latency:");
+            logger.debug("Cloud kvStores sorted by write latency:");
             for(Kvs kvs : this.kvsLstByWrites)
                 logger.debug("\t* {}", kvs.toVerboseString());
             logger.debug("Cloud kvStores sorted by read latency:");
