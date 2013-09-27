@@ -27,6 +27,10 @@ public class HybrisYcsbClient extends DB {
     private final String PROP_KVS_ACCOUNTS_FILE = "kvs.accountfile";
     private final String PROP_T = "t";
 
+    private static final boolean CACHE_ENABLED = false;
+    private static final String CACHE_ADDRESS = "localhost:11211";
+    private static final int CACHE_EXP = 0;
+
     public void init() throws DBException {
 
         Properties props = this.getProperties();
@@ -34,7 +38,8 @@ public class HybrisYcsbClient extends DB {
         int t = Integer.parseInt(props.getProperty(this.PROP_T));
         try {
             this.hybris = new Hybris(MDS_ADDRESS, MDS_TEST_ROOT, accountFile,
-                                        KVS_ROOT, true, t, 600, 600, false);
+                    KVS_ROOT, true, t, 600, 600, false,
+                    CACHE_ENABLED, CACHE_ADDRESS, CACHE_EXP);
         } catch (HybrisException e) {
             e.printStackTrace();
             throw new DBException(e);
@@ -45,7 +50,7 @@ public class HybrisYcsbClient extends DB {
 
     @Override
     public int read(String table, String key, Set<String> fields,
-                    HashMap<String, ByteIterator> result) {
+            HashMap<String, ByteIterator> result) {
 
         try {
             byte[] value = this.hybris.read(key);
@@ -63,7 +68,7 @@ public class HybrisYcsbClient extends DB {
 
     @Override
     public int scan(String table, String startkey, int recordcount, Set<String> fields,
-                    Vector<HashMap<String, ByteIterator>> result) {
+            Vector<HashMap<String, ByteIterator>> result) {
 
         List<String> keys;
         try {
@@ -118,15 +123,5 @@ public class HybrisYcsbClient extends DB {
             e.printStackTrace();
             return 1;
         }
-    }
-
-    /**
-     * Used to perform the cleanup (void test containers).
-     * @throws HybrisException
-     */
-    public static void main(String[] args) throws HybrisException {
-        Hybris hybris = new Hybris(MDS_ADDRESS, MDS_TEST_ROOT, "accounts.properties",
-                                    KVS_ROOT, true, 1, 600, 600, false);
-        hybris._emptyContainers();
     }
 }

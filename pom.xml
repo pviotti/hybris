@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>fr.eurecom.hybris</groupId>
   <artifactId>hybris</artifactId>
-  <version>0.0.5</version>
+  <version>0.0.6</version>
   <name>Hybris</name>
   <description>Hybris storage library</description>
   <properties>
@@ -101,7 +101,12 @@
         <artifactId>azureblob</artifactId>
         <version>1.6.2-incubating</version>
     </dependency> -->
-            
+    
+    <dependency>
+        <groupId>net.spy</groupId>
+        <artifactId>spymemcached</artifactId>
+        <version>2.10.0</version>
+    </dependency>
     
     <dependency>
       <groupId>com.yahoo.ycsb</groupId>

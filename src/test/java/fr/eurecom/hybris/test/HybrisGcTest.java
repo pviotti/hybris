@@ -38,7 +38,7 @@ public class HybrisGcTest extends HybrisAbstractTest {
 
     public HybrisGcTest() throws HybrisException, IOException {
         this.hybris = new Hybris(this.MDS_ADDRESS, this.MDS_TEST_ROOT, this.KVS_ACCOUNTS_FILE,
-                this.KVS_ROOT, false, 0, 600, 600, true);
+                this.KVS_ROOT, false, 0, 600, 600, true, false, null, 0);
 
         this.mds = new MdsManager(this.MDS_ADDRESS, this.MDS_TEST_ROOT);
         this.kvs = new KvsManager(this.KVS_ACCOUNTS_FILE, this.KVS_ROOT, false);
@@ -68,7 +68,7 @@ public class HybrisGcTest extends HybrisAbstractTest {
         this.hybris.write(key, value2);
         this.hybris.write(key, value3);
 
-        this.hybris.gc(key);
+        this.hybris.new GcManager().gc(key);
 
         // check that the outdated versions are gone
         for (Kvs provider : this.kvs.getKvsList()) {
@@ -116,7 +116,7 @@ public class HybrisGcTest extends HybrisAbstractTest {
         gcm.join();
 
         // gc
-        this.hybris.gc();
+        this.hybris.new GcManager().gc();
 
         // check that stale keys and orphans are gone
         for (Kvs provider : this.kvs.getKvsList()) {
@@ -181,7 +181,7 @@ public class HybrisGcTest extends HybrisAbstractTest {
         gcm.join();
 
         // batchGc
-        this.hybris.batchGc();
+        this.hybris.new GcManager().batchGc();
 
         // make sure stales and orphans are gone
         assertNull(this.kvs.get(this.kvs.getKvsList().get(0), "malformedkey1"));

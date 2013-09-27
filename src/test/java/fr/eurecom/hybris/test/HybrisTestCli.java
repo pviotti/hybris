@@ -79,7 +79,7 @@ public class HybrisTestCli implements Runnable {
             }
 
         try {
-            this.hybris.gc();
+            this.hybris.new GcManager().gc();
         } catch (HybrisException e) { e.printStackTrace(); }
 
         this.hybris.shutdown();
@@ -130,14 +130,13 @@ public class HybrisTestCli implements Runnable {
 
     private void emptyContainers() {
         try {
-            this.hybris._emptyContainers();
+            this.hybris.new GcManager()._emptyContainers();
         } catch (HybrisException e) {
             e.printStackTrace();
         }
     }
 
     public static void main(String[] args) throws HybrisException {
-        HybrisTestCli htc = new HybrisTestCli();
-        htc.run();
+        new HybrisTestCli().run();
     }
 }
