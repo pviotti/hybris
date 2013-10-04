@@ -10,9 +10,8 @@ import fr.eurecom.hybris.Utils;
 import fr.eurecom.hybris.kvs.drivers.Kvs;
 
 /**
- * Represents timestamped metadata.
- * Holds the timestamped reference to the cloud replicas.
- * @author p.viotti
+ * Holds timestamped metadata.
+ * @author P. Viotti
  */
 public class Metadata implements Serializable {
 
@@ -91,27 +90,30 @@ public class Metadata implements Serializable {
 
     private Timestamp ts;
     private byte[] hash;
+    private int size;
     private List<Kvs> replicasLst;
 
-    public Metadata(Timestamp ts, byte[] hash, List<Kvs> replicas) {
+    public Metadata(Timestamp ts, byte[] hash, int size, List<Kvs> replicas) {
         this.ts = ts;
         this.hash = hash;
+        this.size = size;
         this.replicasLst = replicas;
     }
 
     public Metadata(byte[] raw) {
         Metadata md;
         if (raw == null)
-            md = new Metadata(null, null, null);
+            md = new Metadata(null, null, 0, null);
         else
             md = (Metadata) SerializationUtils.deserialize(raw);
         this.ts = md.ts;
         this.replicasLst = md.replicasLst;
         this.hash = md.getHash();
+        this.size = md.getSize();
     }
 
     public static Metadata getTombstone() {
-        return new Metadata(null, null, null);
+        return new Metadata(null, null, 0, null);
     }
 
     public byte[] serialize() {
@@ -130,11 +132,13 @@ public class Metadata implements Serializable {
     public void setReplicasLst(List<Kvs> replicasLst) { this.replicasLst = replicasLst; }
     public byte[] getHash() { return this.hash; }
     public void setHash(byte[] hash) { this.hash = hash; }
+    public int getSize() { return this.size; }
+    public void setSize(int s) { this.size = s; }
 
     @Override
     public String toString() {
-        return "Metadata [ts=" + this.ts + ", " + "hash=" + Utils.byteArrayToHexString(this.hash) +
-                ", replicasLst=" + this.replicasLst + "]";
+        return "Metadata [ts=" + this.ts + ", hash=" + Utils.byteArrayToHexString(this.hash)
+                + ", size=" + this.size + ", replicasLst=" + this.replicasLst + "]";
     }
 
     @Override
@@ -144,6 +148,7 @@ public class Metadata implements Serializable {
         result = prime * result + Arrays.hashCode(this.hash);
         result = prime * result
                 + (this.replicasLst == null ? 0 : this.replicasLst.hashCode());
+        result = prime * result + this.size;
         result = prime * result + (this.ts == null ? 0 : this.ts.hashCode());
         return result;
     }
@@ -163,6 +168,8 @@ public class Metadata implements Serializable {
             if (other.replicasLst != null)
                 return false;
         } else if (!this.replicasLst.equals(other.replicasLst))
+            return false;
+        if (this.size != other.size)
             return false;
         if (this.ts == null) {
             if (other.ts != null)

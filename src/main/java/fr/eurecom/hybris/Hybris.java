@@ -211,7 +211,8 @@ public class Hybris {
 
         boolean overwritten = false;
         try {
-            overwritten = this.mds.tsWrite(key, new Metadata(ts, Utils.getHash(value), savedReplicasLst), stat.getVersion());
+            overwritten = this.mds.tsWrite(key,
+                    new Metadata(ts, Utils.getHash(value), value.length, savedReplicasLst), stat.getVersion());
         } catch (HybrisException e) {
             if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
             logger.warn("Could not store metadata on Zookeeper for key {}.", key);
@@ -256,6 +257,7 @@ public class Hybris {
                 continue;
 
             try {
+                // TODO check on filesize to prevent DOS
                 value = this.kvs.get(kvStore, kvsKey);
             } catch (IOException e) {
                 continue;

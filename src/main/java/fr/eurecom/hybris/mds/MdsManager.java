@@ -131,7 +131,7 @@ public class MdsManager implements ConnectionStateListener {
                 case ORPHAN:
                     // create ZNode <root>-gc/orphans/<KvsKey>
                     path = MdsManager.this.gcOrphansDir + "/" + Utils.getKvsKey(this.key, this.ts);
-                    byte[] value = new Metadata(this.ts, null, this.replicas).serialize();
+                    byte[] value = new Metadata(this.ts, null, 0, this.replicas).serialize();
                     try {
                         MdsManager.this.zkCli.create().forPath(path, value);
                         logger.debug("GcMarker: marked {} as orphan", path);
