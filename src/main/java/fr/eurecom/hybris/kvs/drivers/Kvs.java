@@ -76,8 +76,6 @@ public abstract class Kvs implements Serializable {
             return true;
         if (obj == null)
             return false;
-        if (this.getClass() != obj.getClass())
-            return false;
         Kvs other = (Kvs) obj;
         if (this.id == null) {
             if (other.id != null)

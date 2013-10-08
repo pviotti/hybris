@@ -6,12 +6,16 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
+import javax.xml.bind.DatatypeConverter;
+
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 public class Utils {
 
     private static String clientId = null;
     private static String KVS_KEY_SEPARATOR = "#";
+
+    public static int HASH_LENGTH = 20; // length of hash digest
 
     public static byte[] getHash(byte[] inputBytes) {
         MessageDigest hash;
@@ -26,14 +30,18 @@ public class Utils {
         }
     }
 
-    public static String byteArrayToHexString(byte[] b){
-        StringBuffer sb = new StringBuffer(b.length * 2);
-        for (byte element : b) {
-            int v = element & 0xff;
-            if (v < 16) sb.append('0');
-            sb.append(Integer.toHexString(v));
-        }
-        return sb.toString().toLowerCase();
+    public static String bytesToHexStr(byte[] array) {
+        if (array == null)
+            return null;
+        else
+            return DatatypeConverter.printHexBinary(array);
+    }
+
+    public static byte[] hexStrToBytes(String s) {
+        if (s == null)
+            return null;
+        else
+            return DatatypeConverter.parseHexBinary(s);
     }
 
     public static String getClientId() {
@@ -43,7 +51,7 @@ public class Utils {
                 clientId = InetAddress.getLocalHost().getHostName();
             } catch (UnknownHostException e) {
                 clientId = UUID.randomUUID().toString()
-                                .replace("-", "").substring(0, 10);
+                        .replace("-", "").substring(0, 10);
             }
         return clientId;
     }

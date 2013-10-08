@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>fr.eurecom.hybris</groupId>
   <artifactId>hybris</artifactId>
-  <version>0.0.6</version>
+  <version>0.0.7</version>
   <name>Hybris</name>
   <description>Hybris storage library</description>
   <properties>
@@ -96,7 +96,7 @@
         <artifactId>cloudfiles-uk</artifactId>
         <version>1.6.2-incubating</version>
     </dependency>
-    <!-- <dependency>   XXX to be added for testing depsky jar-with-dependencies
+    <!-- <dependency> XXX to be added for testing depsky jar-with-dependencies
         <groupId>org.apache.jclouds.provider</groupId>
         <artifactId>azureblob</artifactId>
         <version>1.6.2-incubating</version>

@@ -1,10 +1,9 @@
 package fr.eurecom.hybris.test;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 import java.math.BigInteger;
-import java.util.Arrays;
 
 import org.junit.After;
 import org.junit.Before;
@@ -35,11 +34,13 @@ public class HybrisTest extends HybrisAbstractTest {
     public void testBasicWriteAndRead() throws HybrisException {
 
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
-        byte[] value = new BigInteger(50, this.random).toString(32).getBytes();
+        byte[] value = new byte[50];
+        this.random.nextBytes(value);
 
         hybris.write(key, value);
         byte[] output = hybris.read(key);
-        assertTrue(Arrays.equals(value, output));
+        System.out.println(output.length);
+        assertArrayEquals(value, output);
 
         hybris.delete(key);
         assertNull(hybris.read(key));

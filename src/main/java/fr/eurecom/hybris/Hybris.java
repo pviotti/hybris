@@ -257,7 +257,7 @@ public class Hybris {
                 continue;
 
             try {
-                // TODO check on filesize to prevent DOS
+                // TODO check filesize to prevent DOS
                 value = this.kvs.get(kvStore, kvsKey);
             } catch (IOException e) {
                 continue;

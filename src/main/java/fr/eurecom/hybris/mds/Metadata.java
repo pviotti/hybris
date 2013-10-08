@@ -1,6 +1,10 @@
 package fr.eurecom.hybris.mds;
 
-import java.io.Serializable;
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -8,20 +12,22 @@ import org.apache.commons.lang3.SerializationUtils;
 
 import fr.eurecom.hybris.Utils;
 import fr.eurecom.hybris.kvs.drivers.Kvs;
+import fr.eurecom.hybris.kvs.drivers.TransientKvs;
 
 /**
  * Holds timestamped metadata.
  * @author P. Viotti
+ * 
+ * TODO try to use Protobuf, Thrift, Avro, or Cap'n Proto instead of Java serialization
  */
-public class Metadata implements Serializable {
+public class Metadata implements Externalizable {
 
-    public static class Timestamp implements Serializable {
-
-        private static final long serialVersionUID = -829397868153955069L;
+    public static class Timestamp implements Externalizable {
 
         private int num;
         private String cid;
 
+        public Timestamp() { }
         public Timestamp(int n, String c) {
             this.num = n;
             this.cid = c;
@@ -51,12 +57,10 @@ public class Metadata implements Serializable {
             this.cid = client;
         }
 
-        @Override
         public String toString() {
             return this.num + "_" + this.cid;
         }
 
-        @Override
         public int hashCode() {
             final int prime = 31;
             int result = 1;
@@ -65,7 +69,6 @@ public class Metadata implements Serializable {
             return result;
         }
 
-        @Override
         public boolean equals(Object obj) {
             if (this == obj)
                 return true;
@@ -83,16 +86,24 @@ public class Metadata implements Serializable {
                 return false;
             return true;
         }
-    }
 
-    // TODO use Protobuf, Thrift, Avro, or Cap'n Proto instead of Java serialization
-    private static final long serialVersionUID = -2127132184699014357L;
+        public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+            this.num = in.readInt();
+            this.cid = in.readUTF();
+        }
+
+        public void writeExternal(ObjectOutput out) throws IOException {
+            out.writeInt(this.num);
+            out.writeUTF(this.cid);
+        }
+    }
 
     private Timestamp ts;
     private byte[] hash;
     private int size;
     private List<Kvs> replicasLst;
 
+    public Metadata() { }
     public Metadata(Timestamp ts, byte[] hash, int size, List<Kvs> replicas) {
         this.ts = ts;
         this.hash = hash;
@@ -137,7 +148,7 @@ public class Metadata implements Serializable {
 
     @Override
     public String toString() {
-        return "Metadata [ts=" + this.ts + ", hash=" + Utils.byteArrayToHexString(this.hash)
+        return "Metadata [ts=" + this.ts + ", hash=" + Utils.bytesToHexStr(this.hash)
                 + ", size=" + this.size + ", replicasLst=" + this.replicasLst + "]";
     }
 
@@ -177,5 +188,54 @@ public class Metadata implements Serializable {
         } else if (!this.ts.equals(other.ts))
             return false;
         return true;
+    }
+
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+        this.ts = (Timestamp) in.readObject();
+        this.hash = new byte[Utils.HASH_LENGTH];
+        in.readFully(this.hash, 0, Utils.HASH_LENGTH);
+        byte[] ba = new byte[Utils.HASH_LENGTH];
+        Arrays.fill(ba, (byte) 0x0);
+        if (Arrays.equals(ba, this.hash))
+            this.hash = null;
+        this.size = in.readInt();
+
+        String replicasStr = in.readUTF();
+        if (replicasStr.equalsIgnoreCase(""))       // null
+            this.replicasLst = null;
+        else if (replicasStr.equalsIgnoreCase("*")) // empty array
+            this.replicasLst = new ArrayList<Kvs>();
+        else {
+            List<Kvs> replicas = new ArrayList<Kvs>();
+            String[] reps = replicasStr.split(",");
+            for (String repIds : reps)
+                replicas.add(new TransientKvs(repIds, null, null, null, false, 0));
+            this.replicasLst = replicas;
+        }
+    }
+
+    public void writeExternal(ObjectOutput out) throws IOException {
+        out.writeObject(this.ts);
+        if (this.hash == null){
+            byte[] ba = new byte[Utils.HASH_LENGTH];
+            Arrays.fill(ba, (byte) 0x0);
+            out.write(ba);
+        } else
+            out.write(this.hash, 0, this.hash.length);
+        out.writeInt(this.size);
+
+        StringBuilder sb = new StringBuilder();
+        if (this.replicasLst != null)
+            if (this.replicasLst.size() > 0)
+                for (int i=0; i<this.replicasLst.size(); i++) {
+                    sb.append(this.replicasLst.get(i).getId());
+                    if (i != this.replicasLst.size()-1)
+                        sb.append(",");
+                }
+            else
+                sb.append("*"); // encode empty replica array
+        else
+            sb.append("");      // encode null value
+        out.writeUTF(sb.toString());
     }
 }
