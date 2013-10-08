@@ -22,31 +22,45 @@ public class HybrisYcsbClient extends DB {
 
     private static final String KVS_ROOT = "ycsbtest-root";
     private static final String MDS_TEST_ROOT = "ycsbtest-root";
-    private static final String MDS_ADDRESS = "localhost:2181";
 
     private final String PROP_KVS_ACCOUNTS_FILE = "kvs.accountfile";
+    private final String PROP_MDS_ADDRESS = "mds.address";
     private final String PROP_T = "t";
-
-    private static final boolean CACHE_ENABLED = false;
-    private static final String CACHE_ADDRESS = "localhost:11211";
-    private static final int CACHE_EXP = 0;
+    private final String PROP_CACHE = "cache";
+    private final String PROP_CACHE_ADDRESS = "cache.address";
+    private final String PROP_CACHE_EXP = "cache.exp";
 
     public void init() throws DBException {
 
+        /*
+         * Takes the following configurations from YCSB command line properties ("-p"):
+         *  - KVS account file path
+         *  - t (number of faulty clouds tolerated)
+         *  - Zookeeper address
+         *  - memcached address
+         *  - memcached expiration timeout
+         */
         Properties props = this.getProperties();
         String accountFile = props.getProperty(this.PROP_KVS_ACCOUNTS_FILE);
         int t = Integer.parseInt(props.getProperty(this.PROP_T));
+        boolean cache = Boolean.parseBoolean(props.getProperty(this.PROP_CACHE));
+        String mdsAddress = props.getProperty(this.PROP_MDS_ADDRESS);
+        String cacheAddress = props.getProperty(this.PROP_CACHE_ADDRESS);
+        int cacheExp = Integer.parseInt(props.getProperty(this.PROP_CACHE_EXP));
+
         try {
-            this.hybris = new Hybris(MDS_ADDRESS, MDS_TEST_ROOT, accountFile,
+            this.hybris = new Hybris(mdsAddress, MDS_TEST_ROOT, accountFile,
                     KVS_ROOT, true, t, 600, 600, false,
-                    CACHE_ENABLED, CACHE_ADDRESS, CACHE_EXP);
+                    cache, cacheAddress, cacheExp);
         } catch (HybrisException e) {
             e.printStackTrace();
             throw new DBException(e);
         }
     }
 
-    public void cleanup() throws DBException {  }
+    public void cleanup() throws DBException {
+        this.hybris.shutdown();
+    }
 
     @Override
     public int read(String table, String key, Set<String> fields,
