@@ -10,8 +10,15 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <skipTests>true</skipTests>
   </properties>
-	
+  
   <dependencies>
+    <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>1.7.5</version>
+    </dependency>
+  
+    <!-- MDS dependencies -->
   	<dependency>
 		<groupId>org.apache.zookeeper</groupId>
 		<artifactId>zookeeper</artifactId>
@@ -42,20 +49,8 @@
         <artifactId>curator-framework</artifactId>
         <version>2.2.0-incubating</version>
     </dependency>
-	
-	<dependency> <!-- used for serialization -->
-		<groupId>org.apache.commons</groupId>
-		<artifactId>commons-lang3</artifactId>
-		<version>3.1</version>
-	</dependency>
-	
-	<dependency>
-        <groupId>junit</groupId>
-        <artifactId>junit</artifactId>
-        <version>4.11</version>
-    </dependency>
     
-    <!-- kvs drivers' dependencies -->
+    <!-- KVS dependencies -->
     <dependency>
         <groupId>com.microsoft.windowsazure</groupId>
         <artifactId>microsoft-windowsazure-api</artifactId>
@@ -96,16 +91,18 @@
         <artifactId>cloudfiles-uk</artifactId>
         <version>1.6.2-incubating</version>
     </dependency>
-    <!-- <dependency> XXX to be added for testing depsky jar-with-dependencies
-        <groupId>org.apache.jclouds.provider</groupId>
-        <artifactId>azureblob</artifactId>
-        <version>1.6.2-incubating</version>
-    </dependency> -->
     
     <dependency>
         <groupId>net.spy</groupId>
         <artifactId>spymemcached</artifactId>
         <version>2.10.0</version>
+    </dependency>
+    
+    <!-- Testing dependencies -->
+    <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <version>4.11</version>
     </dependency>
     
     <dependency>
@@ -119,6 +116,12 @@
           <artifactId>google-collections</artifactId>
         </exclusion>
       </exclusions> 
+    </dependency>
+    
+    <dependency>
+        <groupId>org.apache.curator</groupId>
+        <artifactId>curator-test</artifactId>
+        <version>2.2.0-incubating</version>
     </dependency>
   </dependencies>
   
@@ -151,46 +154,14 @@
         </configuration>
       </plugin>
       <plugin>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <version>2.8</version>
-      </plugin>
-      <plugin>
-        <artifactId>maven-shade-plugin</artifactId>
-        <version>2.1</version>
-        <executions> <!-- Uncomment the following to create a portable uber-jar when packaging  -->
-           <!-- <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-               <filtering>false</filtering>
-               <transformers>       # Note: the following transformer for merging service properties 
-                                    # with same names in METAINF/services (e.g. org.jclouds.providers.ProviderMetadata)
-                                    # this in order to make jClouds find all the available storage providers
-                   <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer">
-                   </transformer>
-               </transformers>
-           </configuration>
-          </execution>-->
-        </executions>
-      </plugin>
-      <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
         <version>2.4</version>
         <configuration>
-         <!--  <descriptorRefs>
-            <descriptorRef>bin</descriptorRef>
-            <descriptorRef>src</descriptorRef>
-            <descriptorRef>jar-with-dependencies</descriptorRef>
-          </descriptorRefs> -->
-          <!-- <appendAssemblyId>false</appendAssemblyId> -->
           <descriptors>
             <descriptor>src/main/assembly/jar-with-dependencies.xml</descriptor>
           </descriptors>
         </configuration>
       </plugin>
-      
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
@@ -200,7 +171,6 @@
             </outputDirectory>
         </configuration>
       </plugin>
-      
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-eclipse-plugin</artifactId>

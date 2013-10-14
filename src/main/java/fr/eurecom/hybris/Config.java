@@ -11,9 +11,9 @@ import java.util.Properties;
  */
 public class Config {
 
-    private static Config instance;
-    private Properties hybrisProperties;
-    private Properties accountsProperties;
+    private static Config instance = null;
+    private static Properties hybrisProperties = null;
+    private static Properties accountsProperties = null;
 
     public static String LOGGER_NAME = "hybrisLogger";
 
@@ -39,37 +39,43 @@ public class Config {
     public static String C_ENABLED = "hybris.kvs.drivers.%s.enabled";
     public static String C_COST = "hybris.kvs.drivers.%s.cost";
 
-    public static Config getInstance () {
+    public static synchronized Config getInstance () {
         if (instance == null)
             instance = new Config();
         return instance;
     }
 
-    public void loadProperties(String propertiesFile) throws IOException {
-        try {
-            this.hybrisProperties = new Properties();
-            this.hybrisProperties.load(new FileInputStream(propertiesFile));
-        } catch (Exception e) {
-            throw new IOException(e);
-        }
+    public synchronized void loadProperties(String propertiesFile) throws IOException {
+        if (hybrisProperties == null)
+            try {
+                hybrisProperties = new Properties();
+                hybrisProperties.load(new FileInputStream(propertiesFile));
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
     }
 
     public String getProperty (String key) {
-        return this.hybrisProperties.getProperty(key);
+        return hybrisProperties.getProperty(key);
     }
 
     /* --------------- Accounts properties management --------------- */
 
-    public void loadAccountsProperties(String propertiesFile) throws IOException {
-        this.accountsProperties = new Properties();
-        this.accountsProperties.load(new FileInputStream(propertiesFile));
+    public synchronized void loadAccountsProperties(String propertiesFile) throws IOException {
+        if (accountsProperties == null)
+            try {
+                accountsProperties = new Properties();
+                accountsProperties.load(new FileInputStream(propertiesFile));
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
     }
 
     public String[] getAccountsIds() {
-        return this.accountsProperties.getProperty(C_ACCOUNTS).trim().split(",");
+        return accountsProperties.getProperty(C_ACCOUNTS).trim().split(",");
     }
 
     public String getAccountsProperty(String key) {
-        return this.accountsProperties.getProperty(key);
+        return accountsProperties.getProperty(key);
     }
 }

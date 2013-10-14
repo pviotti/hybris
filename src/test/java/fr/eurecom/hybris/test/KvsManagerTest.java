@@ -15,6 +15,7 @@ import java.util.List;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import fr.eurecom.hybris.Config;
@@ -193,6 +194,7 @@ public class KvsManagerTest extends HybrisAbstractTest {
         }
     }
 
+    @Ignore
     @Test
     public void testLargeFiles() throws IOException {
         byte[] payload = this.generatePayload(41940000, (byte) 'x');

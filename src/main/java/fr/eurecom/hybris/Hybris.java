@@ -55,6 +55,8 @@ public class Hybris {
     private final boolean gcEnabled;
     private boolean cacheEnabled;
 
+    private final String clientId;
+
 
     /**
      * Creates a Hybris client.
@@ -95,6 +97,7 @@ public class Hybris {
         this.TIMEOUT_WRITE = Integer.parseInt(conf.getProperty(Config.HS_TO_WRITE));
         this.TIMEOUT_READ = Integer.parseInt(conf.getProperty(Config.HS_TO_READ));
         this.gcEnabled = Boolean.parseBoolean(conf.getProperty(Config.HS_GC));
+        this.clientId = Utils.generateClientId();
     }
 
     /**
@@ -143,6 +146,7 @@ public class Hybris {
         this.TIMEOUT_WRITE = writeTimeout;
         this.TIMEOUT_READ = readTimeout;
         this.gcEnabled = gcEnabled;
+        this.clientId = Utils.generateClientId();
     }
 
 
@@ -164,10 +168,10 @@ public class Hybris {
         stat.setVersion(MdsManager.NONODE);    // If it remains unchanged after the read, the ZNode does not exist
         Metadata md = this.mds.tsRead(key, stat);
         if (md == null)
-            ts = new Timestamp(0, Utils.getClientId());
+            ts = new Timestamp(0, this.clientId);   // TODO fix bug for concurrency correctness: this should not be reset in case of tombstone (Dan)
         else {
             ts = md.getTs();
-            ts.inc( Utils.getClientId() );
+            ts.inc( this.clientId );
         }
 
         List<Kvs> savedReplicasLst = new ArrayList<Kvs>();
@@ -208,6 +212,9 @@ public class Hybris {
             logger.warn("Could not store data in cloud stores for key {}.", key);
             throw new HybrisException("Could not store data in cloud stores");
         }
+
+        if (this.cacheEnabled)
+            this.cache.add(kvsKey, this.cacheExp, value);
 
         boolean overwritten = false;
         try {
@@ -266,8 +273,6 @@ public class Hybris {
             if (value != null) {
                 if (Arrays.equals(md.getHash(), Utils.getHash(value))) {
                     logger.info("Value of {} retrieved from kvStore {}", key, kvStore);
-                    if (this.cacheEnabled)
-                        this.cache.add(kvsKey, this.cacheExp, value);
                     return value;
                 } else      // The hash doesn't match: byzantine fault: let's try with the other ones
                     continue;

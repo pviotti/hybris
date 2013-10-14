@@ -4,6 +4,7 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -20,12 +21,14 @@ import fr.eurecom.hybris.kvs.drivers.TransientKvs;
  * 
  * TODO try to use Protobuf, Thrift, Avro, or Cap'n Proto instead of Java serialization
  */
-public class Metadata implements Externalizable {
+public class Metadata implements Externalizable, Serializable {
 
-    public static class Timestamp implements Externalizable {
+    public static class Timestamp implements Externalizable, Serializable {
 
         private int num;
         private String cid;
+
+        private static final long serialVersionUID = 6529685098267757690L;
 
         public Timestamp() { }
         public Timestamp(int n, String c) {
@@ -103,6 +106,8 @@ public class Metadata implements Externalizable {
     private int size;
     private List<Kvs> replicasLst;
 
+    private static final long serialVersionUID = 6529685098267747690L;
+
     public Metadata() { }
     public Metadata(Timestamp ts, byte[] hash, int size, List<Kvs> replicas) {
         this.ts = ts;
@@ -146,13 +151,11 @@ public class Metadata implements Externalizable {
     public int getSize() { return this.size; }
     public void setSize(int s) { this.size = s; }
 
-    @Override
     public String toString() {
         return "Metadata [ts=" + this.ts + ", hash=" + Utils.bytesToHexStr(this.hash)
                 + ", size=" + this.size + ", replicasLst=" + this.replicasLst + "]";
     }
 
-    @Override
     public int hashCode() {
         final int prime = 31;
         int result = 1;
@@ -164,7 +167,6 @@ public class Metadata implements Externalizable {
         return result;
     }
 
-    @Override
     public boolean equals(Object obj) {
         if (this == obj)
             return true;

@@ -190,8 +190,9 @@ public class MdsManager implements ConnectionStateListener {
                     logger.debug("Found smaller version ({}) writing {}: retrying.", newmd.getTs(), key);
                     return this.tsWrite(key, md, stat.getVersion());
                 } else {
-                    logger.debug("Found greater version ({}) writing {}: failing.", newmd.getTs(), key);
-                    throw new HybrisException("KeeperException, could not write the key.", e);
+                    logger.warn("Found greater version ({}) writing {}: failing.", newmd.getTs(), key);
+                    return false;   // XXX
+                    // throw new HybrisException("KeeperException, could not write the key.", e);
                 }
 
             } else {

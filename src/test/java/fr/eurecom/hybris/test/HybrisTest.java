@@ -5,6 +5,7 @@ import static org.junit.Assert.assertNull;
 
 import java.math.BigInteger;
 
+import org.apache.curator.test.TestingServer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -20,7 +21,8 @@ public class HybrisTest extends HybrisAbstractTest {
     protected static Hybris hybris;
 
     @BeforeClass
-    public static void beforeClassSetup() throws HybrisException {
+    public static void beforeClassSetup() throws Exception {
+        zkTestingServer = new TestingServer(2181);
         hybris = new Hybris("hybris.properties");
     }
 

@@ -8,7 +8,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,6 +15,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.curator.test.TestingServer;
 import org.apache.zookeeper.data.Stat;
 import org.junit.After;
 import org.junit.Before;
@@ -35,14 +35,13 @@ import fr.eurecom.hybris.mds.Metadata.Timestamp;
 public class MdsManagerTest extends HybrisAbstractTest {
 
     private static MdsManager mds;
-
     private static String MDS_TEST_ROOT = "mdstest-root";
-    private static String MDS_ADDRESS = "localhost:2181";
 
     @BeforeClass
-    public static void beforeClassSetup() throws IOException {
+    public static void beforeClassSetup() throws Exception {
         Config.getInstance();
-        mds = new MdsManager(MDS_ADDRESS, MDS_TEST_ROOT);
+        zkTestingServer = new TestingServer();
+        mds = new MdsManager(zkTestingServer.getConnectString(), MDS_TEST_ROOT);
     }
 
     // Executed before each test
@@ -59,7 +58,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
     public void testBasicWriteAndRead() throws HybrisException {
 
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
-        Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), Utils.getClientId());
+        Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), Utils.generateClientId());
         byte[] hash = new byte[20];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
@@ -105,8 +104,9 @@ public class MdsManagerTest extends HybrisAbstractTest {
         mds.tsWrite(key, new Metadata(new Timestamp(2, cid1), hash, 2, replicas), 2);   // write hver. 2, zkver. 3
         try {
             mds.tsWrite(key, new Metadata(new Timestamp(2, cid1), hash, 3, replicas), 2);   // BADVERSION, fails because cids are equals
-            fail();
-        } catch(HybrisException e) {  }
+        } catch(HybrisException e) {
+            fail(); // TODO modify to test the new version which does not throw an exception
+        }
         mds.tsWrite(key, new Metadata(new Timestamp(2, cid2), hash, 4, replicas), 2);       // BADVERSION, retries because AAA > ZZZ, write hver. 2, zkver. 4
 
         retrieved = mds.tsRead(key, stat);
@@ -116,8 +116,10 @@ public class MdsManagerTest extends HybrisAbstractTest {
 
         try{
             mds.tsWrite(key, new Metadata(new Timestamp(0, cid1), hash, 5, replicas), 0);  // BADVERSION, fails because hver is smaller
-            fail();
-        } catch(HybrisException e) {  }
+
+        } catch(HybrisException e) {
+            fail(); // TODO see above
+        }
 
         mds.tsWrite(key, new Metadata(new Timestamp(3, cid1), hash, 6, replicas), 1);  // BADVERSION, retries because 3 > 2, write hver. 3, zkver. 5
 
@@ -183,7 +185,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
     public void testSerialization() throws HybrisException {
 
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
-        Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), Utils.getClientId());
+        Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), Utils.generateClientId());
         byte[] hash = new byte[20];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
@@ -219,7 +221,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
         String key5 = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         List<String> keys = new LinkedList<String>();
         keys.add(key1); keys.add(key2); keys.add(key3); keys.add(key4); keys.add(key5);
-        Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), Utils.getClientId());
+        Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), Utils.generateClientId());
         byte[] hash = new byte[20];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
@@ -239,7 +241,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
         for (String k : keys)
             assertTrue(listedKeys.contains(k));
 
-        ts.inc(Utils.getClientId());
+        ts.inc(Utils.generateClientId());
         byte[] hash1 = new byte[20];
         this.random.nextBytes(hash1);
         md = new Metadata(ts, hash1, 9, replicas);
@@ -265,7 +267,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
         listedKeys = mds.list();
         assertEquals(0, listedKeys.size());
 
-        ts.inc(Utils.getClientId());    // add a key previously removed
+        ts.inc(Utils.generateClientId());    // add a key previously removed
         md = new Metadata(ts, hash, 10, replicas);
         mds.tsWrite(key2, md, -1);
         listedKeys = mds.list();
@@ -283,7 +285,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
         String key5 = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         List<String> keys = new LinkedList<String>();
         keys.add(key1); keys.add(key2); keys.add(key3); keys.add(key4); keys.add(key5);
-        Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), Utils.getClientId());
+        Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), Utils.generateClientId());
         byte[] hash = new byte[20];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
@@ -306,7 +308,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
             assertTrue(allMd.get(k).equals(md));
         }
 
-        Timestamp ts4 = new Timestamp(ts.getNum() +1, Utils.getClientId());
+        Timestamp ts4 = new Timestamp(ts.getNum() +1, Utils.generateClientId());
         byte[] hash1 = new byte[20];
         this.random.nextBytes(hash1);
         Metadata md4 = new Metadata(ts4, hash1, 12, replicas);
@@ -337,7 +339,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
         allMd = mds.getAll();
         assertEquals(0, allMd.size());
 
-        ts.inc(Utils.getClientId());            // add a key previously removed
+        ts.inc(Utils.generateClientId());            // add a key previously removed
         md = new Metadata(ts, hash, 13, replicas);
         mds.tsWrite(key2, md, -1);
         allMd = mds.getAll();

@@ -20,15 +20,17 @@ public class HybrisYcsbClient extends DB {
 
     private Hybris hybris;
 
-    private static final String KVS_ROOT = "ycsbtest-root";
     private static final String MDS_TEST_ROOT = "ycsbtest-root";
 
-    private final String PROP_KVS_ACCOUNTS_FILE = "kvs.accountfile";
+
     private final String PROP_MDS_ADDRESS = "mds.address";
     private final String PROP_T = "t";
     private final String PROP_CACHE = "cache";
     private final String PROP_CACHE_ADDRESS = "cache.address";
     private final String PROP_CACHE_EXP = "cache.exp";
+
+    private final String PROP_KVS_ACCOUNTS_FILE = "kvs.accountfile";
+    private final String PROP_KVS_ROOT = "kvs.root";
 
     public void init() throws DBException {
 
@@ -47,10 +49,11 @@ public class HybrisYcsbClient extends DB {
         String mdsAddress = props.getProperty(this.PROP_MDS_ADDRESS);
         String cacheAddress = props.getProperty(this.PROP_CACHE_ADDRESS);
         int cacheExp = Integer.parseInt(props.getProperty(this.PROP_CACHE_EXP));
+        String kvsRoot = props.getProperty(this.PROP_KVS_ROOT);
 
         try {
             this.hybris = new Hybris(mdsAddress, MDS_TEST_ROOT, accountFile,
-                    KVS_ROOT, true, t, 600, 600, false,
+                    kvsRoot, true, t, 600, 600, false,
                     cache, cacheAddress, cacheExp);
         } catch (HybrisException e) {
             e.printStackTrace();
