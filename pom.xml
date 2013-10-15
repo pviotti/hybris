@@ -86,7 +86,7 @@
       <artifactId>jclouds-blobstore</artifactId>
       <version>1.6.2-incubating</version>
     </dependency>
-     <dependency>
+    <dependency>
         <groupId>org.apache.jclouds.provider</groupId>
         <artifactId>cloudfiles-uk</artifactId>
         <version>1.6.2-incubating</version>
@@ -109,6 +109,8 @@
       <groupId>com.yahoo.ycsb</groupId>
       <artifactId>core</artifactId>
       <version>0.1.4</version>
+      <scope>system</scope>
+      <systemPath>${project.basedir}/lib/ycsb-core-0.1.4.jar</systemPath>
       <exclusions> 
         <!-- because in the uber-jar it would conflict with another version required by jClouds -->
         <exclusion>
@@ -146,10 +148,10 @@
          </execution>
        </executions>
      </plugin>
-      <plugin> <!-- for skipping the tests when building -->
+      <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>2.15</version>
-        <configuration>
+        <configuration> <!-- for skipping the tests when building -->
           <skipTests>${skipTests}</skipTests>
         </configuration>
       </plugin>

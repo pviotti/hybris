@@ -6,8 +6,6 @@ import java.io.InputStreamReader;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.curator.test.TestingServer;
-
 import fr.eurecom.hybris.Hybris;
 import fr.eurecom.hybris.HybrisException;
 import fr.eurecom.hybris.mds.Metadata;
@@ -15,7 +13,6 @@ import fr.eurecom.hybris.mds.Metadata;
 public class HybrisTestCli implements Runnable {
 
     private final Hybris hybris;
-    private final TestingServer zkTestingServer;
     private static String HELP_STRING = "Usage:\n" +
             "\th - help\n" +
             "\tq - quit\n" +
@@ -27,7 +24,6 @@ public class HybrisTestCli implements Runnable {
             "\tec - empty containers";
 
     public HybrisTestCli() throws Exception {
-        this.zkTestingServer = new TestingServer(2181);
         this.hybris = new Hybris("hybris.properties");
     }
 
@@ -82,14 +78,11 @@ public class HybrisTestCli implements Runnable {
                 System.out.println("* Unknown command.");
             }
 
-        try {
-            this.hybris.new GcManager().gc();
-        } catch (HybrisException e) { e.printStackTrace(); }
+        //        try {
+        //            this.hybris.new GcManager().gc();
+        //        } catch (HybrisException e) { e.printStackTrace(); }
 
         this.hybris.shutdown();
-        try {
-            this.zkTestingServer.close();
-        } catch (IOException e) { e.printStackTrace(); }
     }
 
     private void write(String key, byte[] value) {

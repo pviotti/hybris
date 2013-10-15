@@ -10,7 +10,6 @@ import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 public class Utils {
 
-    //    private final String clientId = null;
     private static String KVS_KEY_SEPARATOR = "#";
 
     public static int HASH_LENGTH = 20; // length of hash digest
