@@ -27,7 +27,6 @@ public class HybrisTestCli implements Runnable {
         this.hybris = new Hybris("hybris.properties");
     }
 
-    @Override
     public void run() {
         System.out.println("Hybris test console\n===================");
         System.out.println("Type 'h' for help.");

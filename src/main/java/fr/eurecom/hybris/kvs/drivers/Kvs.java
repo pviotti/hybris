@@ -1,11 +1,10 @@
 package fr.eurecom.hybris.kvs.drivers;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.Comparator;
 import java.util.List;
 
-public abstract class Kvs implements Serializable {
+public class Kvs {
 
     protected final String id;
     protected transient boolean enabled;
@@ -15,8 +14,6 @@ public abstract class Kvs implements Serializable {
     protected transient long writeLatency;
     protected transient long readLatency;
     protected transient int cost; // $ cents per GB
-
-    protected static final long serialVersionUID = 1L;
 
     /**
      * Static Comparator objects for ordering the Kvs list
@@ -64,12 +61,11 @@ public abstract class Kvs implements Serializable {
     public void setCost(int cost)   { this.cost = cost; }
 
     /* APIs */
-    public abstract void put(String key, byte[] value) throws IOException;
-    public abstract byte[] get(String key) throws IOException;
-    public abstract List<String> list() throws IOException;
-    public abstract void delete(String key) throws IOException;
-    protected abstract void createContainer() throws IOException;
-    public abstract void shutdown() throws IOException;
+    public void put(String key, byte[] value) throws IOException { }
+    public byte[] get(String key) throws IOException { return null; }
+    public List<String> list() throws IOException { return null; }
+    public void delete(String key) throws IOException { }
+    public void shutdown() throws IOException { }
 
     public boolean equals(Object obj) {
         if (this == obj)

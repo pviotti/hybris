@@ -20,13 +20,12 @@ import fr.eurecom.hybris.Config;
 
 public class GoogleKvs extends Kvs {
 
-    private static final long serialVersionUID = 1L;
     private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
     private transient final GoogleStorageService gsService;
 
     public GoogleKvs(String id, String accessKey, String secretKey,
-                         String container, boolean enabled, int cost) throws IOException {
+            String container, boolean enabled, int cost) throws IOException {
         super(id, container, enabled, cost);
 
         GSCredentials gsCredentials = new GSCredentials(accessKey, secretKey);
@@ -98,7 +97,7 @@ public class GoogleKvs extends Kvs {
         }
     }
 
-    protected void createContainer() throws IOException {
+    private void createContainer() throws IOException {
         try {
             this.gsService.getOrCreateBucket(this.rootContainer);
         } catch (ServiceException e) {

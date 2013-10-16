@@ -27,13 +27,11 @@ import com.google.common.io.ByteStreams;
 
 public class AmazonKvs extends Kvs {
 
-    private static final long serialVersionUID = 1L;
-
     private transient final AmazonS3 s3;
     private transient final TransferManager tm;
 
     public AmazonKvs(String id, final String accessKey, final String secretKey,
-                            String container, boolean enabled, int cost) throws IOException {
+            String container, boolean enabled, int cost) throws IOException {
         super(id, container, enabled, cost);
 
         BasicAWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
@@ -113,7 +111,7 @@ public class AmazonKvs extends Kvs {
         }
     }
 
-    protected void createContainer() throws IOException {
+    private void createContainer() throws IOException {
         try {
             if (!this.s3.doesBucketExist(this.rootContainer))
                 this.s3.createBucket(this.rootContainer, Region.EU_Ireland);    // XXX hardcoded bucket location

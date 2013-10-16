@@ -1,34 +1,28 @@
 package fr.eurecom.hybris.mds;
 
-import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.commons.lang3.SerializationUtils;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 import fr.eurecom.hybris.Utils;
+import fr.eurecom.hybris.kvs.KvsManager.KvsId;
 import fr.eurecom.hybris.kvs.drivers.Kvs;
-import fr.eurecom.hybris.kvs.drivers.TransientKvs;
 
 /**
  * Holds timestamped metadata.
  * @author P. Viotti
- * 
- * TODO try to use Protobuf, Thrift, Avro, or Cap'n Proto instead of Java serialization
  */
-public class Metadata implements Externalizable, Serializable {
+public class Metadata implements KryoSerializable {
 
-    public static class Timestamp implements Externalizable, Serializable {
+    public static class Timestamp implements KryoSerializable {
 
         private int num;
         private String cid;
-
-        private static final long serialVersionUID = 6529685098267757690L;
 
         public Timestamp() { }
         public Timestamp(int n, String c) {
@@ -90,14 +84,13 @@ public class Metadata implements Externalizable, Serializable {
             return true;
         }
 
-        public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-            this.num = in.readInt();
-            this.cid = in.readUTF();
+        public void write(Kryo kryo, Output output) {
+            output.writeInt(this.num);
+            output.writeAscii(this.cid);
         }
-
-        public void writeExternal(ObjectOutput out) throws IOException {
-            out.writeInt(this.num);
-            out.writeUTF(this.cid);
+        public void read(Kryo kryo, Input input) {
+            this.num = input.readInt();
+            this.cid = input.readString();
         }
     }
 
@@ -105,8 +98,6 @@ public class Metadata implements Externalizable, Serializable {
     private byte[] hash;
     private int size;
     private List<Kvs> replicasLst;
-
-    private static final long serialVersionUID = 6529685098267747690L;
 
     public Metadata() { }
     public Metadata(Timestamp ts, byte[] hash, int size, List<Kvs> replicas) {
@@ -117,7 +108,12 @@ public class Metadata implements Externalizable, Serializable {
     }
 
     public Metadata(byte[] raw) {
-        Metadata md = (Metadata) SerializationUtils.deserialize(raw);
+        Kryo kryo = new Kryo();
+        kryo.register(Metadata.class);
+        kryo.register(Timestamp.class);
+        Input input = new Input(raw);
+        Metadata md = kryo.readObject(input, Metadata.class);
+        input.close();
         this.ts = md.ts;
         this.replicasLst = md.replicasLst;
         this.hash = md.getHash();
@@ -129,7 +125,14 @@ public class Metadata implements Externalizable, Serializable {
     }
 
     public byte[] serialize() {
-        return SerializationUtils.serialize(this);
+        Kryo kryo = new Kryo();
+        kryo.register(Metadata.class);
+        kryo.register(Timestamp.class);
+        byte[] buff = new byte[1000];
+        Output output = new Output(buff);
+        kryo.writeObject(output, this);
+        output.close();
+        return output.toBytes();
     }
 
     public boolean isTombstone() {
@@ -188,52 +191,71 @@ public class Metadata implements Externalizable, Serializable {
         return true;
     }
 
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        this.ts = (Timestamp) in.readObject();
-        this.hash = new byte[Utils.HASH_LENGTH];
-        in.readFully(this.hash, 0, Utils.HASH_LENGTH);
+    public void write(Kryo kryo, Output out) {
+        kryo.writeClassAndObject(out, this.ts);
+        if (this.hash == null){
+            byte[] ba = new byte[Utils.HASH_LENGTH];
+            Arrays.fill(ba, (byte) 0x0);
+            out.write(ba);
+        } else
+            out.write(this.hash);
+        out.writeInt(this.size);
+
+        if (this.replicasLst != null)
+            if (this.replicasLst.size() > 0)
+                for (int i=0; i<this.replicasLst.size(); i++)
+                    out.writeShort( KvsId.valueOf( this.replicasLst.get(i).getId().toUpperCase() ).getSerial() );
+            else
+                out.writeShort(-1);     // empty replicas array
+        else
+            out.writeShort(-2);         // null replicas array
+
+    }
+
+    public void read(Kryo kryo, Input in) {
+        this.ts = (Timestamp) kryo.readClassAndObject(in);
+        this.hash = in.readBytes(Utils.HASH_LENGTH);
         byte[] ba = new byte[Utils.HASH_LENGTH];
         Arrays.fill(ba, (byte) 0x0);
         if (Arrays.equals(ba, this.hash))
             this.hash = null;
         this.size = in.readInt();
 
-        String replicasStr = in.readUTF();
-        if (replicasStr.equalsIgnoreCase(""))       // null
-            this.replicasLst = null;
-        else if (replicasStr.equalsIgnoreCase("*")) // empty array
-            this.replicasLst = new ArrayList<Kvs>();
-        else {
-            List<Kvs> replicas = new ArrayList<Kvs>();
-            String[] reps = replicasStr.split(",");
-            for (String repIds : reps)
-                replicas.add(new TransientKvs(repIds, null, null, null, false, 0));
-            this.replicasLst = replicas;
+        this.replicasLst = new ArrayList<Kvs>();
+        while (true) {
+            short rep;
+            try {
+                rep = in.readShort();
+            } catch(Exception e) {
+                break;
+            }
+            if (rep == -1)          // empty replicas array
+                break;
+            else if (rep == -2) {   // null replicas array
+                this.replicasLst = null;
+                break;
+            }
+
+            switch (KvsId.getIdFromSerial(rep)) {
+                case AMAZON:
+                    this.replicasLst.add(new Kvs(KvsId.AMAZON.toString(), null, false, 0));
+                    break;
+                case AZURE:
+                    this.replicasLst.add(new Kvs(KvsId.AZURE.toString(), null, false, 0));
+                    break;
+                case GOOGLE:
+                    this.replicasLst.add(new Kvs(KvsId.GOOGLE.toString(), null, false, 0));
+                    break;
+                case RACKSPACE:
+                    this.replicasLst.add(new Kvs(KvsId.RACKSPACE.toString(), null, false, 0));
+                    break;
+                case TRANSIENT:
+                    this.replicasLst.add(new Kvs(KvsId.TRANSIENT.toString(), null, false, 0));
+                    break;
+                default:
+                    break;
+            }
         }
-    }
 
-    public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeObject(this.ts);
-        if (this.hash == null){
-            byte[] ba = new byte[Utils.HASH_LENGTH];
-            Arrays.fill(ba, (byte) 0x0);
-            out.write(ba);
-        } else
-            out.write(this.hash, 0, this.hash.length);
-        out.writeInt(this.size);
-
-        StringBuilder sb = new StringBuilder();
-        if (this.replicasLst != null)
-            if (this.replicasLst.size() > 0)
-                for (int i=0; i<this.replicasLst.size(); i++) {
-                    sb.append(this.replicasLst.get(i).getId());
-                    if (i != this.replicasLst.size()-1)
-                        sb.append(",");
-                }
-            else
-                sb.append("*"); // encode empty replica array
-        else
-            sb.append("");      // encode null value
-        out.writeUTF(sb.toString());
     }
 }

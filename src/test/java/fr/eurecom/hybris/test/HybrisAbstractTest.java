@@ -5,7 +5,7 @@ import java.util.Arrays;
 
 import org.apache.curator.test.TestingServer;
 
-abstract class HybrisAbstractTest {
+public abstract class HybrisAbstractTest {
 
     protected String TEST_KEY_PREFIX = "test-";
     protected SecureRandom random = new SecureRandom();

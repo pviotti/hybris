@@ -42,12 +42,37 @@ public class KvsManager {
 
     private final int LATENCY_TEST_DATA_SIZE = 100;     // default value: 100kB
 
-    private enum KvsId {
-        AMAZON,
-        AZURE,
-        GOOGLE,
-        RACKSPACE,
-        TRANSIENT;
+    public enum KvsId {
+        AMAZON((short) 0),
+        AZURE((short) 1),
+        GOOGLE((short) 2),
+        RACKSPACE((short) 3),
+        TRANSIENT((short) 4);
+
+        private short serialNum;
+
+        private KvsId(short sn) {
+            this.serialNum = sn;
+        }
+
+        public int getSerial() {
+            return this.serialNum;
+        }
+
+        public static KvsId getIdFromSerial(short num) {
+            switch (num) {
+                case 0: return AMAZON;
+                case 1: return AZURE;
+                case 2: return GOOGLE;
+                case 3: return RACKSPACE;
+                case 4: return TRANSIENT;
+                default: return null;
+            }
+        }
+
+        public String toString() {
+            return super.toString().toLowerCase();
+        }
     };
 
     public KvsManager(String accountsFile, String container, boolean testLatency) throws IOException {
@@ -223,7 +248,7 @@ public class KvsManager {
         try {
             kvStore.put(key, data);
         } catch (IOException e) {
-            logger.warn("Could not put " + key + " on " + kvStore.getId(), e);
+            logger.warn("Could not put " + key + " on " + kvStore, e);
             throw e;
         }
     }
@@ -233,10 +258,10 @@ public class KvsManager {
         try {
             byte[] value = kvStore.get(key);
             if (value == null)
-                logger.warn("Could not find key {} in {}", key, kvStore.getId());
+                logger.warn("Could not find key {} in {}", key, kvStore);
             return value;
         } catch (IOException e) {
-            logger.warn("Could not get " + key + " from " + kvStore.getId(), e);
+            logger.warn("Could not get " + key + " from " + kvStore, e);
             throw e;
         }
     }
@@ -246,7 +271,7 @@ public class KvsManager {
         try {
             kvStore.delete(key);
         } catch (IOException e) {
-            logger.warn("Could not delete " + key + " from " + kvStore.getId(), e);
+            logger.warn("Could not delete " + key + " from " + kvStore, e);
             throw e;
         }
     }
@@ -256,7 +281,7 @@ public class KvsManager {
         try {
             return kvStore.list();
         } catch (IOException e) {
-            logger.warn("Could not list keys in {}", kvStore.getId(), e);
+            logger.warn("Could not list keys in {}", kvStore, e);
             throw e;
         }
     }
@@ -266,7 +291,7 @@ public class KvsManager {
         try {
             kvStore.shutdown();
         } catch (IOException e) {
-            logger.warn("Error during {} KvStore shutdown", kvStore.getId(), e);
+            logger.warn("Error during {} KvStore shutdown", kvStore, e);
         }
     }
 

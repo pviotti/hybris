@@ -24,7 +24,6 @@ import fr.eurecom.hybris.Config;
 
 public class AzureKvs extends Kvs {
 
-    private static final long serialVersionUID = 1L;
     private transient static Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
     private static final String ERROR_BLOB_NOT_FOUND = "BlobNotFound";
@@ -118,7 +117,7 @@ public class AzureKvs extends Kvs {
         }
     }
 
-    protected void createContainer() throws IOException {
+    private void createContainer() throws IOException {
         try {
             this.containerRef = this.blobClient.getContainerReference(this.rootContainer);
             this.containerRef.createIfNotExist();

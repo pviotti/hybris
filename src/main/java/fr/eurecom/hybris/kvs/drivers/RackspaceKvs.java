@@ -21,20 +21,19 @@ import fr.eurecom.hybris.Config;
 
 public class RackspaceKvs extends Kvs {
 
-    private static final long serialVersionUID = 1L;
     private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
     private final static String rackspaceId = "cloudfiles-uk";
     private transient final BlobStore blobStore;
 
     public RackspaceKvs(String id, String accessKey, String secretKey,
-                            String container, boolean enabled, int cost) throws IOException {
+            String container, boolean enabled, int cost) throws IOException {
         super(id, container, enabled, cost);
 
         try {
             BlobStoreContext context = ContextBuilder.newBuilder(rackspaceId)
-                                                    .credentials(accessKey, secretKey)
-                                                    .buildView(BlobStoreContext.class);
+                    .credentials(accessKey, secretKey)
+                    .buildView(BlobStoreContext.class);
             this.blobStore = context.getBlobStore();
         } catch (NoSuchElementException e) {
             logger.error("Could not initialize {} KvStore", id, e);
@@ -76,9 +75,9 @@ public class RackspaceKvs extends Kvs {
         try {
             List<String> keys = new ArrayList<String>();
             for (StorageMetadata resourceMd :
-                    BlobStores.listAll(this.blobStore,
-                                        this.rootContainer,
-                                        ListContainerOptions.NONE))
+                BlobStores.listAll(this.blobStore,
+                        this.rootContainer,
+                        ListContainerOptions.NONE))
                 keys.add(resourceMd.getName());
             return keys;
         } catch (Exception ex) {
@@ -86,7 +85,7 @@ public class RackspaceKvs extends Kvs {
         }
     }
 
-    protected void createContainer() throws IOException {
+    private void createContainer() throws IOException {
         try {
             this.blobStore.createContainerInLocation(null, this.rootContainer);
         } catch (Exception ex) {

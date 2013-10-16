@@ -1,4 +1,4 @@
-package fr.eurecom.hybris.test;
+package fr.eurecom.hybris.test.kvs;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -21,6 +21,7 @@ import org.junit.Test;
 import fr.eurecom.hybris.Config;
 import fr.eurecom.hybris.kvs.KvsManager;
 import fr.eurecom.hybris.kvs.drivers.Kvs;
+import fr.eurecom.hybris.test.HybrisAbstractTest;
 
 
 public class KvsManagerTest extends HybrisAbstractTest {

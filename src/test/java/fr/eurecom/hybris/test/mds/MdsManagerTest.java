@@ -1,4 +1,4 @@
-package fr.eurecom.hybris.test;
+package fr.eurecom.hybris.test.mds;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -31,6 +31,7 @@ import fr.eurecom.hybris.kvs.drivers.TransientKvs;
 import fr.eurecom.hybris.mds.MdsManager;
 import fr.eurecom.hybris.mds.Metadata;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
+import fr.eurecom.hybris.test.HybrisAbstractTest;
 
 
 public class MdsManagerTest extends HybrisAbstractTest {

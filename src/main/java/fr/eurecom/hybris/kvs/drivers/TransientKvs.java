@@ -7,7 +7,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class TransientKvs extends Kvs {
 
-    private static final long serialVersionUID = 1L;
     private transient final Map<String, byte[]> hashMap;
 
     public TransientKvs(String id, String accessKey, String secretKey,
@@ -31,8 +30,4 @@ public class TransientKvs extends Kvs {
     public List<String> list() {
         return new ArrayList<String>(this.hashMap.keySet());
     }
-
-    public void createContainer() { }
-
-    public void shutdown() { }
 }
