@@ -165,11 +165,11 @@ public class Hybris {
 
         Timestamp ts;
         Stat stat = new Stat();
-        stat.setVersion(MdsManager.NONODE);    // If it remains unchanged after the read, the ZNode does not exist
         Metadata md = this.mds.tsRead(key, stat);
-        if (md == null)
-            ts = new Timestamp(0, this.clientId);   // TODO fix bug for concurrency correctness: this should not be reset in case of tombstone (Dan)
-        else {
+        if (md == null) {
+            ts = new Timestamp(0, this.clientId);
+            stat.setVersion(MdsManager.NONODE);
+        } else {
             ts = md.getTs();
             ts.inc( this.clientId );
         }
@@ -242,7 +242,7 @@ public class Hybris {
     public byte[] read(String key) throws HybrisException {
 
         Metadata md = this.mds.tsRead(key, null);
-        if (md == null) {
+        if (md == null || md.isTombstone()) {
             logger.warn("Could not find metadata associated with key {}.", key);
             return null;
         }
@@ -308,11 +308,15 @@ public class Hybris {
      */
     public void delete(String key) throws HybrisException {
 
-        Metadata md = this.mds.tsRead(key, null);
+        Stat stat = new Stat();
+        Metadata md = this.mds.tsRead(key, stat);
         if (md == null) {
             logger.debug("Could not find the metadata associated with key {}.", key);
             return;
         }
+        Timestamp ts = md.getTs();
+        ts.inc( this.clientId );
+        Metadata tombstone = Metadata.getTombstone(ts);
 
         String kvsKey = Utils.getKvsKey(key, md.getTs());
         for (Kvs kvStore : this.kvs.getKvsList()) {
@@ -322,9 +326,11 @@ public class Hybris {
 
             try {
                 this.kvs.delete(kvStore, kvsKey);
-            } catch (IOException e) { }
+            } catch (IOException e) {
+                logger.warn("Could not delete {} from {}", kvsKey, kvStore);
+            }
         }
-        this.mds.delete(key);
+        this.mds.delete(key, tombstone, stat.getVersion());
     }
 
 

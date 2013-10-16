@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.curator.test.TestingServer;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.junit.After;
 import org.junit.Before;
@@ -57,8 +58,9 @@ public class MdsManagerTest extends HybrisAbstractTest {
     @Test
     public void testBasicWriteAndRead() throws HybrisException {
 
+        String cid = Utils.generateClientId();
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
-        Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), Utils.generateClientId());
+        Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), cid);
         byte[] hash = new byte[20];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
@@ -69,13 +71,23 @@ public class MdsManagerTest extends HybrisAbstractTest {
 
         mds.tsWrite(key, md, MdsManager.NONODE);
 
-        md = mds.tsRead(key, null);
+        Stat stat = new Stat();
+        md = mds.tsRead(key, stat);
         assertEquals(ts, md.getTs());
         assertArrayEquals(hash, md.getHash());
         assertArrayEquals(replicas.toArray(), md.getReplicasLst().toArray());
 
-        mds.delete(key);
-        assertNull(mds.tsRead(key, null));
+        ts.inc(cid);
+        Metadata tombstone = Metadata.getTombstone(ts);
+        mds.delete(key, tombstone, stat.getVersion());
+        Stat newStat = new Stat();
+        md = mds.tsRead(key, newStat);
+        assertNotNull(md);
+        assertEquals(md.getTs(), tombstone.getTs());
+        assertNull(md.getReplicasLst());
+        assertNull(md.getHash());
+        assertEquals(0, md.getSize());
+        assertTrue(md.isTombstone());
     }
 
     @Test
@@ -105,6 +117,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
         try {
             mds.tsWrite(key, new Metadata(new Timestamp(2, cid1), hash, 3, replicas), 2);   // BADVERSION, fails because cids are equals
         } catch(HybrisException e) {
+            e.printStackTrace();
             fail(); // TODO modify to test the new version which does not throw an exception
         }
         mds.tsWrite(key, new Metadata(new Timestamp(2, cid2), hash, 4, replicas), 2);       // BADVERSION, retries because AAA > ZZZ, write hver. 2, zkver. 4
@@ -116,8 +129,8 @@ public class MdsManagerTest extends HybrisAbstractTest {
 
         try{
             mds.tsWrite(key, new Metadata(new Timestamp(0, cid1), hash, 5, replicas), 0);  // BADVERSION, fails because hver is smaller
-
         } catch(HybrisException e) {
+            e.printStackTrace();
             fail(); // TODO see above
         }
 
@@ -134,10 +147,34 @@ public class MdsManagerTest extends HybrisAbstractTest {
 
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         try {
-            mds.delete(key);
+            Timestamp ts1 = new Timestamp(1, "BBBB");
+            Timestamp ts2 = new Timestamp(1, "AAAA");
+            Timestamp ts3 = new Timestamp(1, "CCCC");
+
+            mds.delete(key, Metadata.getTombstone(ts1), -1);     // writes the tombstone no matter which znode version
+            mds.delete(key, Metadata.getTombstone(ts2), 5);      // finds a smaller znode version, retries (because ts is greater) and eventually succeeds
+            mds.delete(key, Metadata.getTombstone(ts3), 5);      // finds a smaller znode version, silently fails
+
+            Stat stat = new Stat();
+            Metadata md = mds.tsRead(key, stat);
+            assertNotNull(md);
+            assertEquals(md.getTs(), ts2);
+            assertNull(md.getReplicasLst());
+            assertNull(md.getHash());
+            assertEquals(0, md.getSize());
+            assertTrue(md.isTombstone());
         } catch (HybrisException e) {
             e.printStackTrace();
             fail();
+        }
+
+        key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
+        try {
+            mds.delete(key, Metadata.getTombstone(new Timestamp(1, "QWERTY")), 7);     // writes the tombstone anyway
+            fail();
+        } catch (HybrisException e) {
+            KeeperException ke = (KeeperException) e.getCause();
+            assertEquals(KeeperException.Code.NONODE, ke.code());
         }
     }
 
@@ -196,7 +233,8 @@ public class MdsManagerTest extends HybrisAbstractTest {
         Metadata md = new Metadata(ts, hash, 7, replicas);
         mds.tsWrite(key, md, MdsManager.NONODE);
 
-        md = mds.tsRead(key, null);
+        Stat stat = new Stat();
+        md = mds.tsRead(key, stat);
         for(Kvs provider : md.getReplicasLst()) {
             assertNotNull(provider.getId());
             assertEquals(replicas.get( md.getReplicasLst().indexOf(provider) ), provider);
@@ -207,8 +245,8 @@ public class MdsManagerTest extends HybrisAbstractTest {
             assertEquals(0, provider.getCost());
         }
 
-        mds.delete(key);
-        assertNull(mds.tsRead(key, null));
+        mds.delete(key, Metadata.getTombstone(ts), stat.getVersion());
+        assertTrue(mds.tsRead(key, null).isTombstone());
     }
 
     @Test
@@ -253,7 +291,9 @@ public class MdsManagerTest extends HybrisAbstractTest {
         assertFalse(Arrays.equals(newMd.getHash(), hash));
         assertEquals(1, stat.getVersion());
 
-        mds.delete(key3);               // remove a key
+        ts.inc("clientXYZ");
+        mds.delete(key3, Metadata.getTombstone(ts), stat.getVersion());      // remove a key
+        assertTrue(mds.tsRead(key3, null).isTombstone());
         listedKeys = mds.list();
         assertEquals(4, listedKeys.size());
         for (String k : keys)
@@ -262,14 +302,22 @@ public class MdsManagerTest extends HybrisAbstractTest {
             else
                 assertFalse(listedKeys.contains(k));
 
-        for (String k : keys)           // remove all keys
-            mds.delete(k);
+        Timestamp tsd = new Timestamp(999, "AAA");
+        for (String k : keys)                               // remove all keys
+            mds.delete(k, Metadata.getTombstone(tsd), -1);
         listedKeys = mds.list();
         assertEquals(0, listedKeys.size());
 
-        ts.inc(Utils.generateClientId());    // add a key previously removed
-        md = new Metadata(ts, hash, 10, replicas);
-        mds.tsWrite(key2, md, -1);
+        Timestamp smallerTs = new Timestamp(1, "ZZZ");      // add a key previously removed with a smaller ts: not written
+        ts.inc(Utils.generateClientId());
+        md = new Metadata(smallerTs, hash, 10, replicas);
+        mds.tsWrite(key2, md, MdsManager.NONODE);
+        listedKeys = mds.list();
+        assertEquals(0, listedKeys.size());
+
+        tsd.inc("AAAA");                                    // add a key previously removed with a greater ts: written
+        md = new Metadata(tsd, hash, 10, replicas);
+        mds.tsWrite(key2, md, MdsManager.NONODE);
         listedKeys = mds.list();
         assertEquals(1, listedKeys.size());
         assertEquals(key2, listedKeys.get(0));
@@ -308,7 +356,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
             assertTrue(allMd.get(k).equals(md));
         }
 
-        Timestamp ts4 = new Timestamp(ts.getNum() +1, Utils.generateClientId());
+        Timestamp ts4 = new Timestamp(ts.getNum() + 1, Utils.generateClientId());
         byte[] hash1 = new byte[20];
         this.random.nextBytes(hash1);
         Metadata md4 = new Metadata(ts4, hash1, 12, replicas);
@@ -320,7 +368,9 @@ public class MdsManagerTest extends HybrisAbstractTest {
         assertFalse(Arrays.equals(newMd.getHash(), hash));
         assertEquals(1, stat.getVersion());
 
-        mds.delete(key3);                       // remove a key
+        Timestamp newts = new Timestamp(ts.getNum() + 1, "clientXYZ");
+        mds.delete(key3, Metadata.getTombstone(newts), stat.getVersion());      // remove a key
+        assertTrue(mds.tsRead(key3, null).isTombstone());
         allMd = mds.getAll();
         assertEquals(4, allMd.size());
         for (String k : keys)
@@ -334,13 +384,14 @@ public class MdsManagerTest extends HybrisAbstractTest {
             } else
                 assertFalse(allMd.keySet().contains(k));
 
+        Timestamp tsd = new Timestamp(999, "AAA");
         for (String k : keys)                   // remove all keys
-            mds.delete(k);
+            mds.delete(k, Metadata.getTombstone(tsd), -1);
         allMd = mds.getAll();
         assertEquals(0, allMd.size());
 
-        ts.inc(Utils.generateClientId());            // add a key previously removed
-        md = new Metadata(ts, hash, 13, replicas);
+        tsd.inc("AAAA");                                    // add a key previously removed with a greater ts: written
+        md = new Metadata(tsd, hash, 10, replicas);
         mds.tsWrite(key2, md, -1);
         allMd = mds.getAll();
         assertEquals(1, allMd.size());

@@ -117,19 +117,15 @@ public class Metadata implements Externalizable, Serializable {
     }
 
     public Metadata(byte[] raw) {
-        Metadata md;
-        if (raw == null)
-            md = new Metadata(null, null, 0, null);
-        else
-            md = (Metadata) SerializationUtils.deserialize(raw);
+        Metadata md = (Metadata) SerializationUtils.deserialize(raw);
         this.ts = md.ts;
         this.replicasLst = md.replicasLst;
         this.hash = md.getHash();
         this.size = md.getSize();
     }
 
-    public static Metadata getTombstone() {
-        return new Metadata(null, null, 0, null);
+    public static Metadata getTombstone(Timestamp ts) {
+        return new Metadata(ts, null, 0, null);
     }
 
     public byte[] serialize() {
@@ -139,7 +135,7 @@ public class Metadata implements Externalizable, Serializable {
     public boolean isTombstone() {
         return this.hash == null &&
                 this.replicasLst == null &&
-                this.ts == null;
+                this.size == 0;
     }
 
     public Timestamp getTs() { return this.ts; }

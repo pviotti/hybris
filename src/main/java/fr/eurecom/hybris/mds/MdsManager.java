@@ -36,7 +36,10 @@ public class MdsManager implements ConnectionStateListener {
     private final CuratorFramework zkCli;
     private final String storageRoot;
 
-    public static int NONODE = -1;      // integer marker to tell whether a znode has to be created
+    /* Integer marker to tell whether a znode has to be created.
+     * As Zookeeper setData API parameter it implies overwriting no matter which znode version.
+     */
+    public static int NONODE = -1;
 
     private final String gcRoot;
     private final String gcStaleDir;
@@ -196,7 +199,7 @@ public class MdsManager implements ConnectionStateListener {
                 }
 
             } else {
-                logger.error("Could not write ZNode " + key, e);
+                logger.error("Could not write ZNode " + key);
                 throw new HybrisException("Could not write the ZNode " + key, e);
             }
 
@@ -221,16 +224,8 @@ public class MdsManager implements ConnectionStateListener {
         String path = this.storageRoot + "/" + key;
         try {
             this.zkCli.sync().forPath(path);
-            /* NOTE: There is no synchronous version of this ZK API
-             * (https://issues.apache.org/jira/browse/ZOOKEEPER-1167ordering)
-             * however, order guarantees among operations allow not to wait for asynchronous callback to be called
-             */
             byte[] rawMd = this.zkCli.getData().storingStatIn(stat).forPath(path);
-            Metadata md = new Metadata(rawMd);
-            if (md.isTombstone())
-                return null;
-            else
-                return md;
+            return new Metadata(rawMd);
         } catch (KeeperException e) {
 
             if (e.code() == KeeperException.Code.NONODE)
@@ -282,25 +277,12 @@ public class MdsManager implements ConnectionStateListener {
     /**
      * Mark a key as deleted writing a tombstone value.
      * @param key
+     * @param tombstone the tombstone metadata to be written
+     * @param zkVersion
      * @throws HybrisException
      */
-    public void delete(String key) throws HybrisException {
-
-        String path = this.storageRoot + "/" + key;
-        try {
-            Metadata tombstoneMd = Metadata.getTombstone();
-            this.zkCli.setData().forPath(path, tombstoneMd.serialize());
-        } catch (KeeperException e) {
-
-            if (e.code() != KeeperException.Code.NONODE) {
-                logger.error("KeeperException, could not delete the ZNode " + path, e);
-                throw new HybrisException("KeeperException, could not delete the ZNode " + path, e);
-            }
-
-        } catch (Exception e) {
-            logger.error("Exception, could not delete the ZNode " + path, e);
-            throw new HybrisException("Exception, could not delete the ZNode " + path, e);
-        }
+    public void delete(String key, Metadata tombstone, int zkVersion) throws HybrisException {
+        this.tsWrite(key, tombstone, zkVersion);
     }
 
 

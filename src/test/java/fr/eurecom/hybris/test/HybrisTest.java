@@ -41,7 +41,6 @@ public class HybrisTest extends HybrisAbstractTest {
 
         hybris.write(key, value);
         byte[] output = hybris.read(key);
-        System.out.println(output.length);
         assertArrayEquals(value, output);
 
         hybris.delete(key);
