@@ -25,6 +25,7 @@ public class Config {
     public static String CACHE_ENABLED = "hybris.cache";
     public static String CACHE_ADDRESS = "hybris.cache.address";
     public static String CACHE_EXP = "hybris.cache.exp";
+    public static String CACHE_POLICY = "hybris.cache.policy";
 
     public static String MDS_ADDR = "hybris.mds.address";
     public static String MDS_ROOT = "hybris.mds.root";

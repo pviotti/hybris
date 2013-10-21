@@ -4,11 +4,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
+import fr.eurecom.hybris.Config;
 import fr.eurecom.hybris.Utils;
 import fr.eurecom.hybris.kvs.KvsManager.KvsId;
 import fr.eurecom.hybris.kvs.drivers.Kvs;
@@ -94,6 +98,8 @@ public class Metadata implements KryoSerializable {
         }
     }
 
+    private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
+
     private Timestamp ts;
     private byte[] hash;
     private int size;
@@ -128,7 +134,7 @@ public class Metadata implements KryoSerializable {
         Kryo kryo = new Kryo();
         kryo.register(Metadata.class);
         kryo.register(Timestamp.class);
-        byte[] buff = new byte[1000];
+        byte[] buff = new byte[512];
         Output output = new Output(buff);
         kryo.writeObject(output, this);
         output.close();
@@ -201,15 +207,20 @@ public class Metadata implements KryoSerializable {
             out.write(this.hash);
         out.writeInt(this.size);
 
+
         if (this.replicasLst != null)
             if (this.replicasLst.size() > 0)
                 for (int i=0; i<this.replicasLst.size(); i++)
-                    out.writeShort( KvsId.valueOf( this.replicasLst.get(i).getId().toUpperCase() ).getSerial() );
+                    try {
+                        out.writeShort( KvsId.valueOf( this.replicasLst.get(i).getId().toUpperCase() ).getSerial() );
+                    } catch (IllegalArgumentException e) {
+                        logger.error("Serialization of {} Kvs failed: Hybris could not find any suitable driver",
+                                this.replicasLst.get(i).getId().toUpperCase());
+                    }
             else
                 out.writeShort(-1);     // empty replicas array
         else
             out.writeShort(-2);         // null replicas array
-
     }
 
     public void read(Kryo kryo, Input in) {
@@ -236,26 +247,29 @@ public class Metadata implements KryoSerializable {
                 break;
             }
 
-            switch (KvsId.getIdFromSerial(rep)) {
-                case AMAZON:
-                    this.replicasLst.add(new Kvs(KvsId.AMAZON.toString(), null, false, 0));
-                    break;
-                case AZURE:
-                    this.replicasLst.add(new Kvs(KvsId.AZURE.toString(), null, false, 0));
-                    break;
-                case GOOGLE:
-                    this.replicasLst.add(new Kvs(KvsId.GOOGLE.toString(), null, false, 0));
-                    break;
-                case RACKSPACE:
-                    this.replicasLst.add(new Kvs(KvsId.RACKSPACE.toString(), null, false, 0));
-                    break;
-                case TRANSIENT:
-                    this.replicasLst.add(new Kvs(KvsId.TRANSIENT.toString(), null, false, 0));
-                    break;
-                default:
-                    break;
+            try {
+                switch (KvsId.getIdFromSerial(rep)) {
+                    case AMAZON:
+                        this.replicasLst.add(new Kvs(KvsId.AMAZON.toString(), null, false, 0));
+                        break;
+                    case AZURE:
+                        this.replicasLst.add(new Kvs(KvsId.AZURE.toString(), null, false, 0));
+                        break;
+                    case GOOGLE:
+                        this.replicasLst.add(new Kvs(KvsId.GOOGLE.toString(), null, false, 0));
+                        break;
+                    case RACKSPACE:
+                        this.replicasLst.add(new Kvs(KvsId.RACKSPACE.toString(), null, false, 0));
+                        break;
+                    case TRANSIENT:
+                        this.replicasLst.add(new Kvs(KvsId.TRANSIENT.toString(), null, false, 0));
+                        break;
+                    default:
+                        break;
+                }
+            } catch (IllegalArgumentException e) {
+                logger.error("Deserialization of {} Kvs failed: Hybris could not find any suitable driver", rep);
             }
         }
-
     }
 }

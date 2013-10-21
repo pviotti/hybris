@@ -66,7 +66,7 @@ public class KvsManager {
                 case 2: return GOOGLE;
                 case 3: return RACKSPACE;
                 case 4: return TRANSIENT;
-                default: return null;
+                default: throw new IllegalArgumentException();
             }
         }
 
@@ -322,9 +322,11 @@ public class KvsManager {
      * @throws IOException
      */
     public void emptyStorageContainer(Kvs kvStore) throws IOException {
+        logger.debug("Listing {}", kvStore);
         List<String> keys = kvStore.list();
         for (String key : keys)
             try {
+                logger.debug("Removing {} from {}", key, kvStore);
                 kvStore.delete(key);
             } catch (IOException e) { }
     }

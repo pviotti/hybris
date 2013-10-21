@@ -1,18 +1,22 @@
-package fr.eurecom.hybris.test;
+package fr.eurecom.hybris.test.mds;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.DataFormatException;
 
 import fr.eurecom.hybris.Utils;
 import fr.eurecom.hybris.kvs.drivers.Kvs;
 import fr.eurecom.hybris.kvs.drivers.TransientKvs;
 import fr.eurecom.hybris.mds.Metadata;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
+import fr.eurecom.hybris.test.HybrisAbstractTest;
 
 public class MetadataTest extends HybrisAbstractTest {
 
-    public void testSize() {
+    public void testSize() throws IOException, DataFormatException {
         String cid = Utils.generateClientId();
+        System.out.println(cid.toCharArray().length);
         Timestamp ts = new Timestamp(34, cid);
         byte[] hash = new byte[20];
         this.random.nextBytes(hash);
@@ -39,10 +43,12 @@ public class MetadataTest extends HybrisAbstractTest {
         //        System.out.println(md.kryoSerialize().length);  // 120 senza implementare kryoExternalizable, 45 con l'implementazione
         //        System.out.println(Metadata.kryoDeserialize(md.kryoSerialize()).equals(md));
 
+        System.out.println(md.serialize().length);
+        System.out.println(new Metadata(md.serialize()).equals(md));
 
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException, DataFormatException {
         new MetadataTest().testSize();
     }
 

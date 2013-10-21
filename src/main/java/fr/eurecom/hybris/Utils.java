@@ -1,8 +1,13 @@
 package fr.eurecom.hybris;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
+import java.util.zip.DataFormatException;
+import java.util.zip.Deflater;
+import java.util.zip.Inflater;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -64,5 +69,46 @@ public class Utils {
     public static Timestamp getTimestampfromKvsKey(String kvsKey) {
         String tsStr = kvsKey.split(KVS_KEY_SEPARATOR)[1];
         return Timestamp.parseString(tsStr);
+    }
+
+    public static byte[] compress(byte[] data) {    // XXX
+        ByteArrayOutputStream baos = null;
+        Deflater dfl = new Deflater(Deflater.BEST_COMPRESSION, true);
+        dfl.setInput(data);
+        dfl.finish();
+        baos = new ByteArrayOutputStream();
+        byte[] tmp = new byte[4*1024];
+        try{
+            while(!dfl.finished()){
+                int size = dfl.deflate(tmp);
+                baos.write(tmp, 0, size);
+            }
+        } catch (Exception ex){
+            ex.printStackTrace();
+            return data;
+        } finally {
+            try{
+                if(baos != null) baos.close();
+            } catch(Exception ex){}
+        }
+        return baos.toByteArray();
+    }
+
+    public static byte[] decompress(byte[] data) throws IOException, DataFormatException {  // XXX
+        Inflater inflater = new Inflater(true);
+        inflater.setInput(data);
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);
+        byte[] buffer = new byte[1024];
+        while (!inflater.finished()) {
+            int count = inflater.inflate(buffer);
+            outputStream.write(buffer, 0, count);
+        }
+        outputStream.close();
+        byte[] output = outputStream.toByteArray();
+
+        inflater.end();
+
+        return output;
     }
 }

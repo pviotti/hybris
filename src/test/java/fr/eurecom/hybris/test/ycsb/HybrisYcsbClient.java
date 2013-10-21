@@ -32,6 +32,8 @@ public class HybrisYcsbClient extends DB {
     private final String PROP_KVS_ACCOUNTS_FILE = "kvs.accountfile";
     private final String PROP_KVS_ROOT = "kvs.root";
 
+    private final String CACHING_POLICY = "onwrite";
+
     public void init() throws DBException {
 
         /*
@@ -54,7 +56,7 @@ public class HybrisYcsbClient extends DB {
         try {
             this.hybris = new Hybris(mdsAddress, MDS_TEST_ROOT, accountFile,
                     kvsRoot, true, t, 600, 600, false,
-                    cache, cacheAddress, cacheExp);
+                    cache, cacheAddress, cacheExp, this.CACHING_POLICY);
         } catch (HybrisException e) {
             e.printStackTrace();
             throw new DBException(e);
