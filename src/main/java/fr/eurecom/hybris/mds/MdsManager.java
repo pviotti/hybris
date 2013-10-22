@@ -211,7 +211,7 @@ public class MdsManager implements ConnectionStateListener {
 
 
     /**
-     * Timestamped read from metadata storage.
+     * Timestamped read ("slow read" in ZooKeeper parlance) from metadata storage.
      * @param key the key to read
      * @param stat the Stat Zookeeper object to be written with znode details
      * @return Metadata object

@@ -36,7 +36,7 @@ public class Metadata implements KryoSerializable {
 
         public static Timestamp parseString(String tsStr) {
             String[] tsParts = tsStr.split("_");
-            int n =Integer.parseInt(tsParts[0]);
+            int n = Integer.parseInt(tsParts[0]);
             String cid = tsParts[1];
             return new Timestamp(n, cid);
         }

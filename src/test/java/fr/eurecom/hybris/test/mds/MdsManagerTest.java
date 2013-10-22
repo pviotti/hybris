@@ -198,28 +198,6 @@ public class MdsManagerTest extends HybrisAbstractTest {
     }
 
     @Test
-    public void testTimestampOrdering() {
-        // Timestamps differing for the clientIds
-        Timestamp t1 = new Timestamp(2, "AAAAA");
-        Timestamp t2 = new Timestamp(2, "ZZZZZ");
-        assertTrue(t1.isGreater(t2));
-        assertFalse(t2.isGreater(t1));
-
-        // Timestamps differing for the num
-        t1.setNum(3);
-        t2.setNum(4);
-        assertTrue(t2.isGreater(t1));
-        assertFalse(t1.isGreater(t2));
-
-        // Equal timestamps
-        Timestamp t3 = new Timestamp(2, "XXXXXX");
-        Timestamp t4 = new Timestamp(2, "XXXXXX");
-        assertFalse(t3.isGreater(t4));
-        assertFalse(t4.isGreater(t3));
-        assertTrue(t3.equals(t4));
-    }
-
-    @Test
     public void testSerialization() throws HybrisException {
 
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
