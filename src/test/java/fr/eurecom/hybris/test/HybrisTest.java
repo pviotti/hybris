@@ -39,12 +39,12 @@ public class HybrisTest extends HybrisAbstractTest {
         byte[] value = new byte[50];
         this.random.nextBytes(value);
 
-        hybris.write(key, value);
-        byte[] output = hybris.read(key);
+        hybris.put(key, value);
+        byte[] output = hybris.get(key);
         assertArrayEquals(value, output);
 
         hybris.delete(key);
-        assertNull(hybris.read(key));
+        assertNull(hybris.get(key));
     }
 
     //    @Ignore
@@ -87,7 +87,7 @@ public class HybrisTest extends HybrisAbstractTest {
 
         long start = 0, end = 0;
         start = System.currentTimeMillis();
-        hybris.write(key1, payload);
+        hybris.put(key1, payload);
         end = System.currentTimeMillis();
         System.out.println("Parallel write: " + (end - start) + " ms");
         hybris.delete(key1);

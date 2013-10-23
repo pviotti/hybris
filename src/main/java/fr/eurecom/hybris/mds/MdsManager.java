@@ -288,6 +288,7 @@ public class MdsManager implements ConnectionStateListener {
 
     /**
      * Get all the stored metadata (filtering out tombstone values).
+     * XXX not scalable - for debugging purposes
      * @return a map of keys (String) and Metadata objects
      * @throws HybrisException
      */

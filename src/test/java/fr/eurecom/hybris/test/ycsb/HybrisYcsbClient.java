@@ -72,7 +72,7 @@ public class HybrisYcsbClient extends DB {
             HashMap<String, ByteIterator> result) {
 
         try {
-            byte[] value = this.hybris.read(key);
+            byte[] value = this.hybris.get(key);
             if (value == null)
                 return 1;
             else{
@@ -124,7 +124,7 @@ public class HybrisYcsbClient extends DB {
             }
 
         try {
-            this.hybris.write(key, baos.toByteArray());
+            this.hybris.put(key, baos.toByteArray());
             return 0;
         } catch (HybrisException e) {
             e.printStackTrace();

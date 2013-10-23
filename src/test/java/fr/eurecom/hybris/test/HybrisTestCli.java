@@ -86,7 +86,7 @@ public class HybrisTestCli implements Runnable {
 
     private void write(String key, byte[] value) {
         try {
-            this.hybris.write(key, value);
+            this.hybris.put(key, value);
         } catch (HybrisException e) {
             e.printStackTrace();
         }
@@ -94,7 +94,7 @@ public class HybrisTestCli implements Runnable {
 
     private byte[] read(String key) {
         try {
-            return this.hybris.read(key);
+            return this.hybris.get(key);
         } catch (HybrisException e) {
             e.printStackTrace();
             return null;

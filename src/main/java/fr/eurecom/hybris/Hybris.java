@@ -97,7 +97,7 @@ public class Hybris {
                 this.cacheEnabled = false;
             }
 
-        int t = Integer.parseInt(conf.getProperty(Config.HS_T));
+        int t = Integer.parseInt(conf.getProperty(Config.HS_F));
         this.quorum = t + 1;
         this.TIMEOUT_WRITE = Integer.parseInt(conf.getProperty(Config.HS_TO_WRITE));
         this.TIMEOUT_READ = Integer.parseInt(conf.getProperty(Config.HS_TO_READ));
@@ -172,7 +172,7 @@ public class Hybris {
      * @return the list of Kvs in which Hybris stored the data
      * @throws HybrisException
      */
-    public List<Kvs> write(String key, byte[] value) throws HybrisException {
+    public List<Kvs> put(String key, byte[] value) throws HybrisException {
 
         Timestamp ts;
         Stat stat = new Stat();
@@ -250,7 +250,7 @@ public class Hybris {
      * @return a byte array containing the value associated with <key>.
      * @throws HybrisException
      */
-    public byte[] read(String key) throws HybrisException {
+    public byte[] get(String key) throws HybrisException {
 
         Metadata md = this.mds.tsRead(key, null);
         if (md == null || md.isTombstone()) {
@@ -299,7 +299,7 @@ public class Hybris {
                     if (newMd.getTs().isGreater(md.getTs())) {    // it's because of concurrent gc
                         logger.warn("Could not get the value of {} from replica {} because of concurrent gc. Restarting read.",
                                 key, kvStore);
-                        return this.read(key);                          // trigger recursive read
+                        return this.get(key);                          // trigger recursive read
                     } else
                         continue;                                       // otherwise it's because of b.: let's try with the other ones
                 } else {                                                // the value does not exist anymore because of concurrent gc

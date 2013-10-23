@@ -64,9 +64,9 @@ public class HybrisGcTest extends HybrisAbstractTest {
         byte[] value3 = new BigInteger(50, this.random).toString(32).getBytes();
 
         // write 3 different versions of the same key and then gc
-        this.hybris.write(key, value1);
-        this.hybris.write(key, value2);
-        this.hybris.write(key, value3);
+        this.hybris.put(key, value1);
+        this.hybris.put(key, value2);
+        this.hybris.put(key, value3);
 
         this.hybris.new GcManager().gc(key);
 
@@ -77,7 +77,7 @@ public class HybrisGcTest extends HybrisAbstractTest {
         }
 
         // check that right versions are still there
-        byte[] retrieved = this.hybris.read(key);
+        byte[] retrieved = this.hybris.get(key);
         assertNotNull(retrieved);
         assertTrue(Arrays.equals(value3, retrieved));
     }
@@ -96,12 +96,12 @@ public class HybrisGcTest extends HybrisAbstractTest {
         byte[] value6 = new BigInteger(50, this.random).toString(32).getBytes();
 
         // populate stales
-        this.hybris.write(key1, value1);
-        this.hybris.write(key1, value2);
-        this.hybris.write(key1, value3);
+        this.hybris.put(key1, value1);
+        this.hybris.put(key1, value2);
+        this.hybris.put(key1, value3);
 
-        this.hybris.write(key2, value4);
-        this.hybris.write(key2, value5);
+        this.hybris.put(key2, value4);
+        this.hybris.put(key2, value5);
 
         // populate orphans
         Timestamp ts = new Timestamp(1, Utils.generateClientId());
@@ -130,15 +130,15 @@ public class HybrisGcTest extends HybrisAbstractTest {
             assertNull(this.kvs.get(provider, Utils.getKvsKey(key3, ts)));
 
         // check that right versions are still there
-        byte[] retrieved = this.hybris.read(key1);
+        byte[] retrieved = this.hybris.get(key1);
         assertNotNull(retrieved);
         assertTrue(Arrays.equals(value3, retrieved));
 
-        retrieved = this.hybris.read(key2);
+        retrieved = this.hybris.get(key2);
         assertNotNull(retrieved);
         assertTrue(Arrays.equals(value5, retrieved));
 
-        retrieved = this.hybris.read(key3);
+        retrieved = this.hybris.get(key3);
         assertNull(retrieved);
     }
 
@@ -161,12 +161,12 @@ public class HybrisGcTest extends HybrisAbstractTest {
         byte[] value6 = new BigInteger(50, this.random).toString(32).getBytes();
 
         // populate stales
-        this.hybris.write(key1, value1);
-        this.hybris.write(key1, value2);
-        this.hybris.write(key1, value3);
+        this.hybris.put(key1, value1);
+        this.hybris.put(key1, value2);
+        this.hybris.put(key1, value3);
 
-        this.hybris.write(key2, value4);
-        this.hybris.write(key2, value5);
+        this.hybris.put(key2, value4);
+        this.hybris.put(key2, value5);
 
         // make up a couple of orphans
         Timestamp ts = new Timestamp(1, Utils.generateClientId());
@@ -198,15 +198,15 @@ public class HybrisGcTest extends HybrisAbstractTest {
             assertNull(this.kvs.get(provider, Utils.getKvsKey(key3, ts)));
 
         // check that right versions are still there
-        byte[] retrieved = this.hybris.read(key1);
+        byte[] retrieved = this.hybris.get(key1);
         assertNotNull(retrieved);
         assertTrue(Arrays.equals(value3, retrieved));
 
-        retrieved = this.hybris.read(key2);
+        retrieved = this.hybris.get(key2);
         assertNotNull(retrieved);
         assertTrue(Arrays.equals(value5, retrieved));
 
-        retrieved = this.hybris.read(key3);
+        retrieved = this.hybris.get(key3);
         assertNull(retrieved);
     }
 }

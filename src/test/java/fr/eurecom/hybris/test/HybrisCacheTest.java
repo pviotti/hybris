@@ -56,12 +56,12 @@ public class HybrisCacheTest extends HybrisAbstractTest {
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         byte[] value = new byte[50];
         this.random.nextBytes(value);
-        hybris.write(key, value);
+        hybris.put(key, value);
 
         byte[] cached = (byte[]) cacheClient.get(Utils.getKvsKey(key, new Timestamp(0, clientId)));
         assertArrayEquals(value, cached);
 
-        byte[] retrieved = hybris.read(key);
+        byte[] retrieved = hybris.get(key);
         assertArrayEquals(value, retrieved);
     }
 
@@ -76,12 +76,12 @@ public class HybrisCacheTest extends HybrisAbstractTest {
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         byte[] value = new byte[50];
         this.random.nextBytes(value);
-        hybris.write(key, value);
+        hybris.put(key, value);
 
         Object cached = cacheClient.get(Utils.getKvsKey(key, new Timestamp(0, clientId)));
         assertNull(cached);
 
-        byte[] retrieved = hybris.read(key);
+        byte[] retrieved = hybris.get(key);
         assertArrayEquals(value, retrieved);
 
         cached = cacheClient.get(Utils.getKvsKey(key, new Timestamp(0, clientId)));
@@ -99,7 +99,7 @@ public class HybrisCacheTest extends HybrisAbstractTest {
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         byte[] value = new byte[50];
         this.random.nextBytes(value);
-        hybris.write(key, value);
+        hybris.put(key, value);
 
         String kvsKey = Utils.getKvsKey(key, new Timestamp(0, clientId));
 
@@ -113,7 +113,7 @@ public class HybrisCacheTest extends HybrisAbstractTest {
         cached = (byte[]) cacheClient.get(kvsKey);
         assertArrayEquals(tamperedValue, cached);
 
-        byte[] retrieved = hybris.read(key);
+        byte[] retrieved = hybris.get(key);
         assertArrayEquals(value, retrieved);
     }
 
@@ -128,12 +128,12 @@ public class HybrisCacheTest extends HybrisAbstractTest {
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         byte[] value = this.generatePayload(1000000, (byte) 'x');       // 1MB; depends on memcached settings
         this.random.nextBytes(value);
-        hybris.write(key, value);
+        hybris.put(key, value);
 
         byte[] cached = (byte[]) cacheClient.get(Utils.getKvsKey(key, new Timestamp(0, clientId)));
         assertArrayEquals(value, cached);
 
-        byte[] retrieved = hybris.read(key);
+        byte[] retrieved = hybris.get(key);
         assertArrayEquals(value, retrieved);
     }
 
@@ -145,8 +145,8 @@ public class HybrisCacheTest extends HybrisAbstractTest {
             String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
             byte[] value = new byte[50];
             this.random.nextBytes(value);
-            hybris.write(key, value);
-            byte[] retrieved = hybris.read(key);
+            hybris.put(key, value);
+            byte[] retrieved = hybris.get(key);
             assertArrayEquals(value, retrieved);
         } catch (HybrisException e) {
             fail();
