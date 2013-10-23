@@ -62,7 +62,8 @@ public class Hybris {
 
 
     /**
-     * Creates a Hybris client.
+     * Creates a Hybris client with the parameters specified
+     * in the given configuration file.
      * @param path to the Hybris properties file
      * @throws HybrisException
      */
@@ -101,7 +102,9 @@ public class Hybris {
         this.TIMEOUT_WRITE = Integer.parseInt(conf.getProperty(Config.HS_TO_WRITE));
         this.TIMEOUT_READ = Integer.parseInt(conf.getProperty(Config.HS_TO_READ));
         this.gcEnabled = Boolean.parseBoolean(conf.getProperty(Config.HS_GC));
-        this.clientId = Utils.generateClientId();
+        String cid = conf.getProperty(Config.HS_CLIENTID);
+        if (cid != null)    this.clientId = cid;
+        else                this.clientId = Utils.generateClientId();
     }
 
     /**
@@ -111,6 +114,7 @@ public class Hybris {
      * @param kvsAccountFile - path of the property file containing KVS accounts details.
      * @param kvsRoot - KVS container to adopt as root by the KVSs. If not existing it will be created.
      * @param kvsTestOnStartup - perform latency tests and sort KVSs accordingly.
+     * @param clientId - clientId - if null, it will be randomly generated.
      * @param t - number of tolerated faulty KVS replicas.
      * @param writeTimeout - timeout to adopt when writing on KVSs (seconds).
      * @param readTimeout - timeout to adopt when reading from KVSs (seconds).
@@ -123,7 +127,7 @@ public class Hybris {
      */
     public Hybris(String zkAddress, String zkRoot,
             String kvsAccountFile, String kvsRoot, boolean kvsTestOnStartup,
-            int t, int writeTimeout, int readTimeout, boolean gcEnabled,
+            String clientId, int t, int writeTimeout, int readTimeout, boolean gcEnabled,
             boolean cachingEnable, String memcachedAddrs, int cacheExp, String cachePolicy) throws HybrisException {
         try {
             this.mds = new MdsManager(zkAddress, zkRoot);
@@ -143,7 +147,7 @@ public class Hybris {
                         AddrUtil.getAddresses(memcachedAddrs));
                 this.cacheExp = cacheExp;
                 this.cachePolicy = CachePolicy.valueOf(cachePolicy.toUpperCase());
-            } catch (IOException e) {
+            } catch (Exception e) {
                 logger.warn("Could not initialize the caching client. Please check its settings.", e);
                 this.cacheEnabled = false;
             }
@@ -152,7 +156,8 @@ public class Hybris {
         this.TIMEOUT_WRITE = writeTimeout;
         this.TIMEOUT_READ = readTimeout;
         this.gcEnabled = gcEnabled;
-        this.clientId = Utils.generateClientId();
+        if (clientId != null)   this.clientId = clientId;
+        else                    this.clientId = Utils.generateClientId();
     }
 
 
@@ -220,7 +225,7 @@ public class Hybris {
         }
 
         if (this.cacheEnabled && CachePolicy.ONWRITE.equals(this.cachePolicy))
-            this.cache.add(kvsKey, this.cacheExp, value);
+            this.cache.set(kvsKey, this.cacheExp, value);
 
         boolean overwritten = false;
         try {
@@ -280,7 +285,7 @@ public class Hybris {
                 if (Arrays.equals(md.getHash(), Utils.getHash(value))) {
                     logger.info("Value of {} retrieved from kvStore {}", key, kvStore);
                     if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))
-                        this.cache.add(kvsKey, this.cacheExp, value);
+                        this.cache.set(kvsKey, this.cacheExp, value);
                     return value;
                 } else      // The hash doesn't match: byzantine fault: let's try with the other ones
                     continue;

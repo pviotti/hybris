@@ -18,6 +18,7 @@ public class Config {
     public static String LOGGER_NAME = "hybrisLogger";
 
     public static String HS_T = "hybris.t";
+    public static String HS_CLIENTID = "hybris.clientid";
     public static String HS_TO_WRITE = "hybris.timeoutwrite";
     public static String HS_TO_READ = "hybris.timeoutread";
     public static String HS_GC = "hybris.gc";

@@ -95,7 +95,13 @@
     <dependency>
         <groupId>net.spy</groupId>
         <artifactId>spymemcached</artifactId>
-        <version>2.10.0</version>
+        <version>2.10.1</version>
+    </dependency>
+    
+    <dependency>
+        <groupId>com.esotericsoftware.kryo</groupId>
+        <artifactId>kryo</artifactId>
+        <version>2.22</version>
     </dependency>
     
     <!-- Testing dependencies -->
@@ -125,13 +131,7 @@
         <artifactId>curator-test</artifactId>
         <version>2.2.0-incubating</version>
     </dependency>
-    
-    <dependency>
-        <groupId>com.esotericsoftware.kryo</groupId>
-        <artifactId>kryo</artifactId>
-        <version>2.22</version>
-    </dependency>
-            
+
   </dependencies>
   
   <build>

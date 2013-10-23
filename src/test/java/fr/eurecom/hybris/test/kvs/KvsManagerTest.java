@@ -28,7 +28,7 @@ public class KvsManagerTest extends HybrisAbstractTest {
 
     private static KvsManager kvs;
 
-    private static String KVS_ROOT = "kvstest-root-prova";
+    private static String KVS_ROOT = "kvstest-root-test";
 
     @BeforeClass
     public static void beforeClassSetup() throws IOException {

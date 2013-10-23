@@ -47,15 +47,8 @@ public class Utils {
     }
 
     public static String generateClientId() {
-
-        // TODO
-        //        if (this.clientId == null)
-        //            try {
-        //                clientId = InetAddress.getLocalHost().getHostName();
-        //            } catch (UnknownHostException e) {
+        //InetAddress.getLocalHost().getHostName();
         return UUID.randomUUID().toString().replace("-", "").substring(0, 10);
-        //            }
-        //        return this.clientId;
     }
 
     public static String getKvsKey(String key, Timestamp ts) {
