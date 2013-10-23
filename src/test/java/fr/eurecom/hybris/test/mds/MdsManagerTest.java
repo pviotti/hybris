@@ -180,6 +180,35 @@ public class MdsManagerTest extends HybrisAbstractTest {
     }
 
     @Test
+    public void testTombstoneTimestamp() {
+
+        String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
+        List<Kvs> replicas = new ArrayList<Kvs>();
+        replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
+        byte[] hash = new byte[20];
+        this.random.nextBytes(hash);
+        String cid1 = "ZZZ";
+
+        try {
+            int n = 0;
+            mds.tsWrite(key, new Metadata(new Timestamp(n, cid1), hash, 0, replicas), -1);      // znode does not exist, create hver. 0, zkver. 0
+
+            n++;
+            mds.delete(key, Metadata.getTombstone(new Timestamp(n, cid1)), 0);
+
+            Stat stat = new Stat();
+            Metadata readMd = mds.tsRead(key, stat);
+            assertTrue(readMd.isTombstone());
+            assertEquals(n, readMd.getTs().getNum());
+            assertEquals(cid1, readMd.getTs().getCid());
+            assertEquals(1, stat.getVersion());
+        } catch (HybrisException e) {
+            e.printStackTrace();
+            fail();
+        }
+    }
+
+    @Test
     public void testReadNotExistingKey() {
 
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
