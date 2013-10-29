@@ -102,18 +102,18 @@ public class Metadata implements KryoSerializable {
 
     private Timestamp ts;
     private byte[] hash;
-    private byte[] cryptoKey;
+    private byte[] cryptoKeyIV;
     private int size;
     private List<Kvs> replicasLst;
 
     public Metadata() { }
     public Metadata(Timestamp ts, byte[] hash, int size,
-            List<Kvs> replicas, byte[] cryptoKey) {
+            List<Kvs> replicas, byte[] cryptoKeyIV) {
         this.ts = ts;
         this.hash = hash;
         this.size = size;
         this.replicasLst = replicas;
-        this.cryptoKey = cryptoKey;
+        this.cryptoKeyIV = cryptoKeyIV;
     }
 
     public Metadata(byte[] raw) {
@@ -126,7 +126,7 @@ public class Metadata implements KryoSerializable {
         this.ts = md.getTs();
         this.replicasLst = md.getReplicasLst();
         this.hash = md.getHash();
-        this.cryptoKey = md.getCryptoKey();
+        this.cryptoKeyIV = md.getCryptoKeyIV();
         this.size = md.getSize();
     }
 
@@ -149,7 +149,7 @@ public class Metadata implements KryoSerializable {
         return this.hash == null &&
                 this.replicasLst == null &&
                 this.size == 0 &&
-                this.cryptoKey == null;
+                this.cryptoKeyIV == null;
     }
 
     public Timestamp getTs() { return this.ts; }
@@ -160,19 +160,18 @@ public class Metadata implements KryoSerializable {
     public void setHash(byte[] hash) { this.hash = hash; }
     public int getSize() { return this.size; }
     public void setSize(int s) { this.size = s; }
-    public byte[] getCryptoKey() { return this.cryptoKey; }
-    public void setCryptoKey(byte[] cryptoKey) { this.cryptoKey = cryptoKey; }
+    public byte[] getCryptoKeyIV() { return this.cryptoKeyIV; }
 
     public String toString() {
         return "Metadata [ts=" + this.ts + ", hash=" + Utils.bytesToHexStr(this.hash)
                 + ", size=" + this.size + ", replicasLst=" + this.replicasLst
-                + ", cryptoKey=" + Utils.bytesToHexStr(this.cryptoKey) + "]";
+                + ", cryptoKeyIV=" + Utils.bytesToHexStr(this.cryptoKeyIV) + "]";
     }
 
     public int hashCode() {
         final int prime = 31;
         int result = 1;
-        result = prime * result + Arrays.hashCode(this.cryptoKey);
+        result = prime * result + Arrays.hashCode(this.cryptoKeyIV);
         result = prime * result + Arrays.hashCode(this.hash);
         result = prime * result
                 + (this.replicasLst == null ? 0 : this.replicasLst.hashCode());
@@ -189,7 +188,7 @@ public class Metadata implements KryoSerializable {
         if (this.getClass() != obj.getClass())
             return false;
         Metadata other = (Metadata) obj;
-        if (!Arrays.equals(this.cryptoKey, other.cryptoKey))
+        if (!Arrays.equals(this.cryptoKeyIV, other.cryptoKeyIV))
             return false;
         if (!Arrays.equals(this.hash, other.hash))
             return false;
@@ -218,12 +217,12 @@ public class Metadata implements KryoSerializable {
         } else
             out.write(this.hash);
 
-        if (this.cryptoKey == null){
-            byte[] ba = new byte[Utils.CRYPTOKEY_LENGTH];
+        if (this.cryptoKeyIV == null){
+            byte[] ba = new byte[Utils.CRYPTO_LENGTH];
             Arrays.fill(ba, (byte) 0x0);
             out.write(ba);
         } else
-            out.write(this.cryptoKey);
+            out.write(this.cryptoKeyIV);
 
         out.writeInt(this.size);
 
@@ -251,11 +250,11 @@ public class Metadata implements KryoSerializable {
         if (Arrays.equals(ba, this.hash))
             this.hash = null;
 
-        this.cryptoKey = in.readBytes(Utils.CRYPTOKEY_LENGTH);
-        ba = new byte[Utils.CRYPTOKEY_LENGTH];
+        this.cryptoKeyIV = in.readBytes(Utils.CRYPTO_LENGTH);
+        ba = new byte[Utils.CRYPTO_LENGTH];
         Arrays.fill(ba, (byte) 0x0);
-        if (Arrays.equals(ba, this.cryptoKey))
-            this.cryptoKey = null;
+        if (Arrays.equals(ba, this.cryptoKeyIV))
+            this.cryptoKeyIV = null;
 
         this.size = in.readInt();
 

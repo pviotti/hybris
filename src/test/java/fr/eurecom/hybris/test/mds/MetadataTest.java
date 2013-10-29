@@ -30,7 +30,7 @@ public class MetadataTest extends HybrisAbstractTest {
         int size = this.random.nextInt(5000);
         Timestamp ts = new Timestamp(n, Utils.generateClientId());
         byte[] hash = new byte[Utils.HASH_LENGTH];
-        byte[] cryptoKey = new byte[Utils.CRYPTOKEY_LENGTH];
+        byte[] cryptoKey = new byte[Utils.CRYPTO_LENGTH];
         this.random.nextBytes(hash);
         this.random.nextBytes(cryptoKey);
         List<Kvs> replicas = new ArrayList<Kvs>();
@@ -70,7 +70,7 @@ public class MetadataTest extends HybrisAbstractTest {
         Timestamp ts = new Timestamp(n, Utils.generateClientId());
         byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
-        byte[] cryptoKey = new byte[Utils.CRYPTOKEY_LENGTH];
+        byte[] cryptoKey = new byte[Utils.CRYPTO_LENGTH];
         this.random.nextBytes(cryptoKey);
 
         // replica list == null
@@ -120,7 +120,7 @@ public class MetadataTest extends HybrisAbstractTest {
         assertTrue(md.isTombstone());
         assertNull(md.getReplicasLst());
         assertNull(md.getHash());
-        assertNull(md.getCryptoKey());
+        assertNull(md.getCryptoKeyIV());
         assertNotNull(md.getTs());
         assertEquals(0, md.getSize());
         assertEquals(ts, md.getTs());

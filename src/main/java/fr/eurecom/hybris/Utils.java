@@ -9,6 +9,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.UUID;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
@@ -26,22 +27,23 @@ import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 public class Utils {
 
-    public final static int HASH_LENGTH = 20;       // length of hash digest
-    public final static int CRYPTOKEY_LENGTH = 16;  // length of cryptographic key
+    /** length of hash digest */
+    public final static int HASH_LENGTH = 20;
 
+    /** length of cryptographic material: IV (16) + key (16,24,32) */
+    public final static int CRYPTO_LENGTH = 16 + 16;
+
+    /** KVS key separator */
     private final static String KVS_KEY_SEPARATOR = "#";
+
+    /** encryption algorithm */
     private final static String ENC_ALGORITHM = "AES";
     private final static String ENC_ALGORITHM_MODE = "AES/CFB/NoPadding";
+
+    /** hashing algorithm */
     private final static String HASH_ALGORITHM = "SHA-1";
 
     private final static SecureRandom random = new SecureRandom();
-
-    /* The AES IV is hardcoded since when using AES in CFB mode, reusing an IV leaks some information
-     * about the first block of plaintext but it does not compromise the overall security.
-     */
-    private final static byte[] IV = {
-        23, 54, 35, 88, 28, 49, 49, 85,
-        124, 33, -40, 119, -43, 91, 76, 19 };
 
     public static byte[] getHash(byte[] inputBytes) {
         MessageDigest hash;
@@ -96,28 +98,59 @@ public class Utils {
 
     /* -------------------------------------- Encryption / decryption functions -------------------------------------- */
 
-    public static byte[] encrypt(byte[] plainValue, byte[] encryptionKey)
+    /**
+     * Encrypts the given plaintext using the supplied array, which is composed of
+     * the initialization vector (16 byte) and the symmetric key (remaining bytes).
+     * @param plainValue
+     * @param encKeyIV - byte array composed as follows: 16 bytes of IV + key (remaining bytes)
+     * @return byte[]
+     * @throws NoSuchAlgorithmException
+     * @throws NoSuchProviderException
+     * @throws NoSuchPaddingException
+     * @throws InvalidKeyException
+     * @throws IllegalBlockSizeException
+     * @throws BadPaddingException
+     * @throws InvalidAlgorithmParameterException
+     */
+    public static byte[] encrypt(byte[] plainValue, byte[] encKeyIV)
             throws NoSuchAlgorithmException, NoSuchProviderException, NoSuchPaddingException,
             InvalidKeyException, IllegalBlockSizeException, BadPaddingException,
             InvalidAlgorithmParameterException {
+        byte[] iv = Arrays.copyOfRange(encKeyIV, 0, 16);
+        byte[] encKey = Arrays.copyOfRange(encKeyIV, 16, encKeyIV.length);
         Cipher cipher = Cipher.getInstance(ENC_ALGORITHM_MODE);
-        SecretKeySpec key = new SecretKeySpec(encryptionKey, ENC_ALGORITHM);
-        IvParameterSpec ivSpec = new IvParameterSpec(IV);
+        SecretKeySpec key = new SecretKeySpec(encKey, ENC_ALGORITHM);
+        IvParameterSpec ivSpec = new IvParameterSpec(iv);
         cipher.init(Cipher.ENCRYPT_MODE, key, ivSpec);
         return cipher.doFinal(plainValue);
     }
 
-    public static byte[] decrypt(byte[] cipherText, byte[] encryptionKey)
+    /**
+     * Decrypts the given ciphertext using AES algorithm and the supplied array, which is composed of
+     * the initialization vector (16 byte) and the symmetric key (remaining bytes).
+     * @param cipherText
+     * @param encKeyIV - byte array composed as follows: 16 bytes of IV + key (remaining bytes)
+     * @return byte[]
+     * @throws NoSuchAlgorithmException
+     * @throws NoSuchPaddingException
+     * @throws InvalidKeyException
+     * @throws UnsupportedEncodingException
+     * @throws IllegalBlockSizeException
+     * @throws BadPaddingException
+     * @throws InvalidAlgorithmParameterException
+     */
+    public static byte[] decrypt(byte[] cipherText, byte[] encKeyIV)
             throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
             UnsupportedEncodingException, IllegalBlockSizeException, BadPaddingException,
             InvalidAlgorithmParameterException {
+        byte[] iv = Arrays.copyOfRange(encKeyIV, 0, 16);
+        byte[] encKey = Arrays.copyOfRange(encKeyIV, 16, encKeyIV.length);
         Cipher cipher = Cipher.getInstance(ENC_ALGORITHM_MODE);
-        SecretKeySpec key = new SecretKeySpec(encryptionKey, ENC_ALGORITHM);
-        IvParameterSpec ivSpec = new IvParameterSpec(IV);
+        SecretKeySpec key = new SecretKeySpec(encKey, ENC_ALGORITHM);
+        IvParameterSpec ivSpec = new IvParameterSpec(iv);
         cipher.init(Cipher.DECRYPT_MODE, key, ivSpec);
         return cipher.doFinal(cipherText);
     }
-
 
     /* -------------------------------------- Data compression functions -------------------------------------- */
 

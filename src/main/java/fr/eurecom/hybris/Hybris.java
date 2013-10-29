@@ -193,21 +193,21 @@ public class Hybris {
             ts.inc( this.clientId );
         }
 
-        byte[] cryptoKey = null;
+        byte[] cryptoKeyIV = null;
         if (this.cryptoEnabled) {
-            if (md == null || md.getCryptoKey() == null) {
+            if (md == null || md.getCryptoKeyIV() == null) {
                 logger.debug("Generating new encryption key for key {}", key);
-                cryptoKey = new byte[Utils.CRYPTOKEY_LENGTH];
-                cryptoKey = Utils.generateRandomBytes(cryptoKey);
+                cryptoKeyIV = new byte[Utils.CRYPTO_LENGTH];
+                cryptoKeyIV = Utils.generateRandomBytes(cryptoKeyIV);
             } else
-                cryptoKey = md.getCryptoKey();
+                cryptoKeyIV = md.getCryptoKeyIV();
 
             try {
                 logger.debug("Encrypting data for key {}", key);
-                value = Utils.encrypt(value, cryptoKey);
+                value = Utils.encrypt(value, cryptoKeyIV);
             } catch(GeneralSecurityException e) {
                 logger.error("Could not encrypt data", e);
-                cryptoKey = null;
+                cryptoKeyIV = null;
             }
         }
 
@@ -255,7 +255,7 @@ public class Hybris {
 
         boolean overwritten = false;
         try {
-            Metadata newMd = new Metadata(ts, Utils.getHash(value), value.length, savedReplicasLst, cryptoKey);
+            Metadata newMd = new Metadata(ts, Utils.getHash(value), value.length, savedReplicasLst, cryptoKeyIV);
             overwritten = this.mds.tsWrite(key, newMd, stat.getVersion());
         } catch (HybrisException e) {
             if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
@@ -291,10 +291,10 @@ public class Hybris {
             value = (byte[]) this.cache.get(kvsKey);
             if (value != null && Arrays.equals(md.getHash(), Utils.getHash(value))) {
 
-                if (md.getCryptoKey() != null)
+                if (md.getCryptoKeyIV() != null)
                     try {
                         logger.debug("Decrypting data for key {}", key);
-                        value = Utils.decrypt(value, md.getCryptoKey());
+                        value = Utils.decrypt(value, md.getCryptoKeyIV());
                     } catch (GeneralSecurityException | UnsupportedEncodingException e) {
                         logger.error("Could not decrypt data", e);
                         throw new HybrisException("Could not decrypt data", e);
@@ -323,10 +323,10 @@ public class Hybris {
                     if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))
                         this.cache.set(kvsKey, this.cacheExp, value);
 
-                    if (md.getCryptoKey() != null)
+                    if (md.getCryptoKeyIV() != null)
                         try {
                             logger.debug("Decrypting data for key {}", key);
-                            value = Utils.decrypt(value, md.getCryptoKey());
+                            value = Utils.decrypt(value, md.getCryptoKeyIV());
                         } catch (GeneralSecurityException | UnsupportedEncodingException e) {
                             logger.error("Could not decrypt data", e);
                             throw new HybrisException("Could not decrypt data", e);
