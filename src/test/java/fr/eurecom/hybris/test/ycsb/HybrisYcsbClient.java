@@ -55,7 +55,7 @@ public class HybrisYcsbClient extends DB {
 
         try {
             this.hybris = new Hybris(mdsAddress, MDS_TEST_ROOT, accountFile,
-                    kvsRoot, true, null, t, 600, 600, false,
+                    kvsRoot, true, null, t, 600, 600, false, false,
                     cache, cacheAddress, cacheExp, this.CACHING_POLICY);
         } catch (HybrisException e) {
             e.printStackTrace();

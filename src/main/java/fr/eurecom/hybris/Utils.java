@@ -2,27 +2,51 @@ package fr.eurecom.hybris;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.SecureRandom;
 import java.util.UUID;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
 
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 public class Utils {
 
-    private static String KVS_KEY_SEPARATOR = "#";
+    public final static int HASH_LENGTH = 20;       // length of hash digest
+    public final static int CRYPTOKEY_LENGTH = 16;  // length of cryptographic key
 
-    public static int HASH_LENGTH = 20; // length of hash digest
+    private final static String KVS_KEY_SEPARATOR = "#";
+    private final static String ENC_ALGORITHM = "AES";
+    private final static String ENC_ALGORITHM_MODE = "AES/CFB/NoPadding";
+    private final static String HASH_ALGORITHM = "SHA-1";
+
+    private final static SecureRandom random = new SecureRandom();
+
+    /* The AES IV is hardcoded since when using AES in CFB mode, reusing an IV leaks some information
+     * about the first block of plaintext but it does not compromise the overall security.
+     */
+    private final static byte[] IV = {
+        23, 54, 35, 88, 28, 49, 49, 85,
+        124, 33, -40, 119, -43, 91, 76, 19 };
 
     public static byte[] getHash(byte[] inputBytes) {
         MessageDigest hash;
         try {
-            hash = MessageDigest.getInstance("SHA-1");
+            hash = MessageDigest.getInstance(HASH_ALGORITHM);
             hash.reset();
             hash.update(inputBytes);
             return hash.digest();
@@ -63,6 +87,39 @@ public class Utils {
         String tsStr = kvsKey.split(KVS_KEY_SEPARATOR)[1];
         return Timestamp.parseString(tsStr);
     }
+
+    public static byte[] generateRandomBytes(byte[] array) {
+        random.nextBytes(array);
+        return array;
+    }
+
+
+    /* -------------------------------------- Encryption / decryption functions -------------------------------------- */
+
+    public static byte[] encrypt(byte[] plainValue, byte[] encryptionKey)
+            throws NoSuchAlgorithmException, NoSuchProviderException, NoSuchPaddingException,
+            InvalidKeyException, IllegalBlockSizeException, BadPaddingException,
+            InvalidAlgorithmParameterException {
+        Cipher cipher = Cipher.getInstance(ENC_ALGORITHM_MODE);
+        SecretKeySpec key = new SecretKeySpec(encryptionKey, ENC_ALGORITHM);
+        IvParameterSpec ivSpec = new IvParameterSpec(IV);
+        cipher.init(Cipher.ENCRYPT_MODE, key, ivSpec);
+        return cipher.doFinal(plainValue);
+    }
+
+    public static byte[] decrypt(byte[] cipherText, byte[] encryptionKey)
+            throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
+            UnsupportedEncodingException, IllegalBlockSizeException, BadPaddingException,
+            InvalidAlgorithmParameterException {
+        Cipher cipher = Cipher.getInstance(ENC_ALGORITHM_MODE);
+        SecretKeySpec key = new SecretKeySpec(encryptionKey, ENC_ALGORITHM);
+        IvParameterSpec ivSpec = new IvParameterSpec(IV);
+        cipher.init(Cipher.DECRYPT_MODE, key, ivSpec);
+        return cipher.doFinal(cipherText);
+    }
+
+
+    /* -------------------------------------- Data compression functions -------------------------------------- */
 
     public static byte[] compress(byte[] data) {    // XXX
         ByteArrayOutputStream baos = null;

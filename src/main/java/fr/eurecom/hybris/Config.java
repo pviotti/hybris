@@ -23,6 +23,8 @@ public class Config {
     public static String HS_TO_READ = "hybris.timeoutread";
     public static String HS_GC = "hybris.gc";
 
+    public static String HS_CRYPTO = "hybris.crypto";
+
     public static String CACHE_ENABLED = "hybris.cache";
     public static String CACHE_ADDRESS = "hybris.cache.address";
     public static String CACHE_EXP = "hybris.cache.exp";

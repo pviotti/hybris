@@ -102,15 +102,18 @@ public class Metadata implements KryoSerializable {
 
     private Timestamp ts;
     private byte[] hash;
+    private byte[] cryptoKey;
     private int size;
     private List<Kvs> replicasLst;
 
     public Metadata() { }
-    public Metadata(Timestamp ts, byte[] hash, int size, List<Kvs> replicas) {
+    public Metadata(Timestamp ts, byte[] hash, int size,
+            List<Kvs> replicas, byte[] cryptoKey) {
         this.ts = ts;
         this.hash = hash;
         this.size = size;
         this.replicasLst = replicas;
+        this.cryptoKey = cryptoKey;
     }
 
     public Metadata(byte[] raw) {
@@ -120,14 +123,15 @@ public class Metadata implements KryoSerializable {
         Input input = new Input(raw);
         Metadata md = kryo.readObject(input, Metadata.class);
         input.close();
-        this.ts = md.ts;
-        this.replicasLst = md.replicasLst;
+        this.ts = md.getTs();
+        this.replicasLst = md.getReplicasLst();
         this.hash = md.getHash();
+        this.cryptoKey = md.getCryptoKey();
         this.size = md.getSize();
     }
 
     public static Metadata getTombstone(Timestamp ts) {
-        return new Metadata(ts, null, 0, null);
+        return new Metadata(ts, null, 0, null, null);
     }
 
     public byte[] serialize() {
@@ -144,7 +148,8 @@ public class Metadata implements KryoSerializable {
     public boolean isTombstone() {
         return this.hash == null &&
                 this.replicasLst == null &&
-                this.size == 0;
+                this.size == 0 &&
+                this.cryptoKey == null;
     }
 
     public Timestamp getTs() { return this.ts; }
@@ -155,15 +160,19 @@ public class Metadata implements KryoSerializable {
     public void setHash(byte[] hash) { this.hash = hash; }
     public int getSize() { return this.size; }
     public void setSize(int s) { this.size = s; }
+    public byte[] getCryptoKey() { return this.cryptoKey; }
+    public void setCryptoKey(byte[] cryptoKey) { this.cryptoKey = cryptoKey; }
 
     public String toString() {
         return "Metadata [ts=" + this.ts + ", hash=" + Utils.bytesToHexStr(this.hash)
-                + ", size=" + this.size + ", replicasLst=" + this.replicasLst + "]";
+                + ", size=" + this.size + ", replicasLst=" + this.replicasLst
+                + ", cryptoKey=" + Utils.bytesToHexStr(this.cryptoKey) + "]";
     }
 
     public int hashCode() {
         final int prime = 31;
         int result = 1;
+        result = prime * result + Arrays.hashCode(this.cryptoKey);
         result = prime * result + Arrays.hashCode(this.hash);
         result = prime * result
                 + (this.replicasLst == null ? 0 : this.replicasLst.hashCode());
@@ -180,6 +189,8 @@ public class Metadata implements KryoSerializable {
         if (this.getClass() != obj.getClass())
             return false;
         Metadata other = (Metadata) obj;
+        if (!Arrays.equals(this.cryptoKey, other.cryptoKey))
+            return false;
         if (!Arrays.equals(this.hash, other.hash))
             return false;
         if (this.replicasLst == null) {
@@ -199,14 +210,22 @@ public class Metadata implements KryoSerializable {
 
     public void write(Kryo kryo, Output out) {
         kryo.writeClassAndObject(out, this.ts);
+
         if (this.hash == null){
             byte[] ba = new byte[Utils.HASH_LENGTH];
             Arrays.fill(ba, (byte) 0x0);
             out.write(ba);
         } else
             out.write(this.hash);
-        out.writeInt(this.size);
 
+        if (this.cryptoKey == null){
+            byte[] ba = new byte[Utils.CRYPTOKEY_LENGTH];
+            Arrays.fill(ba, (byte) 0x0);
+            out.write(ba);
+        } else
+            out.write(this.cryptoKey);
+
+        out.writeInt(this.size);
 
         if (this.replicasLst != null)
             if (this.replicasLst.size() > 0)
@@ -225,11 +244,19 @@ public class Metadata implements KryoSerializable {
 
     public void read(Kryo kryo, Input in) {
         this.ts = (Timestamp) kryo.readClassAndObject(in);
+
         this.hash = in.readBytes(Utils.HASH_LENGTH);
         byte[] ba = new byte[Utils.HASH_LENGTH];
         Arrays.fill(ba, (byte) 0x0);
         if (Arrays.equals(ba, this.hash))
             this.hash = null;
+
+        this.cryptoKey = in.readBytes(Utils.CRYPTOKEY_LENGTH);
+        ba = new byte[Utils.CRYPTOKEY_LENGTH];
+        Arrays.fill(ba, (byte) 0x0);
+        if (Arrays.equals(ba, this.cryptoKey))
+            this.cryptoKey = null;
+
         this.size = in.readInt();
 
         this.replicasLst = new ArrayList<Kvs>();

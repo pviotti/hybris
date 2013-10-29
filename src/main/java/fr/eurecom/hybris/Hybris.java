@@ -1,6 +1,8 @@
 package fr.eurecom.hybris;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -58,6 +60,9 @@ public class Hybris {
     /* GC */
     private final boolean gcEnabled;
 
+    /* confidentiality */
+    private final boolean cryptoEnabled;
+
     private final String clientId;
 
 
@@ -102,6 +107,7 @@ public class Hybris {
         this.TIMEOUT_WRITE = Integer.parseInt(conf.getProperty(Config.HS_TO_WRITE));
         this.TIMEOUT_READ = Integer.parseInt(conf.getProperty(Config.HS_TO_READ));
         this.gcEnabled = Boolean.parseBoolean(conf.getProperty(Config.HS_GC));
+        this.cryptoEnabled = Boolean.parseBoolean(conf.getProperty(Config.HS_CRYPTO));
         String cid = conf.getProperty(Config.HS_CLIENTID);
         if (cid != null)    this.clientId = cid;
         else                this.clientId = Utils.generateClientId();
@@ -118,8 +124,9 @@ public class Hybris {
      * @param t - number of tolerated faulty KVS replicas.
      * @param writeTimeout - timeout to adopt when writing on KVSs (seconds).
      * @param readTimeout - timeout to adopt when reading from KVSs (seconds).
-     * @param gcEnabled - enable KVS garbage collection.
-     * @param cachingEnable - enable caching.
+     * @param gcEnabled - enables KVS garbage collection.
+     * @param cryptoEnabled - enables data confidentiality support.
+     * @param cachingEnable - enables caching.
      * @param memcachedAddrs - list of comma separated addresses of Memcached servers.
      * @param cacheExp - caching default expiration timeout (seconds).
      * @param cachePolicy - caching policy, either "onread" or "onwrite"
@@ -127,7 +134,7 @@ public class Hybris {
      */
     public Hybris(String zkAddress, String zkRoot,
             String kvsAccountFile, String kvsRoot, boolean kvsTestOnStartup,
-            String clientId, int t, int writeTimeout, int readTimeout, boolean gcEnabled,
+            String clientId, int t, int writeTimeout, int readTimeout, boolean gcEnabled, boolean cryptoEnabled,
             boolean cachingEnable, String memcachedAddrs, int cacheExp, String cachePolicy) throws HybrisException {
         try {
             this.mds = new MdsManager(zkAddress, zkRoot);
@@ -156,6 +163,7 @@ public class Hybris {
         this.TIMEOUT_WRITE = writeTimeout;
         this.TIMEOUT_READ = readTimeout;
         this.gcEnabled = gcEnabled;
+        this.cryptoEnabled = cryptoEnabled;
         if (clientId != null)   this.clientId = clientId;
         else                    this.clientId = Utils.generateClientId();
     }
@@ -183,6 +191,24 @@ public class Hybris {
         } else {
             ts = md.getTs();
             ts.inc( this.clientId );
+        }
+
+        byte[] cryptoKey = null;
+        if (this.cryptoEnabled) {
+            if (md == null || md.getCryptoKey() == null) {
+                logger.debug("Generating new encryption key for key {}", key);
+                cryptoKey = new byte[Utils.CRYPTOKEY_LENGTH];
+                cryptoKey = Utils.generateRandomBytes(cryptoKey);
+            } else
+                cryptoKey = md.getCryptoKey();
+
+            try {
+                logger.debug("Encrypting data for key {}", key);
+                value = Utils.encrypt(value, cryptoKey);
+            } catch(GeneralSecurityException e) {
+                logger.error("Could not encrypt data", e);
+                cryptoKey = null;
+            }
         }
 
         List<Kvs> savedReplicasLst = new ArrayList<Kvs>();
@@ -229,8 +255,8 @@ public class Hybris {
 
         boolean overwritten = false;
         try {
-            overwritten = this.mds.tsWrite(key,
-                    new Metadata(ts, Utils.getHash(value), value.length, savedReplicasLst), stat.getVersion());
+            Metadata newMd = new Metadata(ts, Utils.getHash(value), value.length, savedReplicasLst, cryptoKey);
+            overwritten = this.mds.tsWrite(key, newMd, stat.getVersion());
         } catch (HybrisException e) {
             if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
             logger.warn("Could not store metadata on Zookeeper for key {}.", key);
@@ -264,6 +290,16 @@ public class Hybris {
         if (this.cacheEnabled) {
             value = (byte[]) this.cache.get(kvsKey);
             if (value != null && Arrays.equals(md.getHash(), Utils.getHash(value))) {
+
+                if (md.getCryptoKey() != null)
+                    try {
+                        logger.debug("Decrypting data for key {}", key);
+                        value = Utils.decrypt(value, md.getCryptoKey());
+                    } catch (GeneralSecurityException | UnsupportedEncodingException e) {
+                        logger.error("Could not decrypt data", e);
+                        throw new HybrisException("Could not decrypt data", e);
+                    }
+
                 logger.debug("Value of {} retrieved from cache", key);
                 return value;
             }
@@ -286,8 +322,18 @@ public class Hybris {
                     logger.info("Value of {} retrieved from kvStore {}", key, kvStore);
                     if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))
                         this.cache.set(kvsKey, this.cacheExp, value);
+
+                    if (md.getCryptoKey() != null)
+                        try {
+                            logger.debug("Decrypting data for key {}", key);
+                            value = Utils.decrypt(value, md.getCryptoKey());
+                        } catch (GeneralSecurityException | UnsupportedEncodingException e) {
+                            logger.error("Could not decrypt data", e);
+                            throw new HybrisException("Could not decrypt data", e);
+                        }
+
                     return value;
-                } else      // The hash doesn't match: byzantine fault: let's try with the other ones
+                } else      // The hash doesn't match: Byzantine fault: let's try with the other clouds
                     continue;
             } else {
                 /* This could be due to:

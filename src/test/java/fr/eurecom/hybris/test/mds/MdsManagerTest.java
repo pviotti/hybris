@@ -68,7 +68,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
         replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
         replicas.add(new TransientKvs("transient", "B-accessKey", "B-secretKey", "container", true, 20));
         replicas.add(new TransientKvs("transient", "C-accessKey", "C-secretKey", "container", true, 20));
-        Metadata md = new Metadata(ts, hash, 0, replicas);
+        Metadata md = new Metadata(ts, hash, 0, replicas, null);
 
         mds.tsWrite(key, md, MdsManager.NONODE);
 
@@ -104,24 +104,24 @@ public class MdsManagerTest extends HybrisAbstractTest {
         String cid1 = "ZZZ";
         String cid2 = "AAA";
 
-        mds.tsWrite(key, new Metadata(new Timestamp(0, cid1), hash, 0, replicas), -1);  // znode does not exist, create hver. 0, zkver. 0
-        mds.tsWrite(key, new Metadata(new Timestamp(0, cid2), hash, 0, replicas), -1);  // NODEEXISTS retries because AAA > ZZZ, write hver. 0, zkver. 1
+        mds.tsWrite(key, new Metadata(new Timestamp(0, cid1), hash, 0, replicas, null), -1);  // znode does not exist, create hver. 0, zkver. 0
+        mds.tsWrite(key, new Metadata(new Timestamp(0, cid2), hash, 0, replicas, null), -1);  // NODEEXISTS retries because AAA > ZZZ, write hver. 0, zkver. 1
 
         retrieved = mds.tsRead(key, stat);
         assertEquals(0, retrieved.getTs().getNum());
         assertEquals(cid2, retrieved.getTs().getCid());
         assertEquals(1, stat.getVersion());
 
-        mds.tsWrite(key, new Metadata(new Timestamp(1, cid1), hash, 1, replicas), 1);   // write hver. 1, zkver. 2
+        mds.tsWrite(key, new Metadata(new Timestamp(1, cid1), hash, 1, replicas, null), 1);   // write hver. 1, zkver. 2
 
-        mds.tsWrite(key, new Metadata(new Timestamp(2, cid1), hash, 2, replicas), 2);   // write hver. 2, zkver. 3
+        mds.tsWrite(key, new Metadata(new Timestamp(2, cid1), hash, 2, replicas, null), 2);   // write hver. 2, zkver. 3
         try {
-            mds.tsWrite(key, new Metadata(new Timestamp(2, cid1), hash, 3, replicas), 2);   // BADVERSION, fails because cids are equals
+            mds.tsWrite(key, new Metadata(new Timestamp(2, cid1), hash, 3, replicas, null), 2);   // BADVERSION, fails because cids are equals
         } catch(HybrisException e) {
             e.printStackTrace();
             fail(); // TODO modify to test the new version which does not throw an exception
         }
-        mds.tsWrite(key, new Metadata(new Timestamp(2, cid2), hash, 4, replicas), 2);       // BADVERSION, retries because AAA > ZZZ, write hver. 2, zkver. 4
+        mds.tsWrite(key, new Metadata(new Timestamp(2, cid2), hash, 4, replicas, null), 2);       // BADVERSION, retries because AAA > ZZZ, write hver. 2, zkver. 4
 
         retrieved = mds.tsRead(key, stat);
         assertEquals(2, retrieved.getTs().getNum());
@@ -129,13 +129,13 @@ public class MdsManagerTest extends HybrisAbstractTest {
         assertEquals(4, stat.getVersion());
 
         try{
-            mds.tsWrite(key, new Metadata(new Timestamp(0, cid1), hash, 5, replicas), 0);  // BADVERSION, fails because hver is smaller
+            mds.tsWrite(key, new Metadata(new Timestamp(0, cid1), hash, 5, replicas, null), 0);  // BADVERSION, fails because hver is smaller
         } catch(HybrisException e) {
             e.printStackTrace();
             fail(); // TODO see above
         }
 
-        mds.tsWrite(key, new Metadata(new Timestamp(3, cid1), hash, 6, replicas), 1);  // BADVERSION, retries because 3 > 2, write hver. 3, zkver. 5
+        mds.tsWrite(key, new Metadata(new Timestamp(3, cid1), hash, 6, replicas, null), 1);  // BADVERSION, retries because 3 > 2, write hver. 3, zkver. 5
 
         retrieved = mds.tsRead(key, stat);
         assertEquals(3, retrieved.getTs().getNum());
@@ -191,7 +191,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
 
         try {
             int n = 0;
-            mds.tsWrite(key, new Metadata(new Timestamp(n, cid1), hash, 0, replicas), -1);      // znode does not exist, create hver. 0, zkver. 0
+            mds.tsWrite(key, new Metadata(new Timestamp(n, cid1), hash, 0, replicas, null), -1);      // znode does not exist, create hver. 0, zkver. 0
 
             n++;
             mds.delete(key, Metadata.getTombstone(new Timestamp(n, cid1)), 0);
@@ -238,7 +238,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
         replicas.add(new TransientKvs("transient", "B-accessKey", "B-secretKey", "container", true, 20));
         replicas.add(new TransientKvs("transient", "C-accessKey", "C-secretKey", "container", true, 20));
 
-        Metadata md = new Metadata(ts, hash, 7, replicas);
+        Metadata md = new Metadata(ts, hash, 7, replicas, null);
         mds.tsWrite(key, md, MdsManager.NONODE);
 
         Stat stat = new Stat();
@@ -274,7 +274,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
         replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
         replicas.add(new TransientKvs("transient", "B-accessKey", "B-secretKey", "container", true, 20));
 
-        Metadata md = new Metadata(ts, hash, 8, replicas);
+        Metadata md = new Metadata(ts, hash, 8, replicas, null);
 
         mds.tsWrite(key1, md, MdsManager.NONODE);
         mds.tsWrite(key2, md, MdsManager.NONODE);
@@ -290,7 +290,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
         ts.inc(Utils.generateClientId());
         byte[] hash1 = new byte[20];
         this.random.nextBytes(hash1);
-        md = new Metadata(ts, hash1, 9, replicas);
+        md = new Metadata(ts, hash1, 9, replicas, null);
         mds.tsWrite(key4, md, MdsManager.NONODE);  // overwrites a key
         listedKeys = mds.list();
         assertEquals(5, listedKeys.size());
@@ -318,13 +318,13 @@ public class MdsManagerTest extends HybrisAbstractTest {
 
         Timestamp smallerTs = new Timestamp(1, "ZZZ");      // add a key previously removed with a smaller ts: not written
         ts.inc(Utils.generateClientId());
-        md = new Metadata(smallerTs, hash, 10, replicas);
+        md = new Metadata(smallerTs, hash, 10, replicas, null);
         mds.tsWrite(key2, md, MdsManager.NONODE);
         listedKeys = mds.list();
         assertEquals(0, listedKeys.size());
 
         tsd.inc("AAAA");                                    // add a key previously removed with a greater ts: written
-        md = new Metadata(tsd, hash, 10, replicas);
+        md = new Metadata(tsd, hash, 10, replicas, null);
         mds.tsWrite(key2, md, MdsManager.NONODE);
         listedKeys = mds.list();
         assertEquals(1, listedKeys.size());
@@ -348,7 +348,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
         replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 10));
         replicas.add(new TransientKvs("transient", "B-accessKey", "B-secretKey", "container", true, 20));
 
-        Metadata md = new Metadata(ts, hash, 11, replicas);
+        Metadata md = new Metadata(ts, hash, 11, replicas, null);
 
         mds.tsWrite(key1, md, MdsManager.NONODE);
         mds.tsWrite(key2, md, MdsManager.NONODE);
@@ -367,7 +367,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
         Timestamp ts4 = new Timestamp(ts.getNum() + 1, Utils.generateClientId());
         byte[] hash1 = new byte[20];
         this.random.nextBytes(hash1);
-        Metadata md4 = new Metadata(ts4, hash1, 12, replicas);
+        Metadata md4 = new Metadata(ts4, hash1, 12, replicas, null);
         mds.tsWrite(key4, md4, MdsManager.NONODE);  // overwrites a key
         allMd = mds.getAll();
         assertEquals(5, allMd.size());
@@ -399,7 +399,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
         assertEquals(0, allMd.size());
 
         tsd.inc("AAAA");                                    // add a key previously removed with a greater ts: written
-        md = new Metadata(tsd, hash, 10, replicas);
+        md = new Metadata(tsd, hash, 10, replicas, null);
         mds.tsWrite(key2, md, -1);
         allMd = mds.getAll();
         assertEquals(1, allMd.size());
