@@ -5,6 +5,7 @@ import java.io.UnsupportedEncodingException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,8 @@ import net.spy.memcached.AddrUtil;
 import net.spy.memcached.BinaryConnectionFactory;
 import net.spy.memcached.MemcachedClient;
 
+import org.apache.curator.framework.api.CuratorWatcher;
+import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +67,8 @@ public class Hybris {
     private final boolean cryptoEnabled;
 
     private final String clientId;
+
+    private HashMap<String, HybrisWatcher> notifications;
 
 
     /**
@@ -278,8 +283,17 @@ public class Hybris {
      */
     public byte[] get(String key) throws HybrisException {
 
-        Metadata md = this.mds.tsRead(key, null);
+        Metadata md;
+        if (this.notifications.containsKey(key)) {
+            // if it's a new attempt after a recursive call, set a watcher
+            HybrisWatcher hwatcher = this.new HybrisWatcher();
+            this.notifications.put(key, hwatcher);
+            md = this.mds.tsRead(key, null, hwatcher);
+        } else
+            md = this.mds.tsRead(key, null);
+
         if (md == null || md.isTombstone()) {
+            this.notifications.remove(key);
             logger.warn("Could not find metadata associated with key {}.", key);
             return null;
         }
@@ -287,7 +301,7 @@ public class Hybris {
         byte[] value = null;
         String kvsKey = Utils.getKvsKey(key, md.getTs());
 
-        if (this.cacheEnabled) {
+        if (this.cacheEnabled) {        // check the cache
             value = (byte[]) this.cache.get(kvsKey);
             if (value != null && Arrays.equals(md.getHash(), Utils.getHash(value))) {
 
@@ -296,10 +310,12 @@ public class Hybris {
                         logger.debug("Decrypting data for key {}", key);
                         value = Utils.decrypt(value, md.getCryptoKeyIV());
                     } catch (GeneralSecurityException | UnsupportedEncodingException e) {
+                        this.notifications.remove(key);
                         logger.error("Could not decrypt data", e);
                         throw new HybrisException("Could not decrypt data", e);
                     }
 
+                this.notifications.remove(key);
                 logger.debug("Value of {} retrieved from cache", key);
                 return value;
             }
@@ -311,8 +327,7 @@ public class Hybris {
                 continue;
 
             try {
-                // TODO check filesize to prevent DOS
-                value = this.kvs.get(kvStore, kvsKey);
+                value = this.kvs.get(kvStore, kvsKey);      // TODO check filesize to prevent DOS
             } catch (IOException e) {
                 continue;
             }
@@ -332,29 +347,32 @@ public class Hybris {
                             throw new HybrisException("Could not decrypt data", e);
                         }
 
+                    this.notifications.remove(key);
                     return value;
                 } else      // The hash doesn't match: Byzantine fault: let's try with the other clouds
                     continue;
             } else {
                 /* This could be due to:
-                 * a. byzantine replicas
+                 * a. Byzantine replicas
                  * b. concurrent gc
                  */
-                Metadata newMd = this.mds.tsRead(key, null);
-                if (newMd != null) {
-                    if (newMd.getTs().isGreater(md.getTs())) {    // it's because of concurrent gc
-                        logger.warn("Could not get the value of {} from replica {} because of concurrent gc. Restarting read.",
-                                key, kvStore);
-                        return this.get(key);                          // trigger recursive read
+                HybrisWatcher hwatcher = this.new HybrisWatcher();
+                this.notifications.put(key, hwatcher);
+                Metadata newMd = this.mds.tsRead(key, null, hwatcher);
+                if (newMd != null && !newMd.isTombstone()) {
+                    if (newMd.getTs().isGreater(md.getTs())) {      // it's because of concurrent GC and a more recent version has been written
+                        logger.warn("Found a more recent version of metadata of {}. Restarting read.", key, kvStore);
+                        return this.get(key);                       // trigger recursive read
                     } else
-                        continue;                                       // otherwise it's because of b.: let's try with the other ones
-                } else {                                                // the value does not exist anymore because of concurrent gc
+                        continue;                                   // otherwise it's because of BF: let's try with the other ones
+                } else {        // the value does not exist anymore because of concurrent GC, and no other versions haven't been written
                     logger.warn("Could not find the metadata associated with key {}.", key);
-                    return null;
+                    break;
                 }
             }
         }
 
+        this.notifications.remove(key);
         logger.warn("Could not retrieve the data associated with key {} from cloud stores.", key);
         return null;
     }
@@ -433,6 +451,27 @@ public class Hybris {
         this.mds.shutdown();
         if (this.cacheEnabled)
             this.cache.shutdown();
+    }
+
+
+    /* -------------------------------------- HybrisWatcher -------------------------------------- */
+
+    /**
+     * Class in charge of handling ZooKeeper notifications.
+     * @author P. Viotti
+     */
+    public class HybrisWatcher implements CuratorWatcher {
+
+        private boolean changed = false;
+        public boolean isChanged() { return this.changed; }
+
+        /**
+         * Process a notification sent by ZooKeeper
+         * @see org.apache.curator.framework.api.CuratorWatcher#process(org.apache.zookeeper.WatchedEvent)
+         */
+        public void process(WatchedEvent event) throws Exception {
+            this.changed = true;
+        }
     }
 
 

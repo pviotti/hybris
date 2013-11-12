@@ -10,6 +10,7 @@ import java.util.Set;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.api.CuratorWatcher;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.curator.retry.ExponentialBackoffRetry;
@@ -213,7 +214,7 @@ public class MdsManager implements ConnectionStateListener {
     /**
      * Timestamped read ("slow read" in ZooKeeper parlance) from metadata storage.
      * @param key the key to read
-     * @param stat the Stat Zookeeper object to be written with znode details
+     * @param stat the Stat Zookeeper object to be written with znode details (can be null)
      * @return Metadata object
      *              or null in case the znode does not exist or there is a tombstone Metadata object
      *              (to distinguish these two cases one must use the Stat object)
@@ -225,6 +226,39 @@ public class MdsManager implements ConnectionStateListener {
         try {
             this.zkCli.sync().forPath(path);
             byte[] rawMd = this.zkCli.getData().storingStatIn(stat).forPath(path);
+            return new Metadata(rawMd);
+        } catch (KeeperException e) {
+
+            if (e.code() == KeeperException.Code.NONODE)
+                return null;
+            else {
+                logger.error("Could not read ZNode " + path, e);
+                throw new HybrisException("Could not read the ZNode " + path, e);
+            }
+
+        } catch (Exception e) {
+            logger.error("Could not read ZNode " + path, e);
+            throw new HybrisException("Could not read the ZNode " + path + e.getMessage(), e);
+        }
+    }
+
+
+    /**
+     * Timestamped read ("slow read" in ZooKeeper parlance) from metadata storage.
+     * @param key the key to read
+     * @param stat the Stat Zookeeper object to be written with znode details (can be null)
+     * @param watcher to set upon executing the getData operation
+     * @return Metadata object
+     *              or null in case the znode does not exist or there is a tombstone Metadata object
+     *              (to distinguish these two cases one must use the Stat object)
+     * @throws HybrisException
+     */
+    public Metadata tsRead(String key, Stat stat, CuratorWatcher watcher) throws HybrisException {
+
+        String path = this.storageRoot + "/" + key;
+        try {
+            this.zkCli.sync().forPath(path);
+            byte[] rawMd = this.zkCli.getData().storingStatIn(stat).usingWatcher(watcher).forPath(path);
             return new Metadata(rawMd);
         } catch (KeeperException e) {
 
