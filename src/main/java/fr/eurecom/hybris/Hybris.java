@@ -5,7 +5,6 @@ import java.io.UnsupportedEncodingException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -67,8 +66,6 @@ public class Hybris {
     private final boolean cryptoEnabled;
 
     private final String clientId;
-
-    private HashMap<String, HybrisWatcher> notifications;
 
 
     /**
@@ -283,17 +280,8 @@ public class Hybris {
      */
     public byte[] get(String key) throws HybrisException {
 
-        Metadata md;
-        if (this.notifications.containsKey(key)) {
-            // if it's a new attempt after a recursive call, set a watcher
-            HybrisWatcher hwatcher = this.new HybrisWatcher();
-            this.notifications.put(key, hwatcher);
-            md = this.mds.tsRead(key, null, hwatcher);
-        } else
-            md = this.mds.tsRead(key, null);
-
+        Metadata md = this.mds.tsRead(key, null);
         if (md == null || md.isTombstone()) {
-            this.notifications.remove(key);
             logger.warn("Could not find metadata associated with key {}.", key);
             return null;
         }
@@ -301,7 +289,7 @@ public class Hybris {
         byte[] value = null;
         String kvsKey = Utils.getKvsKey(key, md.getTs());
 
-        if (this.cacheEnabled) {        // check the cache
+        if (this.cacheEnabled) {
             value = (byte[]) this.cache.get(kvsKey);
             if (value != null && Arrays.equals(md.getHash(), Utils.getHash(value))) {
 
@@ -310,12 +298,10 @@ public class Hybris {
                         logger.debug("Decrypting data for key {}", key);
                         value = Utils.decrypt(value, md.getCryptoKeyIV());
                     } catch (GeneralSecurityException | UnsupportedEncodingException e) {
-                        this.notifications.remove(key);
                         logger.error("Could not decrypt data", e);
                         throw new HybrisException("Could not decrypt data", e);
                     }
 
-                this.notifications.remove(key);
                 logger.debug("Value of {} retrieved from cache", key);
                 return value;
             }
@@ -327,7 +313,8 @@ public class Hybris {
                 continue;
 
             try {
-                value = this.kvs.get(kvStore, kvsKey);      // TODO check filesize to prevent DOS
+                // TODO check filesize to prevent DOS
+                value = this.kvs.get(kvStore, kvsKey);
             } catch (IOException e) {
                 continue;
             }
@@ -347,34 +334,91 @@ public class Hybris {
                             throw new HybrisException("Could not decrypt data", e);
                         }
 
-                    this.notifications.remove(key);
                     return value;
                 } else      // The hash doesn't match: Byzantine fault: let's try with the other clouds
                     continue;
-            } else {
+            } else
                 /* This could be due to:
                  * a. Byzantine replicas
                  * b. concurrent gc
                  */
-                HybrisWatcher hwatcher = this.new HybrisWatcher();
-                this.notifications.put(key, hwatcher);
-                Metadata newMd = this.mds.tsRead(key, null, hwatcher);
-                if (newMd != null && !newMd.isTombstone()) {
-                    if (newMd.getTs().isGreater(md.getTs())) {      // it's because of concurrent GC and a more recent version has been written
-                        logger.warn("Found a more recent version of metadata of {}. Restarting read.", key, kvStore);
-                        return this.get(key);                       // trigger recursive read
-                    } else
-                        continue;                                   // otherwise it's because of BF: let's try with the other ones
-                } else {        // the value does not exist anymore because of concurrent GC, and no other versions haven't been written
-                    logger.warn("Could not find the metadata associated with key {}.", key);
-                    break;
-                }
-            }
+                return this.parallelGet(key);
         }
 
-        this.notifications.remove(key);
-        logger.warn("Could not retrieve the data associated with key {} from cloud stores.", key);
-        return null;
+        return this.parallelGet(key);
+    }
+
+
+    /**
+     * Fail-safe parallel GET function.
+     * This function gets called whenever the main GET API fails
+     * due to Byzantine faults or concurrent GC.
+     * @param key
+     * @return a byte array containing the value associated with <key>.
+     * @throws HybrisException
+     */
+    private byte[] parallelGet(String key) throws HybrisException {
+
+        HybrisWatcher hwatcher = this.new HybrisWatcher();
+        Metadata md = this.mds.tsRead(key, null, hwatcher);
+        if (md == null || md.isTombstone()) {
+            logger.warn("Could not find metadata associated with key {}.", key);
+            return null;
+        }
+
+        String kvsKey = Utils.getKvsKey(key, md.getTs());
+        ExecutorService executor = Executors.newFixedThreadPool(this.quorum);
+        CompletionService<byte[]> compServ = new ExecutorCompletionService<byte[]>(executor);
+        Future<byte[]> futureResult;
+        byte[] value = null;
+        boolean keepRetrieving = true;
+
+        List<Kvs> kvsSublst = this.kvs.getKvsSortedByReadLatency();
+        kvsSublst.retainAll(md.getReplicasLst());
+        Future<byte[]>[] futuresArray = new Future[kvsSublst.size()];
+
+        do {
+            for (Kvs kvStore : kvsSublst)
+                futuresArray[kvsSublst.indexOf(kvStore)] = compServ.submit(this.kvs.new KvsGetWorker(kvStore, kvsKey));
+
+            for (int i=0; i<kvsSublst.size(); i++)
+                try {
+                    if (hwatcher.isChanged()) {
+                        for (Future<byte[]> future : futuresArray)
+                            future.cancel(true);
+                        return this.parallelGet(key);
+                    }
+
+                    futureResult =  compServ.poll(this.TIMEOUT_READ, TimeUnit.SECONDS);
+                    if (futureResult != null && (value = futureResult.get()) != null)
+                        if (Arrays.equals(md.getHash(), Utils.getHash(value))) {
+
+                            if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))
+                                this.cache.set(kvsKey, this.cacheExp, value);
+
+                            if (md.getCryptoKeyIV() != null)
+                                try {
+                                    logger.debug("Decrypting data for key {}", key);
+                                    value = Utils.decrypt(value, md.getCryptoKeyIV());
+                                } catch (GeneralSecurityException | UnsupportedEncodingException e) {
+                                    logger.error("Could not decrypt data", e);
+                                    throw new HybrisException("Could not decrypt data", e);
+                                }
+
+                            keepRetrieving = false;
+                            for (Future<byte[]> future : futuresArray)
+                                future.cancel(true);
+                            break;
+                        }
+
+                } catch (InterruptedException | ExecutionException e) {
+                    logger.warn("Exception on write task execution", e);
+                }
+
+        } while (keepRetrieving);
+        executor.shutdown();
+
+        return value;
     }
 
 
@@ -395,18 +439,21 @@ public class Hybris {
         ts.inc( this.clientId );
         Metadata tombstone = Metadata.getTombstone(ts);
 
-        String kvsKey = Utils.getKvsKey(key, md.getTs());
-        for (Kvs kvStore : this.kvs.getKvsList()) {
+        if (!this.gcEnabled) {
+            String kvsKey = Utils.getKvsKey(key, md.getTs());
+            for (Kvs kvStore : this.kvs.getKvsList()) {
 
-            if (!md.getReplicasLst().contains(kvStore))
-                continue;
+                if (!md.getReplicasLst().contains(kvStore))
+                    continue;
 
-            try {
-                this.kvs.delete(kvStore, kvsKey);
-            } catch (IOException e) {
-                logger.warn("Could not delete {} from {}", kvsKey, kvStore);
+                try {
+                    this.kvs.delete(kvStore, kvsKey);
+                } catch (IOException e) {
+                    logger.warn("Could not delete {} from {}", kvsKey, kvStore);
+                }
             }
         }
+
         this.mds.delete(key, tombstone, stat.getVersion());
     }
 
@@ -423,7 +470,7 @@ public class Hybris {
 
     /**
      * Fetches all metadata currently stored on MDS.
-     * XXX not scalable - for debugging purposes
+     * XXX not scalable: for debugging purposes
      * @return
      * @throws HybrisException
      */

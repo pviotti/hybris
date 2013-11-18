@@ -146,7 +146,7 @@ public class KvsManager {
 
     /**
      * Worker thread class in charge of asynchronously performing
-     * write operation on cloud stores.
+     * write operations on cloud stores.
      * @author p.viotti
      */
     public class KvsPutWorker implements Callable<Kvs> {
@@ -165,6 +165,31 @@ public class KvsManager {
             try {
                 KvsManager.this.put(this.kvStore, this.key, this.value);
                 return this.kvStore;
+            } catch (Exception e) {
+                return null;
+            }
+        }
+    }
+
+
+    /**
+     * Worker thread class in charge of asynchronously performing
+     * read operations on cloud stores.
+     * @author p.viotti
+     */
+    public class KvsGetWorker implements Callable<byte[]> {
+
+        private final Kvs kvStore;
+        private final String key;
+
+        public KvsGetWorker(Kvs kvStore, String key) {
+            this.kvStore = kvStore;
+            this.key = key;
+        }
+
+        public byte[] call() {
+            try {
+                return KvsManager.this.get(this.kvStore, this.key);
             } catch (Exception e) {
                 return null;
             }
