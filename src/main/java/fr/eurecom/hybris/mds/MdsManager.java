@@ -320,6 +320,29 @@ public class MdsManager implements ConnectionStateListener {
     }
 
 
+    public synchronized byte[] getOrCreateIv() {
+
+        String ivKey = this.storageRoot + "-iv";
+        byte[] iv = null;
+        try {
+            this.zkCli.sync().forPath(ivKey);
+            iv = this.zkCli.getData().forPath(ivKey);
+        } catch (Exception e) { }
+
+        if (iv == null) {
+            iv = new byte[16];
+            Utils.generateRandomBytes(iv);
+            try {
+                iv = new byte[16];
+                this.zkCli.create().forPath(ivKey, iv);
+            } catch (Exception e) {
+                logger.warn("Could not store the generated IV on ZooKeeper");
+            }
+        }
+        return iv;
+    }
+
+
     /**
      * Get all the stored metadata (filtering out tombstone values).
      * XXX not scalable - for debugging purposes

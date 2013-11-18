@@ -141,7 +141,7 @@ public class HybrisCacheTest extends HybrisAbstractTest {
     public void testMemcachedNotAvailable() {
         try {
             hybris = new Hybris(zkTestingServer.getConnectString(), mdsRoot, accountsFile,
-                    kvsRoot, false, clientId, 0, 6000, 6000, false, false, true, "notexistent:1234", 5000, "onwrite");
+                    kvsRoot, false, clientId, 0, 6000, 6000, false, false, true, "not valid:1234", 5000, "onwrite");
             String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
             byte[] value = new byte[50];
             this.random.nextBytes(value);

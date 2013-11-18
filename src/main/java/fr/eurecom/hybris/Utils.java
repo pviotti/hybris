@@ -9,7 +9,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.UUID;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
@@ -30,8 +29,8 @@ public class Utils {
     /** length of hash digest */
     public final static int HASH_LENGTH = 20;
 
-    /** length of cryptographic material: IV (16) + key (16,24,32) */
-    public final static int CRYPTO_LENGTH = 16 + 16;
+    /** length of cryptographic key (16,24,32) */
+    public final static int CRYPTO_KEY_LENGTH = 16;
 
     /** KVS key separator */
     private final static String KVS_KEY_SEPARATOR = "#";
@@ -99,10 +98,10 @@ public class Utils {
     /* -------------------------------------- Encryption / decryption functions -------------------------------------- */
 
     /**
-     * Encrypts the given plaintext using the supplied array, which is composed of
-     * the initialization vector (16 byte) and the symmetric key (remaining bytes).
+     * Encrypts the given plaintext using the supplied encryption key.
      * @param plainValue
-     * @param encKeyIV - byte array composed as follows: 16 bytes of IV + key (remaining bytes)
+     * @param encKey - byte array containing the encryption key
+     * @param iv - the initialization vector
      * @return byte[]
      * @throws NoSuchAlgorithmException
      * @throws NoSuchProviderException
@@ -112,12 +111,10 @@ public class Utils {
      * @throws BadPaddingException
      * @throws InvalidAlgorithmParameterException
      */
-    public static byte[] encrypt(byte[] plainValue, byte[] encKeyIV)
+    public static byte[] encrypt(byte[] plainValue, byte[] encKey, byte[] iv)
             throws NoSuchAlgorithmException, NoSuchProviderException, NoSuchPaddingException,
             InvalidKeyException, IllegalBlockSizeException, BadPaddingException,
             InvalidAlgorithmParameterException {
-        byte[] iv = Arrays.copyOfRange(encKeyIV, 0, 16);
-        byte[] encKey = Arrays.copyOfRange(encKeyIV, 16, encKeyIV.length);
         Cipher cipher = Cipher.getInstance(ENC_ALGORITHM_MODE);
         SecretKeySpec key = new SecretKeySpec(encKey, ENC_ALGORITHM);
         IvParameterSpec ivSpec = new IvParameterSpec(iv);
@@ -126,10 +123,10 @@ public class Utils {
     }
 
     /**
-     * Decrypts the given ciphertext using AES algorithm and the supplied array, which is composed of
-     * the initialization vector (16 byte) and the symmetric key (remaining bytes).
+     * Decrypts the given ciphertext using the supplied encryption key.
      * @param cipherText
-     * @param encKeyIV - byte array composed as follows: 16 bytes of IV + key (remaining bytes)
+     * @param encKey - byte array containing the encryption key
+     * @param iv - the initialization vector
      * @return byte[]
      * @throws NoSuchAlgorithmException
      * @throws NoSuchPaddingException
@@ -139,12 +136,10 @@ public class Utils {
      * @throws BadPaddingException
      * @throws InvalidAlgorithmParameterException
      */
-    public static byte[] decrypt(byte[] cipherText, byte[] encKeyIV)
+    public static byte[] decrypt(byte[] cipherText, byte[] encKey, byte[] iv)
             throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
             UnsupportedEncodingException, IllegalBlockSizeException, BadPaddingException,
             InvalidAlgorithmParameterException {
-        byte[] iv = Arrays.copyOfRange(encKeyIV, 0, 16);
-        byte[] encKey = Arrays.copyOfRange(encKeyIV, 16, encKeyIV.length);
         Cipher cipher = Cipher.getInstance(ENC_ALGORITHM_MODE);
         SecretKeySpec key = new SecretKeySpec(encKey, ENC_ALGORITHM);
         IvParameterSpec ivSpec = new IvParameterSpec(iv);

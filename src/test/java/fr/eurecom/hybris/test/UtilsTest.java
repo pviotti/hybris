@@ -23,12 +23,14 @@ public class UtilsTest extends HybrisAbstractTest {
 
         // key length = 128 bit (16 byte)
         int keyLength = 16;
-        byte[] keyIV = new byte[keyLength + 16];
-        this.random.nextBytes(keyIV);
+        byte[] key = new byte[keyLength];
+        byte[] iv = new byte[16];
+        this.random.nextBytes(key);
+        this.random.nextBytes(iv);
         byte[] clearText = null, cipherText = null;
         try {
-            cipherText = Utils.encrypt(value, keyIV);
-            clearText = Utils.decrypt(cipherText, keyIV);
+            cipherText = Utils.encrypt(value, key, iv);
+            clearText = Utils.decrypt(cipherText, key, iv);
             assertArrayEquals(value, clearText);
         } catch(GeneralSecurityException | UnsupportedEncodingException ge) {
             ge.printStackTrace();
@@ -37,12 +39,12 @@ public class UtilsTest extends HybrisAbstractTest {
 
         // key length = 192 bit (24 byte)
         keyLength = 24;
-        keyIV = new byte[keyLength + 16];
-        this.random.nextBytes(keyIV);
+        key = new byte[keyLength];
+        this.random.nextBytes(key);
         clearText = null; cipherText = null;
         try {
-            cipherText = Utils.encrypt(value, keyIV);
-            clearText = Utils.decrypt(cipherText, keyIV);
+            cipherText = Utils.encrypt(value, key, iv);
+            clearText = Utils.decrypt(cipherText, key, iv);
             assertArrayEquals(value, clearText);
         } catch(GeneralSecurityException | UnsupportedEncodingException ge) {
             ge.printStackTrace();
@@ -51,12 +53,12 @@ public class UtilsTest extends HybrisAbstractTest {
 
         // key length = 256 bit (32 byte)
         keyLength = 32;
-        keyIV = new byte[keyLength + 16];
-        this.random.nextBytes(keyIV);
+        key = new byte[keyLength];
+        this.random.nextBytes(key);
         clearText = null; cipherText = null;
         try {
-            cipherText = Utils.encrypt(value, keyIV);
-            clearText = Utils.decrypt(cipherText, keyIV);
+            cipherText = Utils.encrypt(value, key, iv);
+            clearText = Utils.decrypt(cipherText, key, iv);
             assertArrayEquals(value, clearText);
         } catch(GeneralSecurityException | UnsupportedEncodingException ge) {
             ge.printStackTrace();
@@ -65,12 +67,12 @@ public class UtilsTest extends HybrisAbstractTest {
 
         // wrong key length
         keyLength = 13;
-        keyIV = new byte[keyLength + 16];
-        this.random.nextBytes(keyIV);
+        key = new byte[keyLength];
+        this.random.nextBytes(key);
         clearText = null; cipherText = null;
         try {
-            cipherText = Utils.encrypt(value, keyIV);
-            clearText = Utils.decrypt(cipherText, keyIV);
+            cipherText = Utils.encrypt(value, key, iv);
+            clearText = Utils.decrypt(cipherText, key, iv);
             fail();
             assertArrayEquals(value, clearText);
         } catch(GeneralSecurityException | UnsupportedEncodingException ge) {
