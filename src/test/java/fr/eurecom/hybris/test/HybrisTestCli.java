@@ -1,8 +1,15 @@
 package fr.eurecom.hybris.test;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -16,12 +23,13 @@ public class HybrisTestCli implements Runnable {
     private static String HELP_STRING = "Usage:\n" +
             "\th - help\n" +
             "\tq - quit\n" +
-            "\tw [key] [value] - write\n" +
+            "\tw [key] [file name] - write\n" +
             "\tr [key] - read\n" +
             "\td [key] - delete\n" +
             "\tl - list\n" +
             "\tla - list all\n" +
-            "\tec - empty containers";
+            "\tec - empty containers\n" +
+            "\tcf [name] [size in kB] - create a file";
 
     public HybrisTestCli() throws Exception {
         this.hybris = new Hybris("hybris.properties");
@@ -37,7 +45,7 @@ public class HybrisTestCli implements Runnable {
         String line;
         while(!quit)
             try {
-                System.out.print(">");
+                System.out.print("> ");
                 line = br.readLine().trim().toLowerCase();
 
                 if (line.equals("q"))
@@ -46,7 +54,15 @@ public class HybrisTestCli implements Runnable {
                     System.out.println(HELP_STRING);
                 else if (line.startsWith("w")) {
                     String key = line.split(" ")[1];
-                    byte[] value = line.split(" ")[2].getBytes();
+                    String fileName = line.split(" ")[2];
+                    Path path = Paths.get(fileName);
+                    byte[] value;
+                    try {
+                        value = Files.readAllBytes(path);
+                    } catch (Exception e) {
+                        System.out.println("* Error trying to read file " + fileName);
+                        continue;
+                    }
                     this.write(key, value);
                 } else if (line.startsWith("r")) {
                     String key = line.split(" ")[1];
@@ -54,7 +70,7 @@ public class HybrisTestCli implements Runnable {
                     if (value == null)
                         System.out.println("No value was found.");
                     else
-                        System.out.println("Value retrieved: " + new String(value));
+                        System.out.println("Value retrieved for key " + key + ",  " + value.length + " bytes.");
                 } else if (line.startsWith("d")) {
                     String key = line.split(" ")[1];
                     this.delete(key);
@@ -66,6 +82,11 @@ public class HybrisTestCli implements Runnable {
                     Map<String, Metadata> map = this.getAllMetadata();
                     for(String key : map.keySet())
                         System.out.println("\t - " + key + ": " + map.get(key));
+                } else if (line.startsWith("cf")) {
+                    String fileName = line.split(" ")[1];
+                    int fileSize = Integer.parseInt(line.split(" ")[2]);
+                    this.createFile(fileName, fileSize);
+                    System.out.println("Local file " + fileName + " of " + fileSize + " kB has been created.");
                 } else if (line.equals("ec"))
                     this.emptyContainers();
                 else
@@ -131,6 +152,18 @@ public class HybrisTestCli implements Runnable {
         try {
             this.hybris.new GcManager()._emptyContainers();
         } catch (HybrisException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void createFile(String name, int size) {
+        File file = new File(name);
+        if (file.isFile()) file.delete();
+        byte[] array = new byte[size * 1024];
+        Arrays.fill(array, (byte) 'x');
+        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file))) {
+            bos.write(array, 0, size * 1024);
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
