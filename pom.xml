@@ -84,12 +84,12 @@
     <dependency>
       <groupId>org.apache.jclouds</groupId>
       <artifactId>jclouds-blobstore</artifactId>
-      <version>1.6.2-incubating</version>
+      <version>1.7.0</version>
     </dependency>
     <dependency>
         <groupId>org.apache.jclouds.provider</groupId>
         <artifactId>cloudfiles-uk</artifactId>
-        <version>1.6.2-incubating</version>
+        <version>1.7.0</version>
     </dependency>
     
     <dependency>
@@ -189,6 +189,36 @@
           <downloadJavadocs>true</downloadJavadocs>
         </configuration>
       </plugin>
+      <plugin>
+	    <groupId>com.mycila</groupId>
+	    <artifactId>license-maven-plugin</artifactId>
+	    <version>2.6</version>
+	    <configuration>
+	        <header>com/mycila/maven/plugin/license/templates/APACHE-2.txt</header>
+	        <properties>
+	            <owner>EURECOM</owner>
+	            <year>2014</year>
+	        </properties>
+	        <excludes>
+	            <exclude>**/README</exclude>
+	            <exclude>**/LICENSE</exclude>
+	            <exclude>**/*.sh</exclude>
+	            <exclude>**/*.xml</exclude>
+	            <exclude>**/docs/**</exclude>
+	            <exclude>**/*.properties</exclude>
+	            <exclude>**/___dev/**</exclude>
+	            <exclude>src/test/resources/**</exclude>
+	            <exclude>src/main/resources/**</exclude>
+	        </excludes>
+	    </configuration>
+	    <executions>
+	        <execution>
+	            <goals>
+	                <goal>check</goal>
+	            </goals>
+	        </execution>
+	    </executions>
+	</plugin>
     </plugins>
   </build>
   
