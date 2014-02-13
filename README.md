@@ -15,7 +15,9 @@ while the latter implements the storage primitives towards the APIs of the main
 public cloud storage services - currently, it supports Amazon S3, 
 Google Cloud Storage, Rackspace Cloudfiles and Windows Azure Blob.  
 
-Maven is used for building and managing dependencies.
+Maven is used for building and managing dependencies.  
+
+Read the [wiki](https://github.com/pviotti/hybris/wiki/Development-Setup-How-To) for more information on development setup.
 
 
 ### Authors and license
