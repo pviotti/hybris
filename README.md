@@ -6,6 +6,8 @@ Hybris is also very efficient: in the common case it writes to f+1 clouds and re
 
 For more information and detailed benchmarks, check [our research paper](http://www.eurecom.fr/en/publication/4157).
 
+![Hybris architecture](https://raw.github.com/pviotti/hybris/master/docs/hybris-architecture.png)
+
 
 ### Code base overview
 
