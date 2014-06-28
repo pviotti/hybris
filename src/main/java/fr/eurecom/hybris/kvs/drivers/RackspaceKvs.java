@@ -38,8 +38,7 @@ public class RackspaceKvs extends Kvs {
 
     private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
-    // XXX currently this plugin does not work due to provider/region Ids changes in jClouds 
-    private final static String rackspaceId = "rackspace-cloudfiles-uk";
+    private final static String rackspaceId = "rackspace-cloudfiles-us";
     private transient final BlobStore blobStore;
 
     public RackspaceKvs(String id, String accessKey, String secretKey,
