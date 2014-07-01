@@ -25,5 +25,6 @@ Read the [wiki](https://github.com/pviotti/hybris/wiki/Development-Setup-How-To)
 ### Authors and license
 
 Hybris has been developed at [EURECOM](http://www.eurecom.fr) as part of the [CloudSpaces](http://cloudspaces.eu/) European research project.  
-Its code is released under the terms of Apache 2.0 license.
+Its code is released under the terms of Apache 2.0 license.  
 
+Erasure coding support is provided by the [jerasure](http://web.eecs.utk.edu/~plank/plank/papers/CS-08-627.html) library and its [JNI bindings](https://github.com/jvandertil/Jerasure).

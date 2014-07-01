@@ -104,6 +104,14 @@
         <version>2.24.0</version>
     </dependency>
     
+     <dependency>
+		<groupId>eu.vandertil.jerasure</groupId>
+		<artifactId>jerasure-jni</artifactId>
+		<version>1.2</version>
+		<scope>system</scope>
+		<systemPath>${project.basedir}/lib/jerasure-jni-1.2.jar</systemPath>
+     </dependency>
+    
     <!-- Testing dependencies -->
     <dependency>
         <groupId>junit</groupId>
