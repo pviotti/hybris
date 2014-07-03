@@ -18,9 +18,19 @@ import eu.vandertil.jerasure.jni.ReedSolomon;
 public class JerasureTest {
     
     public static void load() {
-        // export LD_LIBRARY_PATH=/home/paolo/git/Jerasure/lib
+        /* must set 
+         * LD_LIBRARY_PATH=/path/to/jerasure/native/libs/
+         * or install both libraries (jerasure and jerasure.jni)
+         * into standard directories.
+         * 
+         * In Eclipse: Run Configuration.. -> Environment tab
+         * 
+         * NB: does not work with the -Djava.library.path
+         * because we need both libraries; 
+         * see http://javaagile.blogspot.fr/2014/04/jni-and-ldlibrarypath.html
+         */
+        
         System.loadLibrary("Jerasure.jni");
-        //System.load("/home/paolo/git/Jerasure/lib/libJerasure.jni.so.0");
         System.out.println("Correctly loaded libJerasure.jni");
     }
     

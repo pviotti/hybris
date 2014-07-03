@@ -168,6 +168,9 @@
         <version>2.15</version>
         <configuration> <!-- for skipping the tests when building -->
           <skipTests>${skipTests}</skipTests>
+          <environmentVariables>
+            <LD_LIBRARY_PATH>lib</LD_LIBRARY_PATH>
+          </environmentVariables>
         </configuration>
       </plugin>
       <plugin>

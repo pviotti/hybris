@@ -5,3 +5,6 @@
 /hybris.log
 /dependency-reduced-pom.xml
 /_dev
+**/*.o
+**/*.so.0
+**/*.so

@@ -17,23 +17,19 @@ JNIEXPORT jintArray JNICALL Java_eu_vandertil_jerasure_jni_ReedSolomon_reed_1sol
 	bool outOfMemory = false;
 	jintArray result = NULL;
 
-	if(k <= m) {
-		int* matrix = reed_sol_vandermonde_coding_matrix(k, m, w);
-		if(matrix != NULL) {
-			result = env->NewIntArray(m*k);
-			if(result != NULL) {
-				env->SetIntArrayRegion(result, 0, m*k, (jint*)matrix);
-			} else {
-				outOfMemory = true;
-			}
+    int* matrix = reed_sol_vandermonde_coding_matrix(k, m, w);
+	if(matrix != NULL) {
+		result = env->NewIntArray(m*k);
+		if(result != NULL) {
+			env->SetIntArrayRegion(result, 0, m*k, (jint*)matrix);
 		} else {
 			outOfMemory = true;
 		}
-
-		free(matrix);
 	} else {
-		throwIllegalArgumentException(env, "k > m");
+		outOfMemory = true;
 	}
+
+	free(matrix);
 
 	if(outOfMemory) {
 		throwOutOfMemoryError(env, "Error allocating memory for matrix");
