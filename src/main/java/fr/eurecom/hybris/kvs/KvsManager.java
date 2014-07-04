@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import fr.eurecom.hybris.Config;
 import fr.eurecom.hybris.kvs.drivers.AmazonKvs;
 import fr.eurecom.hybris.kvs.drivers.AzureKvs;
+import fr.eurecom.hybris.kvs.drivers.FaultyKvs;
 import fr.eurecom.hybris.kvs.drivers.GoogleKvs;
 import fr.eurecom.hybris.kvs.drivers.Kvs;
 import fr.eurecom.hybris.kvs.drivers.RackspaceKvs;
@@ -66,7 +67,8 @@ public class KvsManager {
         AZURE((short) 1),
         GOOGLE((short) 2),
         RACKSPACE((short) 3),
-        TRANSIENT((short) 4);
+        TRANSIENT((short) 4),
+        FAULTY((short) 5);
 
         private short serialNum;
 
@@ -85,6 +87,7 @@ public class KvsManager {
                 case 2: return GOOGLE;
                 case 3: return RACKSPACE;
                 case 4: return TRANSIENT;
+                case 5: return FAULTY;
                 default: throw new IllegalArgumentException();
             }
         }
@@ -136,6 +139,10 @@ public class KvsManager {
                         break;
                     case TRANSIENT:
                         kvStore = new TransientKvs(accountId, accessKey, secretKey,
+                                container, enabled, cost);
+                        break;
+                    case FAULTY:
+                        kvStore = new FaultyKvs(accountId, accessKey, secretKey,
                                 container, enabled, cost);
                         break;
                     default:

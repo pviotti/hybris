@@ -104,31 +104,48 @@ public class Metadata implements KryoSerializable {
         }
 
         public void write(Kryo kryo, Output output) {
-            output.writeInt(this.num);
+            output.writeShort(this.num);
             output.writeAscii(this.cid);
         }
         public void read(Kryo kryo, Input input) {
-            this.num = input.readInt();
+            this.num = input.readShort();
             this.cid = input.readString();
         }
     }
 
     private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
+    public enum MetadataType { TOMBSTONE, REPLICATION, EC };
+    
     private Timestamp ts;
     private byte[] hash;
+    private byte[][] chunksHashes;
     private byte[] cryptoKey;
     private int size;
     private List<Kvs> replicasLst;
+    private MetadataType type;
 
     public Metadata() { }
     public Metadata(Timestamp ts, byte[] hash, int size,
             List<Kvs> replicas, byte[] cryptoKeyIV) {
         this.ts = ts;
         this.hash = hash;
+        this.chunksHashes = null;
         this.size = size;
         this.replicasLst = replicas;
         this.cryptoKey = cryptoKeyIV;
+        this.type = MetadataType.REPLICATION;
+    }
+    
+    public Metadata(Timestamp ts, byte[][] hashes, 
+            List<Kvs> replicas, int size, byte[] cryptoKeyIV) {
+        this.ts = ts;
+        this.hash = null;
+        this.chunksHashes = hashes;
+        this.size = size;
+        this.replicasLst = replicas;
+        this.cryptoKey = cryptoKeyIV;
+        this.type = MetadataType.EC;
     }
 
     public Metadata(byte[] raw) {
@@ -141,14 +158,12 @@ public class Metadata implements KryoSerializable {
         this.ts = md.getTs();
         this.replicasLst = md.getReplicasLst();
         this.hash = md.getHash();
+        this.chunksHashes = md.getChunksHashes();
         this.cryptoKey = md.getCryptoKey();
         this.size = md.getSize();
+        this.type = md.getType();
     }
-
-    public static Metadata getTombstone(Timestamp ts) {
-        return new Metadata(ts, null, 0, null, null);
-    }
-
+    
     public byte[] serialize() {
         Kryo kryo = new Kryo();
         kryo.register(Metadata.class);
@@ -160,8 +175,15 @@ public class Metadata implements KryoSerializable {
         return output.toBytes();
     }
 
+    public static Metadata getTombstone(Timestamp ts) {
+        Metadata md = new Metadata(ts, null, 0, null, null);
+        md.setType(MetadataType.TOMBSTONE);
+        return md;
+    }
+    
     public boolean isTombstone() {
         return this.hash == null &&
+                this.chunksHashes == null &&
                 this.replicasLst == null &&
                 this.size == 0 &&
                 this.cryptoKey == null;
@@ -173,14 +195,29 @@ public class Metadata implements KryoSerializable {
     public void setReplicasLst(List<Kvs> replicasLst) { this.replicasLst = replicasLst; }
     public byte[] getHash() { return this.hash; }
     public void setHash(byte[] hash) { this.hash = hash; }
+    public byte[][] getChunksHashes() { return this.chunksHashes; }
+    public void setChunksHashes(byte[][] hashes) { this.chunksHashes = hashes; }
     public int getSize() { return this.size; }
     public void setSize(int s) { this.size = s; }
     public byte[] getCryptoKey() { return this.cryptoKey; }
+    public MetadataType getType() { return this.type; }
+    public void setType(MetadataType t) { this.type = t; }
 
     public String toString() {
-        return "Metadata [ts=" + this.ts + ", hash=" + Utils.bytesToHexStr(this.hash)
-                + ", size=" + this.size + ", replicasLst=" + this.replicasLst
-                + ", cryptoKey=" + Utils.bytesToHexStr(this.cryptoKey) + "]";
+        switch (type) {
+            case TOMBSTONE:
+                return "Metadata [Tombstone - ts=" + this.ts + "]";
+            case REPLICATION:
+                return "Metadata [Replicated - ts=" + this.ts + ", hash=" + Utils.bytesToHexStr(this.hash)
+                        + ", size=" + this.size + ", replicasLst=" + this.replicasLst
+                        + ", cryptoKey=" + Utils.bytesToHexStr(this.cryptoKey) + "]";
+            case EC:
+                return "Metadata [EC - ts=" + this.ts + ", size=" + this.size + 
+                        ", replicasLst=" + this.replicasLst 
+                        + ", cryptoKey=" + Utils.bytesToHexStr(this.cryptoKey) + "]";
+            default:
+                return "Metadata [(this_should_not_happen)]";
+        }
     }
 
     public int hashCode() {
@@ -188,6 +225,7 @@ public class Metadata implements KryoSerializable {
         int result = 1;
         result = prime * result + Arrays.hashCode(this.cryptoKey);
         result = prime * result + Arrays.hashCode(this.hash);
+        result = prime * result + Arrays.hashCode(this.chunksHashes);
         result = prime * result
                 + (this.replicasLst == null ? 0 : this.replicasLst.hashCode());
         result = prime * result + this.size;
@@ -207,6 +245,8 @@ public class Metadata implements KryoSerializable {
             return false;
         if (!Arrays.equals(this.hash, other.hash))
             return false;
+        if (!Arrays.equals(this.chunksHashes, other.chunksHashes))
+            return false;
         if (this.replicasLst == null) {
             if (other.replicasLst != null)
                 return false;
@@ -224,20 +264,29 @@ public class Metadata implements KryoSerializable {
 
     public void write(Kryo kryo, Output out) {
         kryo.writeClassAndObject(out, this.ts);
+        
+        switch (this.type) {
+            case TOMBSTONE:
+                out.writeByte(0x00);
+                return;
+            case REPLICATION:
+                out.writeByte(0x01);
+                out.write(this.hash);
+                break;
+            case EC:
+                out.writeByte(0x02);
+                out.writeByte(chunksHashes.length);
+                for (byte[] h : chunksHashes)
+                    out.write(h);
+                break;
+        }
 
-        if (this.hash == null){
-            byte[] ba = new byte[Utils.HASH_LENGTH];
-            Arrays.fill(ba, (byte) 0x0);
-            out.write(ba);
-        } else
-            out.write(this.hash);
-
-        if (this.cryptoKey == null){
-            byte[] ba = new byte[Utils.CRYPTO_KEY_LENGTH];
-            Arrays.fill(ba, (byte) 0x0);
-            out.write(ba);
-        } else
+        if (this.cryptoKey == null)
+            out.writeByte(0x00);
+        else {
+            out.writeByte(0x01);
             out.write(this.cryptoKey);
+        }
 
         out.writeInt(this.size);
 
@@ -245,31 +294,50 @@ public class Metadata implements KryoSerializable {
             if (this.replicasLst.size() > 0)
                 for (int i=0; i<this.replicasLst.size(); i++)
                     try {
-                        out.writeShort( KvsId.valueOf( this.replicasLst.get(i).getId().toUpperCase() ).getSerial() );
+                        out.writeByte( KvsId.valueOf( this.replicasLst.get(i).getId().toUpperCase() ).getSerial() );
                     } catch (IllegalArgumentException e) {
                         logger.error("Serialization of {} Kvs failed: Hybris could not find any suitable driver",
                                 this.replicasLst.get(i).getId().toUpperCase());
                     }
             else
-                out.writeShort(-1);     // empty replicas array
+                out.writeByte(-1);     // empty replicas array
         else
-            out.writeShort(-2);         // null replicas array
+            out.writeByte(-2);         // null replicas array
     }
 
     public void read(Kryo kryo, Input in) {
         this.ts = (Timestamp) kryo.readClassAndObject(in);
+        
+        switch (in.readByte()) {
+            case 0x00:
+                this.hash = null;
+                this.chunksHashes = null;
+                this.replicasLst = null;
+                this.size = 0;
+                this.cryptoKey = null;
+                this.type = MetadataType.TOMBSTONE;
+                return;
+            case 0x01:
+                this.hash = in.readBytes(Utils.HASH_LENGTH);
+                this.type = MetadataType.REPLICATION;
+                break;
+            case 0x02:
+                short len = (short) in.readByte();
+                this.chunksHashes = new byte[len][];
+                for (short i=0; i<len; i++)
+                    this.chunksHashes[i] = in.readBytes(Utils.HASH_LENGTH);
+                this.type = MetadataType.EC;
+                break;
+        }
 
-        this.hash = in.readBytes(Utils.HASH_LENGTH);
-        byte[] ba = new byte[Utils.HASH_LENGTH];
-        Arrays.fill(ba, (byte) 0x0);
-        if (Arrays.equals(ba, this.hash))
-            this.hash = null;
-
-        this.cryptoKey = in.readBytes(Utils.CRYPTO_KEY_LENGTH);
-        ba = new byte[Utils.CRYPTO_KEY_LENGTH];
-        Arrays.fill(ba, (byte) 0x0);
-        if (Arrays.equals(ba, this.cryptoKey))
-            this.cryptoKey = null;
+        switch (in.readByte()) {
+            case 0x00:
+                this.cryptoKey = null;
+                break;
+            case 0x01:
+                this.cryptoKey = in.readBytes(Utils.CRYPTO_KEY_LENGTH);
+                break;
+        }
 
         this.size = in.readInt();
 
@@ -277,7 +345,7 @@ public class Metadata implements KryoSerializable {
         while (true) {
             short rep;
             try {
-                rep = in.readShort();
+                rep = in.readByte();
             } catch(Exception e) {
                 break;
             }
@@ -304,6 +372,9 @@ public class Metadata implements KryoSerializable {
                         break;
                     case TRANSIENT:
                         this.replicasLst.add(new Kvs(KvsId.TRANSIENT.toString(), null, false, 0));
+                        break;
+                    case FAULTY:
+                        this.replicasLst.add(new Kvs(KvsId.FAULTY.toString(), null, false, 0));
                         break;
                     default:
                         break;

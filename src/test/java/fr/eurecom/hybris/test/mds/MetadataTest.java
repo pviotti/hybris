@@ -55,6 +55,7 @@ public class MetadataTest extends HybrisAbstractTest {
         Metadata md = new Metadata(ts, hash, size, replicas, cryptoKey);
 
         byte[] serialized = md.serialize();
+        System.out.println("Metadata size (B): " + serialized.length);
         assertNotNull(serialized);
 
         Metadata mddes = new Metadata(serialized);
@@ -139,6 +140,13 @@ public class MetadataTest extends HybrisAbstractTest {
         assertNotNull(md.getTs());
         assertEquals(0, md.getSize());
         assertEquals(ts, md.getTs());
+        
+        byte[] serialized = md.serialize();
+        System.out.println("Tombstone size (B): " + serialized.length);
+        assertNotNull(serialized);
+
+        Metadata mddes = new Metadata(serialized);
+        assertEquals(md, mddes);
     }
 
     @Test

@@ -259,6 +259,7 @@ public class Hybris {
         List<Kvs> savedReplicasLst = new ArrayList<Kvs>();
         String kvsKey = Utils.getKvsKey(key, ts);
         int idxFrom = 0; long start; Future<Kvs> future;
+        byte[][] chunkHashes = null;
         
         if (this.ecEnabled) {   // Erasure coding
             
@@ -270,7 +271,7 @@ public class Hybris {
             byte[][] encoded = ec.encode(value, k, m);
             EcChunk[] chunks = new EcChunk[encoded.length];
             for (int i=0; i<encoded.length; i++)
-                chunks[i] = this.ec.new EcChunk(encoded[i], null, ChunkState.KO);
+                chunks[i] = this.ec.new EcChunk(encoded[i], Utils.getHash(encoded[i]), null, ChunkState.KO);
             int idxTo = k + m;
             boolean completed;
             do {
@@ -296,7 +297,8 @@ public class Hybris {
                                 !(savedReplica = future.get()).getId().startsWith(KvsManager.FAIL_PREFIX))
 
                             for (int j=0; j<chunks.length; j++) {
-                                if (savedReplica.equals(chunks[j].kvs)) {
+                                if (ChunkState.PENDING.equals(chunks[j].state) 
+                                        && savedReplica.equals(chunks[j].kvs)) {
                                     logger.debug("Chunk {}, {} B, stored on {}, {} ms", i, 
                                             chunks[j].data.length, savedReplica,
                                             System.currentTimeMillis() - start);
@@ -323,9 +325,12 @@ public class Hybris {
             } while (!completed && idxFrom < idxTo);
             executor.shutdown();
             
+            chunkHashes = new byte[chunks.length][];
             for (int j=0; j<chunks.length; j++)
-                if (chunks[j].state.equals(ChunkState.OK))
-                    savedReplicasLst.add(chunks[j].kvs);                            
+                if (chunks[j].state.equals(ChunkState.OK)) {
+                    savedReplicasLst.add(chunks[j].kvs);
+                    chunkHashes[j] = chunks[j].hash;
+                }
             
             if (!completed) {
                 if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
@@ -379,7 +384,11 @@ public class Hybris {
 
         boolean overwritten = false;
         try {
-            Metadata newMd = new Metadata(ts, Utils.getHash(value), value.length, savedReplicasLst, cryptoKey);
+            Metadata newMd;
+            if (this.ecEnabled)
+                newMd = new Metadata(ts, chunkHashes, savedReplicasLst, value.length, cryptoKey);
+            else
+                newMd = new Metadata(ts, Utils.getHash(value), value.length, savedReplicasLst, cryptoKey);
             overwritten = this.mds.tsWrite(key, newMd, stat.getVersion());
         } catch (HybrisException e) {
             if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
@@ -424,7 +433,8 @@ public class Hybris {
             Entry<Kvs, byte[]> chunk = new AbstractMap.SimpleEntry<Kvs, byte[]>(null, null);
             EcChunk[] chunks = new EcChunk[md.getReplicasLst().size()];
             for (int i=0; i<chunks.length; i++)
-                chunks[i] = this.ec.new EcChunk(null, md.getReplicasLst().get(i), ChunkState.KO);
+                chunks[i] = this.ec.new EcChunk(null, md.getChunksHashes()[i], 
+                                                md.getReplicasLst().get(i), ChunkState.KO);
             
             int idxFrom = 0, idxTo = k;
             boolean completed = true;
@@ -434,7 +444,8 @@ public class Hybris {
                 for (Kvs kvStore : kvsSublst) {
                     futuresArray[kvsSublst.indexOf(kvStore)] = compServ.submit(this.kvs.new KvsGetWorker(kvStore, kvsKey));
                     for (int j=0; j<chunks.length; j++)
-                        if (kvStore.equals(chunks[j].kvs)) {
+                        if (kvStore.equals(chunks[j].kvs) && 
+                                ChunkState.KO.equals(chunks[j].state)) {
                             chunks[j].state = ChunkState.PENDING;
                             break;
                         }
@@ -447,11 +458,17 @@ public class Hybris {
                                 !(chunk = futureResult.get()).getKey().getId().startsWith(KvsManager.FAIL_PREFIX)) {
                             
                             for (int j=0; j<chunks.length; j++) {
-                                if (chunk.getKey().equals(chunks[j].kvs)) {
-                                    chunks[j].state = ChunkState.OK;
-                                    chunks[j].data = chunk.getValue();
-                                    retrieved++;
-                                    logger.debug("Chunk {} retrieved from {}", j, chunks[j].kvs);
+                                if (chunk.getKey().equals(chunks[j].kvs) && 
+                                        ChunkState.PENDING.equals(chunks[j].state)) {
+                                    if (Arrays.equals(chunks[j].hash, Utils.getHash(chunk.getValue()))) {
+                                        chunks[j].state = ChunkState.OK;
+                                        chunks[j].data = chunk.getValue();
+                                        retrieved++;
+                                        logger.debug("Chunk {} retrieved from {}", j, chunks[j].kvs);
+                                    } else {
+                                        chunks[j].state = ChunkState.KO;
+                                        logger.warn("Tampered chunk {} retrieved from {}", j, chunks[j].kvs);
+                                    }
                                     break;
                                 }
                             }
@@ -469,7 +486,8 @@ public class Hybris {
                     idxFrom = idxTo;
                     idxTo = this.kvs.getKvsList().size() > idxTo + (k - retrieved)?
                             idxTo + (k - retrieved) : this.kvs.getKvsList().size();
-                }
+                } else
+                    completed = true;
             } while (!completed && idxFrom < idxTo);
             executor.shutdown();
             

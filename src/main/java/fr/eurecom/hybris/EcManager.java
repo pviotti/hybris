@@ -27,13 +27,16 @@ public class EcManager {
     public class EcChunk {
         
         public byte[] data;
+        public byte[] hash;
         public Kvs kvs;
         public ChunkState state;
         
-        public EcChunk(byte[] data, Kvs kvs, ChunkState stored){
+        public EcChunk(byte[] data, byte[] hash, 
+                Kvs kvs, ChunkState state){
             this.data = data;
             this.kvs = kvs;
-            this.state = stored;
+            this.state = state;
+            this.hash = hash;
         }
         
         public String toString() {

@@ -55,13 +55,32 @@ public class HybrisTest extends HybrisAbstractTest {
         byte[] value = new byte[50];
         this.random.nextBytes(value);
         
-        //hybris.testLatencyAndSortClouds(100);
+        hybris.testLatencyAndSortClouds(100);
         hybris.put(key, value);
         byte[] output = hybris.get(key);
         assertArrayEquals(value, output);
 
         hybris.delete(key);
         assertNull(hybris.get(key));
+    }
+    
+    @Test
+    public void testEcFaultyKvs() throws HybrisException {
+
+        String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
+        byte[] value = new byte[50];
+        this.random.nextBytes(value);
+        
+        Hybris hec = new Hybris(zkTestingServer.getConnectString(), "hybris", "accounts-test.properties",
+                "hybris-test-container", false, null, 1, 600, 600, false, false, false, "", 0, "", true, 2);
+        
+        //hybris.testLatencyAndSortClouds(100);
+        hec.put(key, value);
+        byte[] output = hec.get(key);
+        assertArrayEquals(value, output);
+
+        hec.delete(key);
+        assertNull(hec.get(key));
     }
     
     @Test
