@@ -88,7 +88,7 @@ public class HybrisTest extends HybrisAbstractTest {
 
         String key1 = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         String key2 = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
-        byte[] value = new byte[10485760];
+        byte[] value = new byte[1048576];
         this.random.nextBytes(value);
         
         Hybris hr = new Hybris(zkTestingServer.getConnectString(), "hybris", "accounts.properties", 
