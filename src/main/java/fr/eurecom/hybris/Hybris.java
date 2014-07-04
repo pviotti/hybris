@@ -18,13 +18,13 @@ package fr.eurecom.hybris;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.GeneralSecurityException;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
+import java.util.Map.Entry;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
@@ -43,6 +43,8 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import fr.eurecom.hybris.EcManager.ChunkState;
+import fr.eurecom.hybris.EcManager.EcChunk;
 import fr.eurecom.hybris.kvs.KvsManager;
 import fr.eurecom.hybris.kvs.drivers.Kvs;
 import fr.eurecom.hybris.mds.MdsManager;
@@ -58,8 +60,13 @@ public class Hybris {
 
     private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
-    private MdsManager mds;
-    private KvsManager kvs;
+    protected MdsManager mds;
+    protected KvsManager kvs;
+    
+    /* erasure coding */
+    private EcManager ec;
+    private int k;
+    private int m;
 
     /* caching */
     private MemcachedClient cache;
@@ -68,20 +75,24 @@ public class Hybris {
     private enum CachePolicy { ONREAD, ONWRITE };
     private CachePolicy cachePolicy;
 
-    private final int quorum;
+    private int quorum;
 
     /* read and write timeouts for cloud communications [s] */
-    private final int TIMEOUT_WRITE;
-    private final int TIMEOUT_READ;     // TODO
+    private int TIMEOUT_WRITE;
+    private int TIMEOUT_READ;
 
     /* GC */
-    private final boolean gcEnabled;
+    private GcManager gc;
+    private boolean gcEnabled;
 
     /* confidentiality */
-    private final boolean cryptoEnabled;
+    private boolean cryptoEnabled;
     private byte[] IV;
+    
+    /* erasure coding */
+    private boolean ecEnabled;
 
-    private final String clientId;
+    private String clientId;
 
 
     /**
@@ -93,45 +104,25 @@ public class Hybris {
     public Hybris(String propertiesFile) throws HybrisException {
 
         Config conf = Config.getInstance();
-        try {
+        try{
             conf.loadProperties(propertiesFile);
-            this.mds = new MdsManager(conf.getProperty(Config.MDS_ADDR),
-                    conf.getProperty(Config.MDS_ROOT));
-            this.kvs = new KvsManager(conf.getProperty(Config.KVS_ACCOUNTSFILE),
-                    conf.getProperty(Config.KVS_ROOT),
-                    Boolean.parseBoolean(conf.getProperty(Config.KVS_TESTSONSTARTUP)));
         } catch (IOException e) {
-            logger.error("Could not initialize Zookeeper or the cloud storage KvStores.", e);
-            throw new HybrisException("Could not initialize Zookeeper or the cloud storage KvStores.", e);
+            logger.error("Could not read the configuration file " + propertiesFile, e);
+            throw new HybrisException("Could not read the configuration file " + propertiesFile, e);
         }
-
-        this.cacheEnabled = Boolean.parseBoolean(conf.getProperty(Config.CACHE_ENABLED));
-        if (this.cacheEnabled)
-            try {
-                Properties sysProp = System.getProperties();
-                sysProp.put("net.spy.log.LoggerImpl", "net.spy.memcached.compat.log.Log4JLogger");
-                System.setProperties(sysProp);
-                this.cache = new MemcachedClient(new BinaryConnectionFactory(),
-                        AddrUtil.getAddresses(conf.getProperty(Config.CACHE_ADDRESS)));
-                this.cacheExp = Integer.parseInt(conf.getProperty(Config.CACHE_EXP));
-                this.cachePolicy = CachePolicy.valueOf(conf.getProperty(Config.CACHE_POLICY).toUpperCase());
-            } catch (Exception e) {
-                logger.warn("Could not initialize the caching client. Please check its settings.", e);
-                this.cacheEnabled = false;
-            }
-
-        int t = Integer.parseInt(conf.getProperty(Config.HS_F));
-        this.quorum = t + 1;
-        this.TIMEOUT_WRITE = Integer.parseInt(conf.getProperty(Config.HS_TO_WRITE));
-        this.TIMEOUT_READ = Integer.parseInt(conf.getProperty(Config.HS_TO_READ));
-        this.gcEnabled = Boolean.parseBoolean(conf.getProperty(Config.HS_GC));
-        this.cryptoEnabled = Boolean.parseBoolean(conf.getProperty(Config.HS_CRYPTO));
-        if (this.cryptoEnabled)
-            this.IV = this.mds.getOrCreateIv();
-
-        String cid = conf.getProperty(Config.HS_CLIENTID);
-        if (cid != null)    this.clientId = cid;
-        else                this.clientId = Utils.generateClientId();
+        
+        this.configureAndInitialize(conf.getProperty(Config.MDS_ADDR), conf.getProperty(Config.MDS_ROOT),
+                conf.getProperty(Config.KVS_ACCOUNTSFILE), conf.getProperty(Config.KVS_ROOT),
+                Boolean.parseBoolean(conf.getProperty(Config.KVS_TESTSONSTARTUP)),
+                conf.getProperty(Config.HS_CLIENTID), Integer.parseInt(conf.getProperty(Config.HS_F)),
+                Integer.parseInt(conf.getProperty(Config.HS_TO_WRITE)),
+                Integer.parseInt(conf.getProperty(Config.HS_TO_READ)),
+                Boolean.parseBoolean(conf.getProperty(Config.HS_GC)),
+                Boolean.parseBoolean(conf.getProperty(Config.HS_CRYPTO)), 
+                Boolean.parseBoolean(conf.getProperty(Config.CACHE_ENABLED)), conf.getProperty(Config.CACHE_ADDRESS),
+                Integer.parseInt(conf.getProperty(Config.CACHE_EXP)), conf.getProperty(Config.CACHE_POLICY), 
+                Boolean.parseBoolean(conf.getProperty(Config.ECODING)), 
+                Integer.parseInt(conf.getProperty(Config.ECODING_K)));
     }
 
     /**
@@ -151,17 +142,30 @@ public class Hybris {
      * @param memcachedAddrs - list of comma separated addresses of Memcached servers.
      * @param cacheExp - caching default expiration timeout (seconds).
      * @param cachePolicy - caching policy, either "onread" or "onwrite"
+     * @param ecEnabled - enables erasure coding.
      * @throws HybrisException
      */
     public Hybris(String zkAddress, String zkRoot,
             String kvsAccountFile, String kvsRoot, boolean kvsTestOnStartup,
             String clientId, int t, int writeTimeout, int readTimeout, boolean gcEnabled, boolean cryptoEnabled,
-            boolean cachingEnable, String memcachedAddrs, int cacheExp, String cachePolicy) throws HybrisException {
+            boolean cachingEnable, String memcachedAddrs, int cacheExp, String cachePolicy, boolean ecEnabled, int ecK) 
+                    throws HybrisException {
+        
+        this.configureAndInitialize(zkAddress, zkRoot, kvsAccountFile, kvsRoot, kvsTestOnStartup, clientId, 
+                t, writeTimeout, readTimeout, gcEnabled, cryptoEnabled, cachingEnable, 
+                memcachedAddrs, cacheExp, cachePolicy, ecEnabled, ecK);
+    }
+    
+    private void configureAndInitialize(String zkAddress, String zkRoot,
+            String kvsAccountFile, String kvsRoot, boolean kvsTestOnStartup,
+            String clientId, int t, int writeTimeout, int readTimeout, boolean gcEnabled, boolean cryptoEnabled,
+            boolean cachingEnable, String memcachedAddrs, int cacheExp, String cachePolicy, boolean ecEnabled, int ecK) 
+                    throws HybrisException {
         try {
             this.mds = new MdsManager(zkAddress, zkRoot);
             this.kvs = new KvsManager(kvsAccountFile, kvsRoot, kvsTestOnStartup);
         } catch (IOException e) {
-            logger.error("Could not initialize Zookeeper or the cloud storage KvStores.", e);
+            logger.error("Could not initialize ZooKeeper or the cloud storage KvStores.", e);
             throw new HybrisException("Could not initialize Zookeeper or the cloud storage KvStores", e);
         }
 
@@ -184,9 +188,26 @@ public class Hybris {
         this.TIMEOUT_WRITE = writeTimeout;
         this.TIMEOUT_READ = readTimeout;
         this.gcEnabled = gcEnabled;
+        if (gcEnabled)
+            gc = new GcManager(this);
         this.cryptoEnabled = cryptoEnabled;
         if (this.cryptoEnabled)
             this.IV = this.mds.getOrCreateIv();
+        
+        this.ecEnabled = ecEnabled;
+        if (this.ecEnabled) 
+            try {
+                ec = new EcManager();
+                if (ecK <=0) {
+                    logger.error("Wrong value for k (<=0), disabling erasure coding.");
+                    this.ecEnabled = false;
+                } else {
+                    this.k = ecK;
+                    this.m = t;
+                }
+            } catch (Exception e) {
+                this.ecEnabled = false;
+            }
 
         if (clientId != null)   this.clientId = clientId;
         else                    this.clientId = Utils.generateClientId();
@@ -196,7 +217,7 @@ public class Hybris {
     /* ---------------------------------------------------------------------------------------
                                             Public APIs
        --------------------------------------------------------------------------------------- */
-
+    
     /**
      * Writes a byte array associated with a key.
      * @param key
@@ -234,48 +255,127 @@ public class Hybris {
                 cryptoKey = null;
             }
         }
-
+        
         List<Kvs> savedReplicasLst = new ArrayList<Kvs>();
         String kvsKey = Utils.getKvsKey(key, ts);
-        ExecutorService executor = Executors.newFixedThreadPool(this.quorum);
-        CompletionService<Kvs> compServ = new ExecutorCompletionService<Kvs>(executor);
-        int idxFrom = 0; int idxTo = this.quorum; long start; Future<Kvs> future;
-        do {
-            List<Kvs> kvsSublst = this.kvs.getKvsSortedByWriteLatency().subList(idxFrom, idxTo);
-            start = System.currentTimeMillis();
-            for (Kvs kvStore : kvsSublst)
-                compServ.submit(this.kvs.new KvsPutWorker(kvStore, kvsKey, value));
-
-            Kvs savedReplica = null;
-            for (int i=0; i<kvsSublst.size(); i++)
-                try {
-                    future =  compServ.poll(this.TIMEOUT_WRITE, TimeUnit.SECONDS);
-                    if (future != null && (savedReplica = future.get()) != null) {
-                        logger.debug("Data stored on {}, {} ms", savedReplica,
-                                System.currentTimeMillis() - start);
-                        savedReplicasLst.add(savedReplica);
-                        if (savedReplicasLst.size() >= this.quorum)
+        int idxFrom = 0; long start; Future<Kvs> future;
+        
+        if (this.ecEnabled) {   // Erasure coding
+            
+            // TODO storing chunks' hashes in md
+            // XXX caching with ec?
+            ExecutorService executor = Executors.newFixedThreadPool(m + k);
+            CompletionService<Kvs> compServ = new ExecutorCompletionService<Kvs>(executor);
+            
+            byte[][] encoded = ec.encode(value, k, m);
+            EcChunk[] chunks = new EcChunk[encoded.length];
+            for (int i=0; i<encoded.length; i++)
+                chunks[i] = this.ec.new EcChunk(encoded[i], null, ChunkState.KO);
+            int idxTo = k + m;
+            boolean completed;
+            do {
+                completed = true;
+                List<Kvs> kvsSublst = this.kvs.getKvsSortedByWriteLatency().subList(idxFrom, idxTo);
+                int pending = 0;
+                start = System.currentTimeMillis();
+                for (int i=0; i<kvsSublst.size(); i++)
+                    for (int j=0; j<chunks.length; j++)
+                        if (ChunkState.KO.equals(chunks[j].state)) {
+                            compServ.submit(this.kvs.new KvsPutWorker(kvsSublst.get(i), kvsKey, chunks[j].data));
+                            chunks[j].state = ChunkState.PENDING;
+                            chunks[j].kvs = kvsSublst.get(i);
+                            pending++;
                             break;
+                        }
+
+                Kvs savedReplica = null;
+                for (int i=0; i<pending; i++)
+                    try {
+                        future =  compServ.poll(this.TIMEOUT_WRITE, TimeUnit.SECONDS);
+                        if (future != null && 
+                                !(savedReplica = future.get()).getId().startsWith(KvsManager.FAIL_PREFIX))
+
+                            for (int j=0; j<chunks.length; j++) {
+                                if (savedReplica.equals(chunks[j].kvs)) {
+                                    logger.debug("Chunk {}, {} B, stored on {}, {} ms", i, 
+                                            chunks[j].data.length, savedReplica,
+                                            System.currentTimeMillis() - start);
+                                    chunks[j].state = ChunkState.OK;
+                                    break;
+                                }
+                            }
+                        else if (savedReplica != null)
+                                for (int j=0; j<chunks.length; j++)
+                                    if (savedReplica.getId().contains(chunks[i].kvs.getId()))
+                                        chunks[i].state = ChunkState.KO;
+                    } catch (InterruptedException | ExecutionException e) {
+                        logger.warn("Exception on write task execution", e);
                     }
-                } catch (InterruptedException | ExecutionException e) {
-                    logger.warn("Exception on write task execution", e);
-                }
+                
+                for (int j=0; j<chunks.length; j++) 
+                    if (!ChunkState.OK.equals(chunks[j].state)) 
+                        completed = false;
+                
+                idxFrom = idxTo;
+                idxTo = this.kvs.getKvsList().size() > idxTo + k + m?
+                        idxTo + k + m: this.kvs.getKvsList().size();
 
-            idxFrom = idxTo;
-            idxTo = this.kvs.getKvsList().size() > idxTo + this.quorum ?
-                    idxTo + this.quorum : this.kvs.getKvsList().size();
-
-        } while (savedReplicasLst.size() < this.quorum && idxFrom < idxTo);
-        executor.shutdown();
-
-        if (savedReplicasLst.size() < this.quorum) {
-            if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
-            logger.warn("Could not store data in cloud stores for key {}.", key);
-            throw new HybrisException("Could not store data in cloud stores");
+            } while (!completed && idxFrom < idxTo);
+            executor.shutdown();
+            
+            for (int j=0; j<chunks.length; j++)
+                if (chunks[j].state.equals(ChunkState.OK))
+                    savedReplicasLst.add(chunks[j].kvs);                            
+            
+            if (!completed) {
+                if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
+                logger.warn("Could not store data in cloud stores for key {}.", key);
+                throw new HybrisException("Could not store data in cloud stores");
+            }
+            
+        } else {    // Replication
+            
+            ExecutorService executor = Executors.newFixedThreadPool(this.quorum);
+            CompletionService<Kvs> compServ = new ExecutorCompletionService<Kvs>(executor);
+            int idxTo = this.quorum;
+            do {
+                List<Kvs> kvsSublst = this.kvs.getKvsSortedByWriteLatency().subList(idxFrom, idxTo);
+                start = System.currentTimeMillis();
+                for (Kvs kvStore : kvsSublst)
+                    compServ.submit(this.kvs.new KvsPutWorker(kvStore, kvsKey, value));
+    
+                Kvs savedReplica = null;
+                for (int i=0; i<kvsSublst.size(); i++)
+                    try {
+                        future =  compServ.poll(this.TIMEOUT_WRITE, TimeUnit.SECONDS);
+                        if (future != null && 
+                                !(savedReplica = future.get()).getId().startsWith(KvsManager.FAIL_PREFIX)) {
+                            logger.debug("Data ({} B) stored on {}, {} ms", value.length, savedReplica,
+                                    System.currentTimeMillis() - start);
+                            savedReplicasLst.add(savedReplica);
+                            if (savedReplicasLst.size() >= this.quorum)
+                                break;
+                        }
+                    } catch (InterruptedException | ExecutionException e) {
+                        logger.warn("Exception on write task execution", e);
+                    }
+    
+                idxFrom = idxTo;
+                idxTo = this.kvs.getKvsList().size() > idxTo + this.quorum ?
+                        idxTo + this.quorum : this.kvs.getKvsList().size();
+    
+            } while (savedReplicasLst.size() < this.quorum && idxFrom < idxTo);
+            executor.shutdown();
+    
+            if (savedReplicasLst.size() < this.quorum) {
+                if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
+                logger.warn("Could not store data in cloud stores for key {}.", key);
+                throw new HybrisException("Could not store data in cloud stores");
+            }
+    
+            if (this.cacheEnabled && CachePolicy.ONWRITE.equals(this.cachePolicy))
+                this.cache.set(kvsKey, this.cacheExp, value);
         }
-
-        if (this.cacheEnabled && CachePolicy.ONWRITE.equals(this.cachePolicy))
-            this.cache.set(kvsKey, this.cacheExp, value);
 
         boolean overwritten = false;
         try {
@@ -310,43 +410,121 @@ public class Hybris {
 
         byte[] value = null;
         String kvsKey = Utils.getKvsKey(key, md.getTs());
-
-        if (this.cacheEnabled) {
-            value = (byte[]) this.cache.get(kvsKey);
-            if (value != null && Arrays.equals(md.getHash(), Utils.getHash(value))) {
-
-                if (md.getCryptoKey() != null)
+        
+        if (this.ecEnabled) {   // Erasure coding
+            
+            ExecutorService executor = Executors.newFixedThreadPool(k);
+            CompletionService<Entry<Kvs, byte[]>> compServ = 
+                    new ExecutorCompletionService<Entry<Kvs, byte[]>>(executor);
+            List<Kvs> kvsLst = this.kvs.getKvsSortedByReadLatency();
+            kvsLst.retainAll(md.getReplicasLst());
+            @SuppressWarnings("unchecked")
+            Future<Entry<Kvs, byte[]>>[] futuresArray = new Future[kvsLst.size()];
+            Future<Entry<Kvs, byte[]>> futureResult;
+            Entry<Kvs, byte[]> chunk = new AbstractMap.SimpleEntry<Kvs, byte[]>(null, null);
+            EcChunk[] chunks = new EcChunk[md.getReplicasLst().size()];
+            for (int i=0; i<chunks.length; i++)
+                chunks[i] = this.ec.new EcChunk(null, md.getReplicasLst().get(i), ChunkState.KO);
+            
+            int idxFrom = 0, idxTo = k;
+            boolean completed = true;
+            int retrieved = 0;
+            do {
+                List<Kvs> kvsSublst = kvsLst.subList(idxFrom, idxTo);
+                for (Kvs kvStore : kvsSublst) {
+                    futuresArray[kvsSublst.indexOf(kvStore)] = compServ.submit(this.kvs.new KvsGetWorker(kvStore, kvsKey));
+                    for (int j=0; j<chunks.length; j++)
+                        if (kvStore.equals(chunks[j].kvs)) {
+                            chunks[j].state = ChunkState.PENDING;
+                            break;
+                        }
+                }
+                
+                for (int i=0; i<kvsSublst.size(); i++)
                     try {
-                        logger.debug("Decrypting data for key {}", key);
-                        value = Utils.decrypt(value, md.getCryptoKey(), this.IV);
-                    } catch (GeneralSecurityException | UnsupportedEncodingException e) {
-                        logger.error("Could not decrypt data", e);
-                        throw new HybrisException("Could not decrypt data", e);
+                        futureResult =  compServ.poll(this.TIMEOUT_READ, TimeUnit.SECONDS);
+                        if (futureResult != null && 
+                                !(chunk = futureResult.get()).getKey().getId().startsWith(KvsManager.FAIL_PREFIX)) {
+                            
+                            for (int j=0; j<chunks.length; j++) {
+                                if (chunk.getKey().equals(chunks[j].kvs)) {
+                                    chunks[j].state = ChunkState.OK;
+                                    chunks[j].data = chunk.getValue();
+                                    retrieved++;
+                                    logger.debug("Chunk {} retrieved from {}", j, chunks[j].kvs);
+                                    break;
+                                }
+                            }
+                         } else if (chunk != null)
+                                 for (int j=0; j<chunks.length; j++)
+                                     if (chunk.getKey().getId().contains(chunks[i].kvs.getId()))
+                                         chunks[i].state = ChunkState.KO;
+
+                    } catch (InterruptedException | ExecutionException e) {
+                        logger.warn("Exception on write task execution", e);
                     }
-
-                logger.debug("Value of {} retrieved from cache", key);
-                return value;
+                
+                if (retrieved < k) { 
+                    completed = false;
+                    idxFrom = idxTo;
+                    idxTo = this.kvs.getKvsList().size() > idxTo + (k - retrieved)?
+                            idxTo + (k - retrieved) : this.kvs.getKvsList().size();
+                }
+            } while (!completed && idxFrom < idxTo);
+            executor.shutdown();
+            
+            if (retrieved < k) {
+                logger.error("Could not retrieve enough chunks for decoding data.");
+                return null;
             }
-        }
+            
+            byte[][] dataBlocks = new byte[k][], 
+                    codingBlocks = new byte[m][];
+            int chunkLen = 0;
+            int[] erasures = new int[k+m];
+            int idxEr = 0;
+            for (int j=0; j<k; j++)
+                if (chunks[j].state.equals(ChunkState.OK)){
+                    dataBlocks[j] = chunks[j].data;
+                    if (chunkLen == 0) chunkLen = chunks[j].data.length;
+                } else {
+                    erasures[idxEr] = j;
+                    idxEr++;
+                }
+            for (int j=0; j<m; j++)
+                if (chunks[k + j].state.equals(ChunkState.OK)) {
+                    codingBlocks[j] = chunks[k + j].data;
+                    if (chunkLen == 0) chunkLen = chunks[k + j].data.length;
+                } else {
+                    erasures[idxEr] = k + j;
+                    idxEr++;
+                }
+            
+            for (int i = 0; i < idxEr; i++)
+                if (erasures[i] < k)
+                    dataBlocks[erasures[i]] = new byte[chunkLen];
+                else 
+                    codingBlocks[erasures[i]-k] = new byte[chunkLen];
+            erasures[idxEr] = -1;
+            
+            value = ec.decode(dataBlocks, codingBlocks, erasures, k, m, md.getSize());
+            
+            if (md.getCryptoKey() != null)
+                try {
+                    logger.debug("Decrypting data for key {}", key);
+                    value = Utils.decrypt(value, md.getCryptoKey(), this.IV);
+                } catch (GeneralSecurityException | UnsupportedEncodingException e) {
+                    logger.error("Could not decrypt data", e);
+                    throw new HybrisException("Could not decrypt data", e);
+                }
+            return value;
+            
+        } else {    // Replication
 
-        for (Kvs kvStore : this.kvs.getKvsSortedByReadLatency()) {
-
-            if (!md.getReplicasLst().contains(kvStore))
-                continue;
-
-            try {
-                // TODO check filesize to prevent DOS
-                value = this.kvs.get(kvStore, kvsKey);
-            } catch (IOException e) {
-                continue;
-            }
-
-            if (value != null) {
-                if (Arrays.equals(md.getHash(), Utils.getHash(value))) {
-                    logger.info("Value of {} retrieved from kvStore {}", key, kvStore);
-                    if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))
-                        this.cache.set(kvsKey, this.cacheExp, value);
-
+            if (this.cacheEnabled) {
+                value = (byte[]) this.cache.get(kvsKey);
+                if (value != null && Arrays.equals(md.getHash(), Utils.getHash(value))) {
+    
                     if (md.getCryptoKey() != null)
                         try {
                             logger.debug("Decrypting data for key {}", key);
@@ -355,19 +533,52 @@ public class Hybris {
                             logger.error("Could not decrypt data", e);
                             throw new HybrisException("Could not decrypt data", e);
                         }
-
+    
+                    logger.debug("Value of {} retrieved from cache", key);
                     return value;
-                } else      // The hash doesn't match: Byzantine fault: let's try with the other clouds
+                }
+            }
+    
+            for (Kvs kvStore : this.kvs.getKvsSortedByReadLatency()) {
+    
+                if (!md.getReplicasLst().contains(kvStore))
                     continue;
-            } else
-                /* This could be due to:
-                 * a. Byzantine replicas
-                 * b. concurrent gc
-                 */
-                return this.parallelGet(key);
+    
+                try {
+                    // XXX check file size to prevent DOS
+                    value = this.kvs.get(kvStore, kvsKey);
+                } catch (IOException e) {
+                    continue;
+                }
+    
+                if (value != null) {
+                    if (Arrays.equals(md.getHash(), Utils.getHash(value))) {
+                        logger.info("Value of {} retrieved from kvStore {}", key, kvStore);
+                        if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))
+                            this.cache.set(kvsKey, this.cacheExp, value);
+    
+                        if (md.getCryptoKey() != null)
+                            try {
+                                logger.debug("Decrypting data for key {}", key);
+                                value = Utils.decrypt(value, md.getCryptoKey(), this.IV);
+                            } catch (GeneralSecurityException | UnsupportedEncodingException e) {
+                                logger.error("Could not decrypt data", e);
+                                throw new HybrisException("Could not decrypt data", e);
+                            }
+    
+                        return value;
+                    } else      // The hash doesn't match: Byzantine fault: let's try with the other clouds
+                        continue;
+                } else
+                    /* This could be due to:
+                     * a. Byzantine replicas
+                     * b. concurrent gc
+                     */
+                    return this.parallelGet(key);
+            }
+    
+            return this.parallelGet(key);
         }
-
-        return this.parallelGet(key);
     }
 
 
@@ -390,14 +601,14 @@ public class Hybris {
 
         String kvsKey = Utils.getKvsKey(key, md.getTs());
         ExecutorService executor = Executors.newFixedThreadPool(this.quorum);
-        CompletionService<byte[]> compServ = new ExecutorCompletionService<byte[]>(executor);
-        Future<byte[]> futureResult;
+        CompletionService<Entry<Kvs, byte[]>> compServ = new ExecutorCompletionService<Entry<Kvs, byte[]>>(executor);
+        Future<Entry<Kvs, byte[]>> futureResult;
         byte[] value = null;
         boolean keepRetrieving = true;
 
         List<Kvs> kvsSublst = this.kvs.getKvsSortedByReadLatency();
         kvsSublst.retainAll(md.getReplicasLst());
-        Future<byte[]>[] futuresArray = new Future[kvsSublst.size()];
+        Future<Entry<Kvs, byte[]>>[] futuresArray = new Future[kvsSublst.size()];
 
         do {
             for (Kvs kvStore : kvsSublst)
@@ -406,14 +617,15 @@ public class Hybris {
             for (int i=0; i<kvsSublst.size(); i++)
                 try {
                     if (hwatcher.isChanged()) {
-                        for (Future<byte[]> future : futuresArray)
+                        for (Future<Entry<Kvs, byte[]>> future : futuresArray)
                             future.cancel(true);
                         return this.parallelGet(key);
                     }
 
                     futureResult =  compServ.poll(this.TIMEOUT_READ, TimeUnit.SECONDS);
-                    if (futureResult != null && (value = futureResult.get()) != null)
-                        if (Arrays.equals(md.getHash(), Utils.getHash(value))) {
+                    if (futureResult != null && 
+                            !futureResult.get().getKey().getId().startsWith(KvsManager.FAIL_PREFIX))
+                            if (Arrays.equals(md.getHash(), Utils.getHash(value))) {
 
                             if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))
                                 this.cache.set(kvsKey, this.cacheExp, value);
@@ -428,7 +640,7 @@ public class Hybris {
                                 }
 
                             keepRetrieving = false;
-                            for (Future<byte[]> future : futuresArray)
+                            for (Future<Entry<Kvs, byte[]>> future : futuresArray)
                                 future.cancel(true);
                             break;
                         }
@@ -529,7 +741,7 @@ public class Hybris {
      * Class in charge of handling ZooKeeper notifications.
      * @author P. Viotti
      */
-    public class HybrisWatcher implements CuratorWatcher {
+    private class HybrisWatcher implements CuratorWatcher {
 
         private boolean changed = false;
         public boolean isChanged() { return this.changed; }
@@ -540,170 +752,6 @@ public class Hybris {
          */
         public void process(WatchedEvent event) throws Exception {
             this.changed = true;
-        }
-    }
-
-
-    /* -------------------------------------- GcManager -------------------------------------- */
-
-    /**
-     * Class in charge of performing garbage collection tasks.
-     * @author P. Viotti
-     */
-    public class GcManager {
-
-        /**
-         * Deletes from KVSs all orphan or stale keys which are indexed on MDS.
-         * @throws HybrisException
-         */
-        public void gc() throws HybrisException {
-
-            // Orphans
-            Map<String, Metadata> orphans = Hybris.this.mds.getOrphans();
-            Set<String> orphanKeys = orphans.keySet();
-            for (Iterator<String> it = orphanKeys.iterator(); it.hasNext();) {
-                String kvsKey = it.next();
-                Metadata md = orphans.get(kvsKey);
-                boolean error = false;
-
-                for (Kvs kvStore : Hybris.this.kvs.getKvsList()) {
-
-                    if (!md.getReplicasLst().contains(kvStore))
-                        continue;
-
-                    try {
-                        Hybris.this.kvs.delete(kvStore, kvsKey);
-                    } catch (IOException e) {
-                        error = true;
-                        logger.warn("GC: could not delete {} from {}", kvsKey, kvStore);
-                    }
-                }
-
-                if (error) it.remove();
-            }
-            Hybris.this.mds.removeOrphanKeys(orphanKeys);
-
-            // Stale
-            List<String> staleKeys = Hybris.this.mds.getStaleKeys();
-            for (String key : staleKeys)
-                try {
-                    this.gc(key);
-                } catch (HybrisException e) {
-                    logger.warn("GC: could not gc key {}", key);
-                }
-        }
-
-
-        /**
-         * Deletes from KVSs stale data associated with <key>.
-         * @param key
-         * @throws HybrisException
-         */
-        public void gc(String key) throws HybrisException {
-
-            Metadata md = Hybris.this.mds.tsRead(key, null);
-            if (md == null) {
-                logger.debug("GC: could not find the metadata associated with key {}.", key);
-                return;
-            }
-
-            for (Kvs kvStore : Hybris.this.kvs.getKvsList()) {
-
-                List<String> kvsKeys;
-                try {
-                    kvsKeys = Hybris.this.kvs.list(kvStore);
-                } catch (IOException e) {
-                    logger.warn("GC: could not list {} container", kvStore);
-                    continue;
-                }
-
-                for (String kvsKey : kvsKeys) {
-                    String prefixKey = ""; Timestamp kvTs = null;
-                    boolean malformedKey = false;
-                    try {
-                        prefixKey = Utils.getKeyFromKvsKey(kvsKey);
-                        kvTs = Utils.getTimestampfromKvsKey(kvsKey);
-                    } catch(IndexOutOfBoundsException e) {
-                        malformedKey = true;
-                    }
-
-                    if ( malformedKey ||
-                            key.equals(prefixKey) && md.getTs().isGreater(kvTs) )  {
-                        try {
-                            Hybris.this.kvs.delete(kvStore, kvsKey);
-                        } catch (IOException e) {
-                            logger.warn("GC: could not delete {} from {}", kvsKey, kvStore);
-                            continue;
-                        }
-                        logger.debug("GC: deleted {} from {}", kvsKey, kvStore);
-                    }
-                }
-            }
-
-            Hybris.this.mds.removeStaleKey(key);
-        }
-
-
-        /**
-         * Deletes from KVSs all the keys which are not present on MDS or obsolete or malformed.
-         * Heads up: this function does a complete MDS dump and a complete KVS listing,
-         * so it can be very slow and resource consuming.
-         * @throws HybrisException
-         */
-        public void batchGc() throws HybrisException {
-
-            Map<String, Metadata> mdMap = Hybris.this.mds.getAll();     // !! heavy operation
-
-            for (Kvs kvStore : Hybris.this.kvs.getKvsList()) {
-
-                List<String> kvsKeys;
-                try {
-                    kvsKeys = Hybris.this.kvs.list(kvStore);
-                } catch (IOException e) {
-                    logger.warn("GC: could not list {} container", kvStore);
-                    continue;
-                }
-
-                for (String kvsKey : kvsKeys) {
-
-                    String key = ""; Timestamp kvTs = null;
-                    boolean malformedKey = false;
-                    try {
-                        key = Utils.getKeyFromKvsKey(kvsKey);
-                        kvTs = Utils.getTimestampfromKvsKey(kvsKey);
-                    } catch(IndexOutOfBoundsException e) {
-                        malformedKey = true;
-                    }
-
-                    if ( malformedKey || !mdMap.keySet().contains(key) ||
-                            mdMap.get(key).getTs().isGreater(kvTs) ) {
-                        try {
-                            Hybris.this.kvs.delete(kvStore, kvsKey);
-                        } catch (IOException e) {
-                            logger.warn("GC: could not delete {} from {}", kvsKey, kvStore);
-                            continue;
-                        }
-                        logger.debug("GC: deleted {} from {}", kvsKey, kvStore);
-                    }
-                }
-            }
-            //mds.emptyStaleAndOrphansContainers();
-        }
-
-
-        /* -------------------------------------- TEMP / DEBUG -------------------------------------- */
-        /**
-         * XXX TEMP for testing and debugging - cleans up the KVS and MDS containers (!)
-         * @throws HybrisException
-         */
-        public void _emptyContainers() throws HybrisException {
-            Hybris.this.mds.emptyMetadataContainer();
-            for (Kvs kvStore : Hybris.this.kvs.getKvsList())
-                try {
-                    Hybris.this.kvs.emptyStorageContainer(kvStore);
-                } catch (IOException e) {
-                    logger.warn("Could not empty {} container", kvStore);
-                }
         }
     }
 }

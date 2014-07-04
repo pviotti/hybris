@@ -22,14 +22,15 @@ import java.util.NoSuchElementException;
 
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
-import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.BlobStores;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.StorageMetadata;
 import org.jclouds.blobstore.options.ListContainerOptions;
+import org.jclouds.openstack.swift.v1.blobstore.RegionScopedBlobStoreContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.io.ByteSource;
 import com.google.common.io.ByteStreams;
 
 import fr.eurecom.hybris.Config;
@@ -38,18 +39,28 @@ public class RackspaceKvs extends Kvs {
 
     private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
-    private final static String rackspaceId = "rackspace-cloudfiles-us";
+    private final static String RACKSPACE_US_ID = "rackspace-cloudfiles-us";
+    /*
+     * Supported regions for Cloud Files US:
+     * - Dallas (DFW)
+     * - Chicago (ORD)
+     * - North Virginia (IAD)
+     * - Hong Kong (HKG)
+     * - Sydney, Australia (SYD)
+     */
+    private final static String REGION_ID = "IAD";
+    
     private transient final BlobStore blobStore;
 
     public RackspaceKvs(String id, String accessKey, String secretKey,
-            String container, boolean enabled, int cost) throws IOException {
+                        String container, boolean enabled, int cost) throws IOException {
         super(id, container, enabled, cost);
 
         try {
-            BlobStoreContext context = ContextBuilder.newBuilder(rackspaceId)
+            blobStore = ContextBuilder.newBuilder(RACKSPACE_US_ID)
                     .credentials(accessKey, secretKey)
-                    .buildView(BlobStoreContext.class);
-            this.blobStore = context.getBlobStore();
+                    .buildView(RegionScopedBlobStoreContext.class)
+                    .blobStoreInRegion(REGION_ID);
         } catch (NoSuchElementException e) {
             logger.error("Could not initialize {} KvStore", id, e);
             throw new IOException(e);
@@ -60,7 +71,8 @@ public class RackspaceKvs extends Kvs {
 
     public void put(String key, byte[] value) throws IOException {
         try {
-            Blob blob = this.blobStore.blobBuilder(key).payload(value).build();
+            Blob blob = this.blobStore.blobBuilder(key)
+                    .payload(ByteSource.wrap(value)).build();
             this.blobStore.putBlob(this.rootContainer, blob);
         } catch (Exception e) {
             throw new IOException(e);
@@ -72,7 +84,7 @@ public class RackspaceKvs extends Kvs {
             Blob blob = this.blobStore.getBlob(this.rootContainer, key);
             if (blob == null)
                 return null;
-            return ByteStreams.toByteArray(blob.getPayload());
+            return ByteStreams.toByteArray(blob.getPayload().openStream());
         } catch (Exception e) {
             throw new IOException(e);
         }

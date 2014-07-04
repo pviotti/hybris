@@ -16,10 +16,12 @@
 package fr.eurecom.hybris.kvs;
 
 import java.io.IOException;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -56,6 +58,8 @@ public class KvsManager {
     private final List<Kvs> kvsLstByWrites;             // kvStores sorted by write latency
 
     private final int LATENCY_TEST_DATA_SIZE = 100;     // default value: 100kB
+    
+    public static final String FAIL_PREFIX = "FAIL-";
 
     public enum KvsId {
         AMAZON((short) 0),
@@ -181,7 +185,7 @@ public class KvsManager {
                 KvsManager.this.put(this.kvStore, this.key, this.value);
                 return this.kvStore;
             } catch (Exception e) {
-                return null;
+                return new Kvs(FAIL_PREFIX + kvStore.getId(), "", false, 0);
             }
         }
     }
@@ -192,7 +196,7 @@ public class KvsManager {
      * read operations on cloud stores.
      * @author p.viotti
      */
-    public class KvsGetWorker implements Callable<byte[]> {
+    public class KvsGetWorker implements Callable<Entry<Kvs, byte[]>> {
 
         private final Kvs kvStore;
         private final String key;
@@ -202,14 +206,17 @@ public class KvsManager {
             this.key = key;
         }
 
-        public byte[] call() {
+        public Entry<Kvs, byte[]> call() {
             try {
-                return KvsManager.this.get(this.kvStore, this.key);
+                byte[] result = KvsManager.this.get(this.kvStore, this.key);
+                return new AbstractMap.SimpleEntry<Kvs, byte[]>(kvStore, result);
             } catch (Exception e) {
-                return null;
+                return new AbstractMap.SimpleEntry<Kvs, byte[]>
+                (new Kvs(FAIL_PREFIX + kvStore.getId(), null, false, 0) , null);
             }
         }
     }
+    
 
     /**
      * Worker thread class in charge of testing read and

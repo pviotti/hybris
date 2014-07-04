@@ -30,6 +30,7 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import fr.eurecom.hybris.GcManager;
 import fr.eurecom.hybris.Hybris;
 import fr.eurecom.hybris.HybrisException;
 import fr.eurecom.hybris.Utils;
@@ -40,7 +41,7 @@ import fr.eurecom.hybris.mds.MdsManager.GcMarker;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 @Ignore
-public class HybrisGcTest extends HybrisAbstractTest {
+public class GcManagerTest extends HybrisAbstractTest {
 
     private final Hybris hybris;
     private final KvsManager kvs;
@@ -51,10 +52,10 @@ public class HybrisGcTest extends HybrisAbstractTest {
     private final String KVS_ROOT = "kvstest-root";
     private final String KVS_ACCOUNTS_FILE = "accounts.properties";
 
-    public HybrisGcTest() throws Exception {
+    public GcManagerTest() throws Exception {
         zkTestingServer = new TestingServer();
         this.hybris = new Hybris(zkTestingServer.getConnectString(), this.MDS_TEST_ROOT, this.KVS_ACCOUNTS_FILE,
-                this.KVS_ROOT, false, "clientId", 0, 600, 600, true, false, false, null, 0, "onwrite");
+                this.KVS_ROOT, false, "clientId", 0, 600, 600, true, false, false, null, 0, "onwrite", false, 0);
         this.mds = new MdsManager(zkTestingServer.getConnectString(), this.MDS_TEST_ROOT);
         this.kvs = new KvsManager(this.KVS_ACCOUNTS_FILE, this.KVS_ROOT, false);
     }
@@ -83,7 +84,7 @@ public class HybrisGcTest extends HybrisAbstractTest {
         this.hybris.put(key, value2);
         this.hybris.put(key, value3);
 
-        this.hybris.new GcManager().gc(key);
+        new GcManager(hybris).gc(key);
 
         // check that the outdated versions are gone
         for (Kvs provider : this.kvs.getKvsList()) {
@@ -131,7 +132,7 @@ public class HybrisGcTest extends HybrisAbstractTest {
         gcm.join();
 
         // gc
-        this.hybris.new GcManager().gc();
+        new GcManager(hybris).gc();
 
         // check that stale keys and orphans are gone
         for (Kvs provider : this.kvs.getKvsList()) {
@@ -196,7 +197,7 @@ public class HybrisGcTest extends HybrisAbstractTest {
         gcm.join();
 
         // batchGc
-        this.hybris.new GcManager().batchGc();
+        new GcManager(hybris).batchGc();
 
         // make sure stales and orphans are gone
         assertNull(this.kvs.get(this.kvs.getKvsList().get(0), "malformedkey1"));

@@ -31,7 +31,7 @@ public class EcManagerTest extends HybrisAbstractTest {
     public void testBasicEncodeDecode() throws HybrisException {
 
         int k = 2;
-        int m = 2;
+        int m = 1;
         
         byte[] data = new byte[1024];
         this.random.nextBytes(data);

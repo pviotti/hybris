@@ -8,7 +8,12 @@ import org.slf4j.LoggerFactory;
 
 import eu.vandertil.jerasure.jni.Jerasure;
 import eu.vandertil.jerasure.jni.ReedSolomon;
+import fr.eurecom.hybris.kvs.drivers.Kvs;
 
+/**
+ * Class in charge of performing erasure coding tasks.
+ * @author P. Viotti
+ */
 public class EcManager {
     
     private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
@@ -16,6 +21,25 @@ public class EcManager {
     private static String EC_LIB_NAME = "Jerasure.jni"; 
     private static int PACKET_SIZE = 8;    // 256 B minimum encoded block size
     private static int WORD_SIZE = 8;
+    
+    public enum ChunkState { KO, PENDING, OK };
+    
+    public class EcChunk {
+        
+        public byte[] data;
+        public Kvs kvs;
+        public ChunkState state;
+        
+        public EcChunk(byte[] data, Kvs kvs, ChunkState stored){
+            this.data = data;
+            this.kvs = kvs;
+            this.state = stored;
+        }
+        
+        public String toString() {
+            return "[" + kvs + ", " + state + "]";
+        }
+    }
     
     public EcManager() {
         try {

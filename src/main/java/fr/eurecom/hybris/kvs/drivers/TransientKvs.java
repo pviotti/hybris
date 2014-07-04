@@ -20,6 +20,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Transient in-memory key-value store - for testing purposes.
+ * @author P. Viotti
+ */
 public class TransientKvs extends Kvs {
 
     private transient final Map<String, byte[]> hashMap;

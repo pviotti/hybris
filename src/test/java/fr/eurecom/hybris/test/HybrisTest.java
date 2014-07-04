@@ -27,6 +27,7 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import fr.eurecom.hybris.GcManager;
 import fr.eurecom.hybris.Hybris;
 import fr.eurecom.hybris.HybrisException;
 
@@ -53,7 +54,8 @@ public class HybrisTest extends HybrisAbstractTest {
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         byte[] value = new byte[50];
         this.random.nextBytes(value);
-
+        
+        //hybris.testLatencyAndSortClouds(100);
         hybris.put(key, value);
         byte[] output = hybris.get(key);
         assertArrayEquals(value, output);
@@ -61,7 +63,54 @@ public class HybrisTest extends HybrisAbstractTest {
         hybris.delete(key);
         assertNull(hybris.get(key));
     }
+    
+    @Test
+    public void testReplicationErasureCoding() throws HybrisException {
 
+        String key1 = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
+        String key2 = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
+        byte[] value = new byte[10485760];
+        this.random.nextBytes(value);
+        
+        Hybris hr = new Hybris(zkTestingServer.getConnectString(), "hybris", "accounts.properties", 
+                "hybris-test-container", true, null, 1, 600, 600, false, false, false, "", 0, "", false, 0);
+        Hybris hec = new Hybris(zkTestingServer.getConnectString(), "hybris", "accounts.properties",
+                "hybris-test-container", true, null, 1, 600, 600, false, false, false, "", 0, "", true, 2);
+        
+        long start = 0, end = 0;
+        
+        start = System.currentTimeMillis();
+        hr.put(key1, value);        
+        end = System.currentTimeMillis();
+        System.out.println("Replication put: " + (end - start) + " ms");
+        
+        start = System.currentTimeMillis();
+        hec.put(key2, value);        
+        end = System.currentTimeMillis();
+        System.out.println("EC put: " + (end - start) + " ms");
+        
+        start = System.currentTimeMillis();
+        byte[] output1 = hr.get(key1);
+        end = System.currentTimeMillis();
+        System.out.println("Replication get: " + (end - start) + " ms");
+        
+        
+        start = System.currentTimeMillis();
+        byte[] output2 = hec.get(key2);
+        end = System.currentTimeMillis();
+        System.out.println("EC get: " + (end - start) + " ms");
+        
+        assertArrayEquals(value, output1);
+        assertArrayEquals(value, output2);
+
+        hr.delete(key1);
+        assertNull(hr.get(key1));
+        hec.delete(key2);
+        assertNull(hec.get(key2));
+        
+        new GcManager(hr)._emptyContainers();
+    }
+    
     //    @Ignore
     //    @Test
     //    public void testParallelWrite() throws HybrisException {

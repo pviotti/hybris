@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import fr.eurecom.hybris.GcManager;
 import fr.eurecom.hybris.Hybris;
 import fr.eurecom.hybris.HybrisException;
 import fr.eurecom.hybris.mds.Metadata;
@@ -165,7 +166,7 @@ public class HybrisTestCli implements Runnable {
 
     private void emptyContainers() {
         try {
-            this.hybris.new GcManager()._emptyContainers();
+            new GcManager(hybris)._emptyContainers();
         } catch (HybrisException e) {
             e.printStackTrace();
         }

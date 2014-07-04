@@ -39,6 +39,9 @@ public class Config {
     public static String HS_GC = "hybris.gc";
 
     public static String HS_CRYPTO = "hybris.crypto";
+    
+    public static String ECODING = "hybris.erasurecoding";
+    public static String ECODING_K = "hybris.erasurecoding.k";
 
     public static String CACHE_ENABLED = "hybris.cache";
     public static String CACHE_ADDRESS = "hybris.cache.address";
