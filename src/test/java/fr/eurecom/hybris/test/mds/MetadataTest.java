@@ -77,6 +77,49 @@ public class MetadataTest extends HybrisAbstractTest {
         assertEquals(size, mddes.getSize());
         assertEquals(ts, mddes.getTs());
     }
+    
+    @Test
+    public void testEcSerialization() {
+
+        int n = this.random.nextInt(100);
+        int size = this.random.nextInt(5000);
+        Timestamp ts = new Timestamp(n, Utils.generateClientId());
+        byte[][] chunksHashes = new byte[3][Utils.HASH_LENGTH];
+        for (int i=0; i<3; i++)
+            this.random.nextBytes(chunksHashes[i]);    
+        byte[] cryptoKey = new byte[Utils.CRYPTO_KEY_LENGTH];
+        this.random.nextBytes(cryptoKey);
+        //byte[] cryptoKey = null;
+        List<Kvs> replicas = new ArrayList<Kvs>();
+        replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "B-accessKey", "B-secretKey", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "C-accessKey", "C-secretKey", "container", true, 20));
+        Metadata md = new Metadata(ts, chunksHashes, replicas, size, cryptoKey);
+
+        byte[] serialized = md.serialize();
+        System.out.println("Ec metadata size (B): " + serialized.length);
+        assertNotNull(serialized);
+
+        Metadata mddes = new Metadata(serialized);
+        assertEquals(md, mddes);
+
+        for(Kvs provider : mddes.getReplicasLst()) {
+            assertNotNull(provider.getId());
+            assertEquals(replicas.get( md.getReplicasLst().indexOf(provider) ), provider);
+
+            assertFalse(provider.isEnabled());
+            assertEquals(0, provider.getReadLatency());
+            assertEquals(0, provider.getWriteLatency());
+            assertEquals(0, provider.getCost());
+        }
+
+        assertEquals(3, mddes.getReplicasLst().size());
+        assertArrayEquals(replicas.toArray(), mddes.getReplicasLst().toArray());
+        for (int i=0; i<3; i++)
+            assertArrayEquals(chunksHashes[i], mddes.getChunksHashes()[i]);
+        assertEquals(size, mddes.getSize());
+        assertEquals(ts, mddes.getTs());
+    }
 
     @Test
     public void testSerializationCornerCases() {
