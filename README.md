@@ -4,7 +4,7 @@ Hybris is a key-value hybrid cloud storage system that robustly replicates data 
 Thanks to this design, Hybris provides **strong consistency** guarantees (i.e., linearizability) and affordable **Byzantine fault tolerance** (i.e., withstanding f faulty clouds with as few as **2f+1** replicas).  
 Hybris is also very **efficient**: in the common case it writes to f+1 clouds and read from only a single cloud.
 
-![Hybris architecture](https://raw.github.com/pviotti/hybris/master/docs/hybris-architecture.png)
+![Hybris architecture](https://raw.github.com/pviotti/hybris/master/doc/hybris-architecture.png)
 
 For more information and detailed benchmarks read [our technical report](http://www.eurecom.fr/en/publication/4157).
 
