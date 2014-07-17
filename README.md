@@ -12,10 +12,10 @@ For more information and detailed benchmarks read [our technical report](http://
 ### Code base overview
 
 Hybris code base is composed by two main modules: MdsManager and KvsManager, 
-the first being a thin wrapper layer of the metadata distributed storage service (i.e. Zookeeper),
+the first being a thin wrapper layer of the metadata distributed storage service (i.e. ZooKeeper),
 while the latter implements the storage primitives towards the APIs of the main 
 public cloud storage services - currently, it supports Amazon S3, 
-Google Cloud Storage, Rackspace Cloudfiles and Windows Azure Blob.  
+Google Cloud Storage, Rackspace Cloud Files and Windows Azure Blob.  
 
 Maven is used for building and managing dependencies.  
 

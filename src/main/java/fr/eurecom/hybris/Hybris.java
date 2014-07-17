@@ -92,7 +92,7 @@ public class Hybris {
     /* erasure coding */
     private boolean ecEnabled;
 
-    private String clientId;
+    public String clientId;
 
 
     /**
@@ -143,6 +143,7 @@ public class Hybris {
      * @param cacheExp - caching default expiration timeout (seconds).
      * @param cachePolicy - caching policy, either "onread" or "onwrite"
      * @param ecEnabled - enables erasure coding.
+     * @param ecK - erasure coding k parameter (number of data devices).
      * @throws HybrisException
      */
     public Hybris(String zkAddress, String zkRoot,
@@ -217,6 +218,25 @@ public class Hybris {
     /* ---------------------------------------------------------------------------------------
                                             Public APIs
        --------------------------------------------------------------------------------------- */
+    
+    public void setErasureCoding(boolean ecEnabled) {
+        this.ecEnabled = ecEnabled;
+        int ecK = Integer.parseInt(Config.getInstance().getProperty(Config.ECODING_K));
+        if (this.ecEnabled) 
+            try {
+                ec = new EcManager();
+                if (ecK <=0) {
+                    logger.error("Wrong value for k (<=0), disabling erasure coding.");
+                    this.ecEnabled = false;
+                } else {
+                    this.k = ecK;
+                    this.m = this.quorum -1;
+                }
+            } catch (Exception e) {
+                this.ecEnabled = false;
+            }
+    }
+    
     
     /**
      * Writes a byte array associated with a key.
@@ -585,8 +605,10 @@ public class Hybris {
                             }
     
                         return value;
-                    } else      // The hash doesn't match: Byzantine fault: let's try with the other clouds
+                    } else {     // The hash doesn't match: Byzantine fault: let's try with the other clouds
+                        logger.warn("Tampered data retrieved from {}", kvStore);
                         continue;
+                    }
                 } else
                     /* This could be due to:
                      * a. Byzantine replicas
