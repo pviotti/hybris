@@ -245,7 +245,7 @@ public class Metadata implements KryoSerializable {
             return false;
         if (!Arrays.equals(this.hash, other.hash))
             return false;
-        if (!Arrays.equals(this.chunksHashes, other.chunksHashes))
+        if (!Arrays.deepEquals(this.chunksHashes, other.chunksHashes))
             return false;
         if (this.replicasLst == null) {
             if (other.replicasLst != null)
@@ -318,10 +318,12 @@ public class Metadata implements KryoSerializable {
                 this.type = MetadataType.TOMBSTONE;
                 return;
             case 0x01:
+                this.chunksHashes = null;
                 this.hash = in.readBytes(Utils.HASH_LENGTH);
                 this.type = MetadataType.REPLICATION;
                 break;
             case 0x02:
+                this.hash = null;
                 short len = (short) in.readByte();
                 this.chunksHashes = new byte[len][];
                 for (short i=0; i<len; i++)

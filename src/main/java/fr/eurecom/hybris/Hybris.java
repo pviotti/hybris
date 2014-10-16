@@ -664,27 +664,29 @@ public class Hybris {
 
                     futureResult =  compServ.poll(this.TIMEOUT_READ, TimeUnit.SECONDS);
                     if (futureResult != null && 
-                            !futureResult.get().getKey().getId().startsWith(KvsManager.FAIL_PREFIX))
+                            !futureResult.get().getKey().getId().startsWith(KvsManager.FAIL_PREFIX)) {
+                        
+                            value = futureResult.get().getValue();
                             if (Arrays.equals(md.getHash(), Utils.getHash(value))) {
 
-                            if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))
-                                this.cache.set(kvsKey, this.cacheExp, value);
-
-                            if (md.getCryptoKey() != null)
-                                try {
-                                    logger.debug("Decrypting data for key {}", key);
-                                    value = Utils.decrypt(value, md.getCryptoKey(), this.IV);
-                                } catch (GeneralSecurityException | UnsupportedEncodingException e) {
-                                    logger.error("Could not decrypt data", e);
-                                    throw new HybrisException("Could not decrypt data", e);
-                                }
-
-                            keepRetrieving = false;
-                            for (Future<Entry<Kvs, byte[]>> future : futuresArray)
-                                future.cancel(true);
-                            break;
+                                if (this.cacheEnabled && CachePolicy.ONREAD.equals(this.cachePolicy))
+                                    this.cache.set(kvsKey, this.cacheExp, value);
+    
+                                if (md.getCryptoKey() != null)
+                                    try {
+                                        logger.debug("Decrypting data for key {}", key);
+                                        value = Utils.decrypt(value, md.getCryptoKey(), this.IV);
+                                    } catch (GeneralSecurityException | UnsupportedEncodingException e) {
+                                        logger.error("Could not decrypt data", e);
+                                        throw new HybrisException("Could not decrypt data", e);
+                                    }
+    
+                                keepRetrieving = false;
+                                for (Future<Entry<Kvs, byte[]>> future : futuresArray)
+                                    future.cancel(true);
+                                break;
                         }
-
+                    }
                 } catch (InterruptedException | ExecutionException e) {
                     logger.warn("Exception on write task execution", e);
                 }

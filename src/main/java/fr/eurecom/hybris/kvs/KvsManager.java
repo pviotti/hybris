@@ -216,6 +216,8 @@ public class KvsManager {
         public Entry<Kvs, byte[]> call() {
             try {
                 byte[] result = KvsManager.this.get(this.kvStore, this.key);
+                if (result == null)
+                    throw new Exception();
                 return new AbstractMap.SimpleEntry<Kvs, byte[]>(kvStore, result);
             } catch (Exception e) {
                 return new AbstractMap.SimpleEntry<Kvs, byte[]>
