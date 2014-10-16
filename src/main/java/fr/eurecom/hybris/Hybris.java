@@ -680,7 +680,8 @@ public class Hybris {
                                         logger.error("Could not decrypt data", e);
                                         throw new HybrisException("Could not decrypt data", e);
                                     }
-    
+                                
+                                logger.info("Value of {} retrieved from kvStore {}", key, futureResult.get().getKey().getId());
                                 keepRetrieving = false;
                                 for (Future<Entry<Kvs, byte[]>> future : futuresArray)
                                     future.cancel(true);
