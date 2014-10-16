@@ -711,9 +711,6 @@ public class Hybris {
             logger.debug("Could not find the metadata associated with key {}.", key);
             return;
         }
-        Timestamp ts = md.getTs();
-        ts.inc( this.clientId );
-        Metadata tombstone = Metadata.getTombstone(ts);
 
         if (!this.gcEnabled) {
             String kvsKey = Utils.getKvsKey(key, md.getTs());
@@ -729,7 +726,10 @@ public class Hybris {
                 }
             }
         }
-
+        
+        Timestamp ts = md.getTs();
+        ts.inc( this.clientId );
+        Metadata tombstone = Metadata.getTombstone(ts);
         this.mds.delete(key, tombstone, stat.getVersion());
     }
 
