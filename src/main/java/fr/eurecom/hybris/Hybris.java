@@ -504,8 +504,8 @@ public class Hybris {
                 if (retrieved < k) { 
                     completed = false;
                     idxFrom = idxTo;
-                    idxTo = this.kvs.getKvsList().size() > idxTo + (k - retrieved)?
-                            idxTo + (k - retrieved) : this.kvs.getKvsList().size();
+                    idxTo = kvsLst.size() > idxTo + (k - retrieved)?
+                            idxTo + (k - retrieved) : kvsLst.size();
                 } else
                     completed = true;
             } while (!completed && idxFrom < idxTo);
