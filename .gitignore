@@ -8,3 +8,4 @@
 **/*.o
 **/*.so.0
 **/*.so
+jerasure/include/
