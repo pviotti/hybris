@@ -12,7 +12,6 @@ SHELL := /bin/bash
 # * maven-license-plugin
 # * maven-rat-plugin
 # * mvn javadoc:javadoc 
-# * mvn eclipse:eclipse
 
 all: compile	
 
@@ -45,3 +44,6 @@ loc:
 	
 loctest:
 	wc -l `find ./src/test -name "*.java"`
+
+eclipse:
+	mvn eclipse:eclipse

@@ -18,14 +18,18 @@ package fr.eurecom.hybris.mds;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.api.CuratorWatcher;
+import org.apache.curator.framework.api.transaction.CuratorTransaction;
+import org.apache.curator.framework.api.transaction.CuratorTransactionFinal;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.framework.state.ConnectionStateListener;
 import org.apache.curator.retry.ExponentialBackoffRetry;
@@ -210,7 +214,7 @@ public class MdsManager implements ConnectionStateListener {
                     return this.tsWrite(key, md, stat.getVersion());
                 } else {
                     logger.warn("Found greater version ({}) writing {}: failing.", newmd.getTs(), key);
-                    return false;   // XXX
+                    return false;
                     // throw new HybrisException("KeeperException, could not write the key.", e);
                 }
 
@@ -224,12 +228,59 @@ public class MdsManager implements ConnectionStateListener {
             throw new HybrisException("Could not write ZNode " + key + ": " + e.getMessage(), e);
         }
     }
+    
+    /**
+     * XXX Transactional writes of several znodes on ZooKeeper.
+     * @param lst LinkedHashMap, sorted by insertion order map of key String and Metadata objects
+     * @param versions array of znode versions of the corresponding keys in lst 
+     * @return
+     * @throws HybrisException 
+     */
+    public boolean tsMultiWrite(LinkedHashMap<String, Metadata> lst, int[] versions) throws HybrisException {
+        
+        try {
+            CuratorTransaction curatorTransaction = this.zkCli.inTransaction();
+
+            int i = 0;
+            for (Entry<String, Metadata> entry : lst.entrySet()) {
+                if (versions[i] == NONODE) {
+                    curatorTransaction = curatorTransaction
+                            .create()
+                            .forPath(this.storageRoot + "/" + entry.getKey(), entry.getValue().serialize())
+                            .and();
+                } else {
+                    curatorTransaction = curatorTransaction
+                            .setData()
+                            .withVersion(versions[i])
+                            .forPath(this.storageRoot + "/" + entry.getKey(), entry.getValue().serialize())
+                            .and();
+                }
+                i++;
+            }
+
+            if (curatorTransaction instanceof CuratorTransactionFinal)
+                ((CuratorTransactionFinal) curatorTransaction).commit();
+            
+            return true; // XXX
+            
+        } catch (KeeperException e) {   // NONODE exception should not happen since we set a tombstone value upon deletion
+            
+            // XXX see if it is worth retrying
+            
+            logger.error("Could not perform transactional timestamped write.", e);
+            throw new HybrisException("Could not perform transactional timestamped write: " + e.getMessage(), e);
+
+        } catch (Exception e) {
+            logger.error("Could not perform transactional timestamped write.", e);
+            throw new HybrisException("Could not perform transactional timestamped write: " + e.getMessage(), e);
+        }
+    }
 
 
     /**
      * Timestamped read ("slow read" in ZooKeeper parlance) from metadata storage.
      * @param key the key to read
-     * @param stat the Stat Zookeeper object to be written with znode details (can be null)
+     * @param stat the Stat ZooKeeper object to be written with znode details (can be null)
      * @return Metadata object
      *              or null in case the znode does not exist or there is a tombstone Metadata object
      *              (to distinguish these two cases one must use the Stat object)
@@ -254,6 +305,26 @@ public class MdsManager implements ConnectionStateListener {
         } catch (Exception e) {
             logger.error("Could not read ZNode " + path, e);
             throw new HybrisException("Could not read the ZNode " + path + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * XXX
+     * @param lst
+     * @return
+     * @throws HybrisException 
+     */
+    public LinkedHashMap<String, Metadata> tsMultiRead(LinkedHashMap<String, Stat> lst) throws HybrisException {
+        try {
+            LinkedHashMap<String, Metadata> mdLst = new LinkedHashMap<String, Metadata>(lst.size());
+            
+            for (Entry<String, Stat> entry : lst.entrySet())
+                mdLst.put(entry.getKey(), tsRead(entry.getKey(), entry.getValue()));
+            
+            return mdLst;
+        } catch (Exception e) {
+            logger.error("Could not perform transactional timestamped write.", e);
+            throw new HybrisException("Could not perform transactional timestamped write: " + e.getMessage(), e);
         }
     }
 

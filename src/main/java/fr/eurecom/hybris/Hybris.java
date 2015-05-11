@@ -219,6 +219,10 @@ public class Hybris {
                                             Public APIs
        --------------------------------------------------------------------------------------- */
     
+    /**
+     * Toggle erasure coding.
+     * @param ecEnabled
+     */
     public void setErasureCoding(boolean ecEnabled) {
         this.ecEnabled = ecEnabled;
         int ecK = Integer.parseInt(Config.getInstance().getProperty(Config.ECODING_K));
@@ -242,7 +246,7 @@ public class Hybris {
      * Writes a byte array associated with a key.
      * @param key
      * @param value
-     * @return the list of Kvs in which Hybris stored the data
+     * @return the list of Kvs on which Hybris stored the data
      * @throws HybrisException
      */
     public List<Kvs> put(String key, byte[] value) throws HybrisException {
@@ -421,7 +425,6 @@ public class Hybris {
         logger.info("Data stored on: {}", savedReplicasLst);
         return savedReplicasLst;
     }
-
 
     /**
      * Fetches the value associated with <key>.
