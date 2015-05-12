@@ -21,6 +21,7 @@ import java.security.GeneralSecurityException;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -399,7 +400,7 @@ public class Hybris {
             if (savedReplicasLst.size() < this.quorum) {
                 if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
                 logger.warn("Could not store data in cloud stores for key {}.", key);
-                throw new HybrisException("Could not store data in cloud stores");
+                throw new HybrisException("Could not store data on cloud stores");
             }
     
             if (this.cacheEnabled && CachePolicy.ONWRITE.equals(this.cachePolicy))
@@ -426,6 +427,105 @@ public class Hybris {
         return savedReplicasLst;
     }
 
+    
+    /**
+     * Writes a map of key and byte arrays atomically.
+     * @param map map of keys and value to write 
+     * @return boolean indicating the outcome of the operation
+     * @throws HybrisException
+     */
+    public boolean put(LinkedHashMap<String, byte[]> map) throws HybrisException {
+
+        LinkedHashMap<String, Stat> statMap = new LinkedHashMap<String, Stat>();
+        for (Entry<String, byte[]> entry : map.entrySet())
+            statMap.put(entry.getKey(), new Stat());
+        LinkedHashMap<String, Metadata> mdMap = this.mds.tsMultiRead(statMap);
+        for (Entry<String, Metadata> entry : mdMap.entrySet()) {
+            if (entry.getValue() == null) {
+                Stat st = new Stat();
+                st.setVersion(MdsManager.NONODE);
+                statMap.put(entry.getKey(), st);
+                mdMap.put(entry.getKey(), new Metadata(new Timestamp(0, this.clientId), null,0,null,null));
+            } else {
+                Timestamp ts = entry.getValue().getTs();
+                ts.inc( this.clientId );
+                mdMap.get(entry.getKey()).setTs(ts);
+            }
+        }
+        
+        // XXX crypto?
+        // XXX EC?
+            
+        for (Entry<String, byte[]> entry: map.entrySet()) {
+            
+            List<Kvs> savedReplicasLst = new ArrayList<Kvs>();
+            int idxFrom = 0; long start; Future<Kvs> future;
+            String kvsKey = Utils.getKvsKey(entry.getKey(), mdMap.get(entry.getKey()).getTs());
+                  
+            ExecutorService executor = Executors.newFixedThreadPool(this.quorum);
+            CompletionService<Kvs> compServ = new ExecutorCompletionService<Kvs>(executor);
+            int idxTo = this.quorum;
+            do {
+                List<Kvs> kvsSublst = this.kvs.getKvsSortedByWriteLatency().subList(idxFrom, idxTo);
+                start = System.currentTimeMillis();
+                for (Kvs kvStore : kvsSublst)
+                    compServ.submit(this.kvs.new KvsPutWorker(kvStore, kvsKey, entry.getValue()));
+        
+                Kvs savedReplica = null;
+                for (int i=0; i<kvsSublst.size(); i++)
+                    try {
+                        future =  compServ.poll(this.TIMEOUT_WRITE, TimeUnit.SECONDS);
+                        if (future != null && 
+                                !(savedReplica = future.get()).getId().startsWith(KvsManager.FAIL_PREFIX)) {
+                            logger.debug("Data ({} B) stored on {}, {} ms", entry.getValue().length, savedReplica,
+                                    System.currentTimeMillis() - start);
+                            savedReplicasLst.add(savedReplica);
+                            if (savedReplicasLst.size() >= this.quorum)
+                                break;
+                        }
+                    } catch (InterruptedException | ExecutionException e) {
+                        logger.warn("Exception on write task execution", e);
+                    }
+    
+                idxFrom = idxTo;
+                idxTo = this.kvs.getKvsList().size() > idxTo + this.quorum ?
+                        idxTo + this.quorum : this.kvs.getKvsList().size();
+    
+            } while (savedReplicasLst.size() < this.quorum && idxFrom < idxTo);
+            executor.shutdown();
+    
+            if (savedReplicasLst.size() < this.quorum) {
+//                if (this.gcEnabled) this.mds.new GcMarker(entry.getKey(), ts, savedReplicasLst).start();
+                logger.warn("Could not store data in cloud stores for key {}.", entry.getKey());
+                throw new HybrisException("Could not store data on cloud stores");
+            }
+            
+            mdMap.get(entry.getKey()).setReplicasLst(savedReplicasLst);
+    
+            if (this.cacheEnabled && CachePolicy.ONWRITE.equals(this.cachePolicy))
+                this.cache.set(kvsKey, this.cacheExp, entry.getValue());
+        
+        }
+        
+        for (Entry<String, Metadata> entry : mdMap.entrySet()) {
+            mdMap.get(entry.getKey()).setHash(Utils.getHash(map.get(entry.getKey())));
+            mdMap.get(entry.getKey()).setSize(map.get(entry.getKey()).length);
+            mdMap.get(entry.getKey()).setCryptoKey(null);
+        }
+        
+        try {
+            mds.tsMultiWrite(mdMap, statMap);
+        } catch (HybrisException e) {
+//            if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
+            logger.warn("Could not transactionally write metadata on ZooKeeper");
+            throw new HybrisException("Could not store the metadata on Zookeeper");
+        }
+
+        // XXX if (this.gcEnabled && overwritten) this.mds.new GcMarker(key).start();
+//        logger.info("Data stored on: {}", savedReplicasLst);
+        return true;
+    }
+    
     /**
      * Fetches the value associated with <key>.
      * @param key

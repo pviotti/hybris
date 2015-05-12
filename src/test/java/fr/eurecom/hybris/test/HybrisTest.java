@@ -16,9 +16,12 @@
 package fr.eurecom.hybris.test;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 
 import java.math.BigInteger;
+import java.util.LinkedHashMap;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.After;
@@ -62,6 +65,39 @@ public class HybrisTest extends HybrisAbstractTest {
 
         hybris.delete(key);
         assertNull(hybris.get(key));
+    }
+    
+    @Test
+    public void testMultipleWrite() {
+        
+        LinkedHashMap<String, byte[]> map = new LinkedHashMap<String, byte[]>();
+        int num = 10;
+        byte[] value = new byte[50];
+        for (int i=0; i<num; i++) {
+            this.random.nextBytes(value);
+            map.put(this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32), 
+                    value);
+        }
+        
+        hybris.setErasureCoding(false); // XXX
+        
+        try {
+            hybris.put(map);
+        } catch (HybrisException e) {
+            e.printStackTrace();
+            fail();
+        }
+        
+        for (String key : map.keySet()) {
+            byte[] val = null;
+            try {
+                val = hybris.get(key);
+            } catch (HybrisException e) {
+                e.printStackTrace();
+                fail();
+            }
+            assertEquals(map.get(key), val);
+        }        
     }
     
     @Test

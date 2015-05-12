@@ -164,25 +164,26 @@ public class MdsManagerTest extends HybrisAbstractTest {
     public void testTransactionalWrite() {
         
         LinkedHashMap<String, Metadata> map = new LinkedHashMap<String, Metadata>();
+        LinkedHashMap<String, Stat> statMap = new LinkedHashMap<String, Stat>();
         int numKeys = 5, i = 0;
         byte[] hash = new byte[20];
-        int[] versions = new int[numKeys];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
         replicas.add(new TransientKvs("transient", "b", "c", "d", true, 20));
         Metadata retrieved;
-        Stat stat = new Stat();
         for (i=0; i<numKeys; i++) {
-            map.put(this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32),
-                    new Metadata(new Timestamp(this.random.nextInt(10), "qwe"), hash, 2, replicas, null));
-            versions[i] = -1;
+            String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
+            map.put(key, new Metadata(new Timestamp(this.random.nextInt(10), "qwe"), hash, 2, replicas, null));
+            Stat st = new Stat();
+            st.setVersion(-1);
+            statMap.put(key, st);
         }
         
         // successful transactional write creating znodes
         try {
-            mds.tsMultiWrite(map, versions);
+            mds.tsMultiWrite(map, statMap);
             for (Entry<String, Metadata> entry : map.entrySet()) {
-                retrieved = mds.tsRead(entry.getKey(), stat);
+                retrieved = mds.tsRead(entry.getKey(), new Stat());
                 assertEquals(entry.getValue(), retrieved);
             }
         } catch (HybrisException e) {
@@ -191,7 +192,7 @@ public class MdsManagerTest extends HybrisAbstractTest {
        
         // fails for mismatching versions of all the keys
         try {
-            mds.tsMultiWrite(map, versions);
+            mds.tsMultiWrite(map, statMap);
             fail();
         } catch (HybrisException e) {
             KeeperException ke = (KeeperException) e.getCause();
@@ -199,14 +200,15 @@ public class MdsManagerTest extends HybrisAbstractTest {
         }
         
         // successful transactional write modifying all znodes
-        for (i=0; i<numKeys; i++) versions[i]++;
+        for (Entry<String, Stat> entry : statMap.entrySet()) 
+            entry.getValue().setVersion(entry.getValue().getVersion() + 1);
         try {
             for (Entry<String, Metadata> entry : map.entrySet())
                 map.put(entry.getKey(),
                         new Metadata(new Timestamp(this.random.nextInt(10), "NEW"), hash, 10, replicas, null)); 
-            mds.tsMultiWrite(map, versions);
+            mds.tsMultiWrite(map, statMap);
             for (Entry<String, Metadata> entry : map.entrySet()) {
-                retrieved = mds.tsRead(entry.getKey(), stat);
+                retrieved = mds.tsRead(entry.getKey(), new Stat());
                 assertEquals(entry.getValue(), retrieved);
             }
         } catch (HybrisException e) {
@@ -214,19 +216,20 @@ public class MdsManagerTest extends HybrisAbstractTest {
         }
         
         // successful transactional write with mix of modify and create nodes
-        for (i=0; i<numKeys; i++) versions[i]++;
+        for (Entry<String, Stat> entry : statMap.entrySet()) 
+            entry.getValue().setVersion(entry.getValue().getVersion() + 1);
         int numNewKeys = 3;
-        int[] newVersions = new int[numKeys + numNewKeys];
-        newVersions = Arrays.copyOf(versions, numKeys + numNewKeys);
         for (i=0; i<numNewKeys; i++) {
-            map.put(this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32),
-                    new Metadata(new Timestamp(this.random.nextInt(10), "qwe"), hash, 2, replicas, null));
-            newVersions[numKeys + i] = -1;
+            String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
+            map.put(key, new Metadata(new Timestamp(this.random.nextInt(10), "qwe"), hash, 2, replicas, null));
+            Stat st = new Stat();
+            st.setVersion(-1);
+            statMap.put(key, st);
         }
         try {
-            mds.tsMultiWrite(map, newVersions);
+            mds.tsMultiWrite(map, statMap);
             for (Entry<String, Metadata> entry : map.entrySet()) {
-                retrieved = mds.tsRead(entry.getKey(), stat);
+                retrieved = mds.tsRead(entry.getKey(), new Stat());
                 assertEquals(entry.getValue(), retrieved);
             }
         } catch (HybrisException e) {
@@ -234,10 +237,14 @@ public class MdsManagerTest extends HybrisAbstractTest {
         }   
         
         // fails for mismatching version of one key
-        for (i=0; i<numKeys; i++) newVersions[i]++;
-        newVersions[this.random.nextInt(numKeys)] = 123;
+        for (Entry<String, Stat> entry : statMap.entrySet()){
+            if (this.random.nextInt(10) > 5)
+                entry.getValue().setVersion(entry.getValue().getVersion() + 1);
+            else
+                entry.getValue().setVersion(123);
+        }
         try {
-            mds.tsMultiWrite(map, newVersions);
+            mds.tsMultiWrite(map, statMap);
             fail();
         } catch (HybrisException e) {
             KeeperException ke = (KeeperException) e.getCause();
@@ -248,29 +255,28 @@ public class MdsManagerTest extends HybrisAbstractTest {
     @Test
     public void testTransactionalRead() {
         LinkedHashMap<String, Metadata> map = new LinkedHashMap<String, Metadata>();
+        LinkedHashMap<String, Stat> statMap = new LinkedHashMap<String, Stat>();
         int numKeys = 10, i = 0;
         byte[] hash = new byte[20];
         this.random.nextBytes(hash);
-        int[] versions = new int[numKeys];
         List<Kvs> replicas = new ArrayList<Kvs>();
         replicas.add(new TransientKvs("transient", "b", "c", "d", true, 20));
-        LinkedHashMap<String, Stat> keyMap = new LinkedHashMap<String, Stat>();
-        String k;
         for (i=0; i<numKeys; i++) {
-            k = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
+            String k = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
             map.put(k, new Metadata(new Timestamp(this.random.nextInt(10), "qwe"), hash, 2, replicas, null));
-            versions[i] = -1;
-            keyMap.put(k, new Stat());
+            Stat st = new Stat();
+            st.setVersion(-1);
+            statMap.put(k, st);
         }
         
         try {
-            mds.tsMultiWrite(map, versions);
+            mds.tsMultiWrite(map, statMap);
         } catch (HybrisException e) {
             fail(e.getMessage());
         }
         
         try {
-            LinkedHashMap<String, Metadata> res = mds.tsMultiRead(keyMap);
+            LinkedHashMap<String, Metadata> res = mds.tsMultiRead(statMap);
             for (Entry<String, Metadata> entry : res.entrySet())
                 assertEquals(map.get(entry.getKey()), entry.getValue());               
             

@@ -236,14 +236,14 @@ public class MdsManager implements ConnectionStateListener {
      * @return
      * @throws HybrisException 
      */
-    public boolean tsMultiWrite(LinkedHashMap<String, Metadata> lst, int[] versions) throws HybrisException {
+    public boolean tsMultiWrite(LinkedHashMap<String, Metadata> mdMap, LinkedHashMap<String, Stat> statMap) throws HybrisException {
         
         try {
             CuratorTransaction curatorTransaction = this.zkCli.inTransaction();
 
-            int i = 0;
-            for (Entry<String, Metadata> entry : lst.entrySet()) {
-                if (versions[i] == NONODE) {
+            for (Entry<String, Metadata> entry : mdMap.entrySet()) {
+                int ver = statMap.get(entry.getKey()).getVersion();
+                if (ver == NONODE) {
                     curatorTransaction = curatorTransaction
                             .create()
                             .forPath(this.storageRoot + "/" + entry.getKey(), entry.getValue().serialize())
@@ -251,11 +251,10 @@ public class MdsManager implements ConnectionStateListener {
                 } else {
                     curatorTransaction = curatorTransaction
                             .setData()
-                            .withVersion(versions[i])
+                            .withVersion(ver)
                             .forPath(this.storageRoot + "/" + entry.getKey(), entry.getValue().serialize())
                             .and();
                 }
-                i++;
             }
 
             if (curatorTransaction instanceof CuratorTransactionFinal)

@@ -200,6 +200,7 @@ public class Metadata implements KryoSerializable {
     public int getSize() { return this.size; }
     public void setSize(int s) { this.size = s; }
     public byte[] getCryptoKey() { return this.cryptoKey; }
+    public void setCryptoKey(byte[] ck) { this.cryptoKey = ck; }
     public MetadataType getType() { return this.type; }
     public void setType(MetadataType t) { this.type = t; }
 
