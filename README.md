@@ -9,28 +9,29 @@ Hybris is also very **efficient**: in the common case it writes to f+1 clouds an
 
 ![Hybris architecture](https://raw.github.com/pviotti/hybris/master/doc/hybris-architecture.png)
 
-For more information and detailed benchmarks read [our SoCC14 paper][1].
+For more information and detailed benchmarks read [our SoCC14 paper][1].  
 
+A version of the personal cloud application [StackSync][7] featuring Hybris as storage backend 
+is available [here][8].
 
 ### Code base overview
 
-Hybris code base is composed by two main modules: MdsManager and KvsManager, 
-the first being a thin wrapper layer of the metadata distributed storage service (i.e. ZooKeeper),
+The code base of Hybris is composed by two main modules: MdsManager and KvsManager; 
+the first is a thin wrapper layer of the metadata distributed storage service (i.e. ZooKeeper),
 while the latter implements the storage primitives towards the APIs of the main 
 public cloud storage services - currently, it supports Amazon S3, 
 Google Cloud Storage, Rackspace Cloud Files and Windows Azure Blob.  
 
-Maven is used for building and managing dependencies.  
+Maven is used to compile the code and manage the dependencies.   
 
 Read the [wiki][2] for more information on development setup.
 
-
 ### Authors and license
 
-Hybris has been developed at [EURECOM][3] as part of the [CloudSpaces][4] European research project.  
+Hybris has been developed at [EURECOM][3] as part of the [CloudSpaces][4] European research project.
 Its code is released under the terms of Apache 2.0 license.  
 
-Erasure coding support is provided by the [jerasure][5] library and its [JNI bindings][6].
+Erasure coding support is provided by the [Jerasure][5] library through its [JNI bindings][6].
 
 
  [1]: http://www.eurecom.fr/en/publication/4414/detail/hybris-robust-hybrid-cloud-storage
@@ -39,3 +40,5 @@ Erasure coding support is provided by the [jerasure][5] library and its [JNI bin
  [4]: http://cloudspaces.eu/
  [5]: http://web.eecs.utk.edu/~plank/plank/papers/CS-08-627.html
  [6]: https://github.com/jvandertil/Jerasure
+ [7]: http://stacksync.org
+ [8]: https://github.com/pviotti/stacksync-desktop
