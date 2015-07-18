@@ -70,6 +70,7 @@ public class Config {
     public synchronized void loadProperties(String propertiesFile) throws IOException {
         if (hybrisProperties == null)
             try {
+                propertiesFile = propertiesFile.replaceFirst("^~",System.getProperty("user.home"));
                 hybrisProperties = new Properties();
                 hybrisProperties.load(new FileInputStream(propertiesFile));
             } catch (Exception e) {
@@ -86,6 +87,7 @@ public class Config {
     public synchronized void loadAccountsProperties(String propertiesFile) throws IOException {
         if (accountsProperties == null)
             try {
+                propertiesFile = propertiesFile.replaceFirst("^~",System.getProperty("user.home"));
                 accountsProperties = new Properties();
                 accountsProperties.load(new FileInputStream(propertiesFile));
             } catch (Exception e) {

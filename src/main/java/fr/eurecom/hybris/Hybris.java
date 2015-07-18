@@ -439,6 +439,7 @@ public class Hybris {
         LinkedHashMap<String, Stat> statMap = new LinkedHashMap<String, Stat>();
         for (Entry<String, byte[]> entry : map.entrySet())
             statMap.put(entry.getKey(), new Stat());
+        
         LinkedHashMap<String, Metadata> mdMap = this.mds.tsMultiRead(statMap);
         for (Entry<String, Metadata> entry : mdMap.entrySet()) {
             if (entry.getValue() == null) {
@@ -453,8 +454,7 @@ public class Hybris {
             }
         }
         
-        // XXX crypto?
-        // XXX EC?
+        // XXX crypto, EC?
             
         for (Entry<String, byte[]> entry: map.entrySet()) {
             
@@ -495,7 +495,10 @@ public class Hybris {
             executor.shutdown();
     
             if (savedReplicasLst.size() < this.quorum) {
-//                if (this.gcEnabled) this.mds.new GcMarker(entry.getKey(), ts, savedReplicasLst).start();
+                if (this.gcEnabled) 
+                    this.mds.new GcMarker(entry.getKey(),
+                            mdMap.get(entry.getKey()).getTs(), 
+                            savedReplicasLst).start();
                 logger.warn("Could not store data in cloud stores for key {}.", entry.getKey());
                 throw new HybrisException("Could not store data on cloud stores");
             }
@@ -504,7 +507,6 @@ public class Hybris {
     
             if (this.cacheEnabled && CachePolicy.ONWRITE.equals(this.cachePolicy))
                 this.cache.set(kvsKey, this.cacheExp, entry.getValue());
-        
         }
         
         for (Entry<String, Metadata> entry : mdMap.entrySet()) {
@@ -516,13 +518,16 @@ public class Hybris {
         try {
             mds.tsMultiWrite(mdMap, statMap);
         } catch (HybrisException e) {
-//            if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
+            if (this.gcEnabled)
+                for (Entry<String, byte[]> entry: map.entrySet())
+                    this.mds.new GcMarker(entry.getKey(), mdMap.get(entry.getKey()).getTs(), 
+                            mdMap.get(entry.getKey()).getReplicasLst()).start();
             logger.warn("Could not transactionally write metadata on ZooKeeper");
             throw new HybrisException("Could not store the metadata on Zookeeper");
         }
 
         // XXX if (this.gcEnabled && overwritten) this.mds.new GcMarker(key).start();
-//        logger.info("Data stored on: {}", savedReplicasLst);
+        logger.info("Data successfully stored.");
         return true;
     }
     
