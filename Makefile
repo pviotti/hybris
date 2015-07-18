@@ -18,14 +18,17 @@ all: compile
 lib/libJerasure.jni.so:
 	make -C jerasure
 
-compile: lib/libJerasure.jni.so
+mavenize:
+	mvn install:install-file -Dfile=lib/jerasure-jni-1.2.jar -DgroupId=eu.vandertil.jerasure -DartifactId=jerasure-jni -Dversion=1.2 -Dpackaging=jar
+	mvn install:install-file -Dfile=lib/ycsb-core-0.1.4.jar -DgroupId=com.yahoo.ycsb -DartifactId=core -Dversion=0.1.4 -Dpackaging=jar
+
+compile: mavenize lib/libJerasure.jni.so
 	mvn package
 	
 clean:
 	mvn clean
 	make -C jerasure clean
 	rm *.log
-
 	
 assembly:
 	mvn clean package assembly:single

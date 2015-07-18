@@ -60,7 +60,7 @@ public class RackspaceKvs extends Kvs {
             blobStore = ContextBuilder.newBuilder(RACKSPACE_US_ID)
                     .credentials(accessKey, secretKey)
                     .buildView(RegionScopedBlobStoreContext.class)
-                    .blobStoreInRegion(REGION_ID);
+                    .getBlobStore(REGION_ID);
         } catch (NoSuchElementException e) {
             logger.error("Could not initialize {} KvStore", id, e);
             throw new IOException(e);
