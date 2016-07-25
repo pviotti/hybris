@@ -9,8 +9,7 @@ Hybris is also very **efficient**: in the common case it writes to f+1 clouds an
 
 ![Hybris architecture](https://raw.github.com/pviotti/hybris/master/doc/hybris-architecture.png)
 
-For more information and detailed benchmarks read [our SoCC14 paper][1].  
-
+For more information and detailed benchmarks read [our SoCC14 paper][1].   
 A version of the personal cloud application [StackSync][7] featuring Hybris as storage backend 
 is available [here][8].
 

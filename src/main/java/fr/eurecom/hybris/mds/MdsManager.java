@@ -322,8 +322,8 @@ public class MdsManager implements ConnectionStateListener {
             
             return mdLst;
         } catch (Exception e) {
-            logger.error("Could not perform transactional timestamped write.", e);
-            throw new HybrisException("Could not perform transactional timestamped write: " + e.getMessage(), e);
+            logger.error("Could not perform transactional timestamped read.", e);
+            throw new HybrisException("Could not perform transactional timestamped read: " + e.getMessage(), e);
         }
     }
 
