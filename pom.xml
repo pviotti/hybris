@@ -1,250 +1,256 @@
-<project    xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-            xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>fr.eurecom.hybris</groupId>
-  <artifactId>hybris</artifactId>
-  <version>0.3.0-SNAPSHOT</version>
-  <name>Hybris</name>
-  <description>Hybris storage library</description>
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <skipTests>true</skipTests>
-  </properties>
-  
-  <dependencies>
-    <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
-        <version>1.7.12</version>
-    </dependency>
-  
-    <!-- MDS dependencies -->
-  	<dependency>
-		<groupId>org.apache.zookeeper</groupId>
-		<artifactId>zookeeper</artifactId>
-		<version>3.4.6</version>
-		<!-- 
-		These following exclusions are due to issues in retrieving Sun packages from Maven repositories.
-		Ref. 1: http://maven.apache.org/guides/mini/guide-coping-with-sun-jars.html
-		Ref. 2: http://stackoverflow.com/questions/4908651/the-following-artifacts-could-not-be-resolved-javax-jmsjmsjar1-1 
-		-->
-		<exclusions>
-            <exclusion>
-                <groupId>com.sun.jmx</groupId>
-                <artifactId>jmxri</artifactId>
-            </exclusion>
-            <exclusion>
-                <groupId>com.sun.jdmk</groupId>
-                <artifactId>jmxtools</artifactId>
-            </exclusion>
-            <exclusion>
-                <groupId>javax.jms</groupId>
-                <artifactId>jms</artifactId>
-            </exclusion>
-        </exclusions>
-	</dependency>
-	
-	<dependency>
-        <groupId>org.apache.curator</groupId>
-        <artifactId>curator-framework</artifactId>
-        <version>2.8.0</version>
-    </dependency>
-    
-    <!-- KVS dependencies -->
-    <dependency>
-        <groupId>com.microsoft.windowsazure</groupId>
-        <artifactId>microsoft-windowsazure-api</artifactId>
-        <version>0.4.6</version>
-    </dependency>
-    
-    <dependency>
-        <groupId>net.java.dev.jets3t</groupId>
-        <artifactId>jets3t</artifactId>
-        <version>0.9.3</version>
-         <exclusions>
-            <!-- because in the uber-jar it would conflict with 
-                    another version (4.2 instead of 4.1) required by AWS SDK -->
-	        <exclusion>
-	            <groupId>org.apache.httpcomponents</groupId>
-	            <artifactId>httpclient</artifactId>
-	        </exclusion>
-	        <exclusion>
-                <groupId>org.apache.httpcomponents</groupId>
-                <artifactId>httpcore</artifactId>
-            </exclusion> 
-        </exclusions>
-    </dependency>
-    
-    <dependency>
-        <groupId>com.amazonaws</groupId>
-        <artifactId>aws-java-sdk</artifactId>
-        <version>1.10.5.1</version>
-    </dependency>
-    
-    <dependency>
-      <groupId>org.apache.jclouds</groupId>
-      <artifactId>jclouds-blobstore</artifactId>
-      <version>1.9.0</version>
-    </dependency>
-    <dependency>
-        <groupId>org.apache.jclouds.labs</groupId>
-        <artifactId>rackspace-cloudfiles-us</artifactId>
-        <version>1.9.0</version>
-    </dependency>
-    
-    <dependency>
-        <groupId>net.spy</groupId>
-        <artifactId>spymemcached</artifactId>
-        <version>2.11.7</version>
-    </dependency>
-    
-    <dependency>
-        <groupId>com.esotericsoftware.kryo</groupId>
-        <artifactId>kryo</artifactId>
-        <version>2.24.0</version>
-    </dependency>
-    
-     <dependency> <!-- To be installed in the local repository beforehand -->
-		<groupId>eu.vandertil.jerasure</groupId>
-		<artifactId>jerasure-jni</artifactId>
-		<version>1.2</version>
-     </dependency>
-    
-    <!-- Testing dependencies -->
-    <dependency>
-        <groupId>junit</groupId>
-        <artifactId>junit</artifactId>
-        <version>4.12</version>
-    </dependency>
-    
-    <dependency> <!-- To be installed in the local repository beforehand -->
-      <groupId>com.yahoo.ycsb</groupId>
-      <artifactId>core</artifactId>
-      <version>0.1.4</version>
-      <exclusions> 
-        <!-- because in the uber-jar it would conflict with another version required by jClouds -->
-        <exclusion>
-          <groupId>com.google.collections</groupId>
-          <artifactId>google-collections</artifactId>
-        </exclusion>
-      </exclusions> 
-    </dependency>
-    
-    <dependency>
-        <groupId>org.apache.curator</groupId>
-        <artifactId>curator-test</artifactId>
-        <version>2.8.0</version>
-    </dependency>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>fr.eurecom.hybris</groupId>
+	<artifactId>hybris</artifactId>
+	<version>0.4.0-SNAPSHOT</version>
+	<name>Hybris</name>
+	<description>Hybris storage library</description>
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<skipTests>false</skipTests>
+	</properties>
 
-  </dependencies>
-  
-  <build>
-    <plugins>
-      <plugin>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.1</version>
-        <configuration>
-          <source>1.7</source>
-          <target>1.7</target>
-        </configuration>
-      </plugin>
-      <plugin>
-       <artifactId>maven-jar-plugin</artifactId>
-       <version>2.4</version>
-       <executions>
-         <execution>
-           <goals>
-             <goal>test-jar</goal>
-           </goals>
-         </execution>
-       </executions>
-     </plugin>
-      <plugin>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.15</version>
-        <configuration> <!-- for skipping the tests when building -->
-          <skipTests>${skipTests}</skipTests>
-          <environmentVariables>
-            <LD_LIBRARY_PATH>lib</LD_LIBRARY_PATH>
-          </environmentVariables>
-        </configuration>
-      </plugin>
-      <plugin>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>2.4</version>
-        <configuration>
-          <descriptors>
-            <descriptor>src/main/assembly/jar-with-dependencies.xml</descriptor>
-          </descriptors>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <configuration>
-            <outputDirectory>
-                ${project.build.directory}
-            </outputDirectory>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-eclipse-plugin</artifactId>
-        <version>2.9</version>
-        <configuration>
-          <downloadSources>true</downloadSources>
-          <downloadJavadocs>true</downloadJavadocs>
-        </configuration>
-      </plugin>
-      <plugin>
-	    <groupId>com.mycila</groupId>
-	    <artifactId>license-maven-plugin</artifactId>
-	    <version>2.6</version>
-	    <configuration>
-	        <header>com/mycila/maven/plugin/license/templates/APACHE-2.txt</header>
-	        <properties>
-	            <owner>EURECOM</owner>
-	            <year>2013</year>
-	            <email>www.eurecom.fr</email>
-	            <project.inceptionYear>2013</project.inceptionYear>
-	        </properties>
-	        <excludes>
-	            <exclude>**/README</exclude>
-	            <exclude>**/LICENSE</exclude>
-	            <exclude>jerasure/**</exclude>
-	            <exclude>**/*.sh</exclude>
-	            <exclude>**/*.xml</exclude>
-	            <exclude>**/doc/**</exclude>
-	            <exclude>**/lib/**</exclude>
-	            <exclude>**/*.properties</exclude>
-	            <exclude>**/___dev/**</exclude>
-	            <exclude>src/test/resources/**</exclude>
-	            <exclude>src/main/resources/**</exclude>
-	        </excludes>
-	    </configuration>
-	    <executions>
-	        <execution>
-	            <goals>
-	                <goal>check</goal>
-	            </goals>
-	        </execution>
-	    </executions>
-	</plugin>
-    </plugins>
-  </build>
-  
-  <reporting>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>2.10</version>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-javadoc-plugin</artifactId>
-        <version>2.9.1</version>
-      </plugin>
-    </plugins>
-  </reporting>
+	<dependencies>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>1.7.12</version>
+		</dependency>
+
+		<!-- MDS dependencies -->
+		<dependency>
+			<groupId>org.apache.zookeeper</groupId>
+			<artifactId>zookeeper</artifactId>
+			<version>3.4.6</version>
+			<!-- These following exclusions are due to issues in retrieving Sun packages 
+				from Maven repositories. Ref. 1: http://maven.apache.org/guides/mini/guide-coping-with-sun-jars.html 
+				Ref. 2: http://stackoverflow.com/questions/4908651/the-following-artifacts-could-not-be-resolved-javax-jmsjmsjar1-1 -->
+			<exclusions>
+				<exclusion>
+					<groupId>com.sun.jmx</groupId>
+					<artifactId>jmxri</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.sun.jdmk</groupId>
+					<artifactId>jmxtools</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.jms</groupId>
+					<artifactId>jms</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-framework</artifactId>
+			<version>2.8.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.ecwid.consul</groupId>
+			<artifactId>consul-api</artifactId>
+			<version>1.1.11</version>
+		</dependency>
+
+
+		<!-- KVS dependencies -->
+		<dependency>
+			<groupId>com.microsoft.windowsazure</groupId>
+			<artifactId>microsoft-windowsazure-api</artifactId>
+			<version>0.4.6</version>
+		</dependency>
+
+		<dependency>
+			<groupId>net.java.dev.jets3t</groupId>
+			<artifactId>jets3t</artifactId>
+			<version>0.9.3</version>
+			<exclusions>
+				<!-- because in the uber-jar it would conflict with another version (4.2 
+					instead of 4.1) required by AWS SDK -->
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpclient</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpcore</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk</artifactId>
+			<version>1.10.5.1</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.jclouds</groupId>
+			<artifactId>jclouds-blobstore</artifactId>
+			<version>1.9.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.jclouds.labs</groupId>
+			<artifactId>rackspace-cloudfiles-us</artifactId>
+			<version>1.9.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>net.spy</groupId>
+			<artifactId>spymemcached</artifactId>
+			<version>2.11.7</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.esotericsoftware.kryo</groupId>
+			<artifactId>kryo</artifactId>
+			<version>2.24.0</version>
+		</dependency>
+
+		<dependency> <!-- To be installed in the local repository beforehand -->
+			<groupId>eu.vandertil.jerasure</groupId>
+			<artifactId>jerasure-jni</artifactId>
+			<version>1.2</version>
+		</dependency>
+
+		<!-- Testing dependencies -->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.12</version>
+		</dependency>
+
+		<dependency> <!-- To be installed in the local repository beforehand -->
+			<groupId>com.yahoo.ycsb</groupId>
+			<artifactId>core</artifactId>
+			<version>0.1.4</version>
+			<exclusions>
+				<!-- because in the uber-jar it would conflict with another version required 
+					by jClouds -->
+				<exclusion>
+					<groupId>com.google.collections</groupId>
+					<artifactId>google-collections</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-test</artifactId>
+			<version>2.8.0</version>
+		</dependency>
+
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.1</version>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>2.4</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.15</version>
+				<configuration> <!-- for skipping the tests when building -->
+					<skipTests>${skipTests}</skipTests>
+					<environmentVariables>
+						<LD_LIBRARY_PATH>lib</LD_LIBRARY_PATH>
+					</environmentVariables>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>2.4</version>
+				<configuration>
+					<descriptors>
+						<descriptor>src/main/assembly/jar-with-dependencies.xml</descriptor>
+					</descriptors>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<configuration>
+					<outputDirectory>
+						${project.build.directory}
+					</outputDirectory>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-eclipse-plugin</artifactId>
+				<version>2.9</version>
+				<configuration>
+					<downloadSources>true</downloadSources>
+					<downloadJavadocs>true</downloadJavadocs>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>com.mycila</groupId>
+				<artifactId>license-maven-plugin</artifactId>
+				<version>2.6</version>
+				<configuration>
+					<header>com/mycila/maven/plugin/license/templates/APACHE-2.txt</header>
+					<properties>
+						<owner>EURECOM</owner>
+						<year>2013</year>
+						<email>www.eurecom.fr</email>
+						<project.inceptionYear>2013</project.inceptionYear>
+					</properties>
+					<excludes>
+						<exclude>**/README</exclude>
+						<exclude>**/LICENSE</exclude>
+						<exclude>jerasure/**</exclude>
+						<exclude>**/*.sh</exclude>
+						<exclude>**/*.xml</exclude>
+						<exclude>**/doc/**</exclude>
+						<exclude>**/lib/**</exclude>
+						<exclude>**/*.properties</exclude>
+						<exclude>**/___dev/**</exclude>
+						<exclude>src/test/resources/**</exclude>
+						<exclude>src/main/resources/**</exclude>
+					</excludes>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+	<reporting>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>2.10</version>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>2.9.1</version>
+			</plugin>
+		</plugins>
+	</reporting>
 </project>

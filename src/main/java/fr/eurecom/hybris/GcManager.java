@@ -26,9 +26,9 @@ import org.slf4j.LoggerFactory;
 
 import fr.eurecom.hybris.kvs.KvsManager;
 import fr.eurecom.hybris.kvs.drivers.Kvs;
-import fr.eurecom.hybris.mds.MdsManager;
 import fr.eurecom.hybris.mds.Metadata;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
+import fr.eurecom.hybris.mds.Rmds;
 
 /**
  * Class in charge of performing garbage collection tasks.
@@ -39,7 +39,7 @@ public class GcManager {
     private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
     
     private final KvsManager kvs;
-    private final MdsManager mds;
+    private final Rmds mds;
        
     public GcManager(Hybris hybris) {
         this.kvs = hybris.kvs;

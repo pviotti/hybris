@@ -36,8 +36,7 @@ import fr.eurecom.hybris.HybrisException;
 import fr.eurecom.hybris.Utils;
 import fr.eurecom.hybris.kvs.KvsManager;
 import fr.eurecom.hybris.kvs.drivers.Kvs;
-import fr.eurecom.hybris.mds.MdsManager;
-import fr.eurecom.hybris.mds.MdsManager.GcMarker;
+import fr.eurecom.hybris.mds.ZkRmds;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 @Ignore
@@ -45,7 +44,7 @@ public class GcManagerTest extends HybrisAbstractTest {
 
     private final Hybris hybris;
     private final KvsManager kvs;
-    private final MdsManager mds;
+    private final ZkRmds mds;
 
     private final String MDS_TEST_ROOT = "mdstest-root";
 
@@ -54,9 +53,9 @@ public class GcManagerTest extends HybrisAbstractTest {
 
     public GcManagerTest() throws Exception {
         zkTestingServer = new TestingServer();
-        this.hybris = new Hybris(zkTestingServer.getConnectString(), this.MDS_TEST_ROOT, this.KVS_ACCOUNTS_FILE,
+        this.hybris = new Hybris("zk", zkTestingServer.getConnectString(), this.MDS_TEST_ROOT, this.KVS_ACCOUNTS_FILE,
                 this.KVS_ROOT, false, "clientId", 0, 600, 600, true, false, false, null, 0, "onwrite", false, 0);
-        this.mds = new MdsManager(zkTestingServer.getConnectString(), this.MDS_TEST_ROOT);
+        this.mds = new ZkRmds(zkTestingServer.getConnectString(), this.MDS_TEST_ROOT);
         this.kvs = new KvsManager(this.KVS_ACCOUNTS_FILE, this.KVS_ROOT, false);
     }
 
@@ -127,9 +126,7 @@ public class GcManagerTest extends HybrisAbstractTest {
         this.kvs.put(savedReplicas.get(0), Utils.getKvsKey(key3, ts), value6);
         this.kvs.put(savedReplicas.get(1), Utils.getKvsKey(key3, ts), value6);
 
-        GcMarker gcm = this.mds.new GcMarker(key3, ts, savedReplicas);
-        gcm.start();
-        gcm.join();
+        mds.markOrphanKey(key3, ts, savedReplicas);
 
         // gc
         new GcManager(hybris).gc();
@@ -192,9 +189,7 @@ public class GcManagerTest extends HybrisAbstractTest {
         this.kvs.put(savedReplicas.get(0), Utils.getKvsKey(key3, ts), value6);
         this.kvs.put(savedReplicas.get(1), Utils.getKvsKey(key3, ts), value6);
 
-        GcMarker gcm = this.mds.new GcMarker(key3, ts, savedReplicas);
-        gcm.start();
-        gcm.join();
+        mds.markOrphanKey(key3, ts, savedReplicas);
 
         // batchGc
         new GcManager(hybris).batchGc();

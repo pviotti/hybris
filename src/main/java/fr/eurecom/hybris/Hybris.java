@@ -48,8 +48,10 @@ import fr.eurecom.hybris.EcManager.ChunkState;
 import fr.eurecom.hybris.EcManager.EcChunk;
 import fr.eurecom.hybris.kvs.KvsManager;
 import fr.eurecom.hybris.kvs.drivers.Kvs;
-import fr.eurecom.hybris.mds.MdsManager;
+import fr.eurecom.hybris.mds.ZkRmds;
+import fr.eurecom.hybris.mds.ConsulRmds;
 import fr.eurecom.hybris.mds.Metadata;
+import fr.eurecom.hybris.mds.Rmds;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 
@@ -61,7 +63,7 @@ public class Hybris {
 
     private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
-    protected MdsManager mds;
+    protected Rmds mds;
     protected KvsManager kvs;
     
     /* erasure coding */
@@ -112,7 +114,8 @@ public class Hybris {
             throw new HybrisException("Could not read the configuration file " + propertiesFile, e);
         }
         
-        this.configureAndInitialize(conf.getProperty(Config.MDS_ADDR), conf.getProperty(Config.MDS_ROOT),
+        this.configureAndInitialize(conf.getProperty(Config.MDS),
+        		conf.getProperty(Config.MDS_ADDR), conf.getProperty(Config.MDS_ROOT),
                 conf.getProperty(Config.KVS_ACCOUNTSFILE), conf.getProperty(Config.KVS_ROOT),
                 Boolean.parseBoolean(conf.getProperty(Config.KVS_TESTSONSTARTUP)),
                 conf.getProperty(Config.HS_CLIENTID), Integer.parseInt(conf.getProperty(Config.HS_F)),
@@ -128,8 +131,9 @@ public class Hybris {
 
     /**
      * Creates a Hybris client.
-     * @param zkAddress - list of comma separated addresses of Zookeeper cluster servers.
-     * @param zkRoot - Zookeeper znode to adopt as root by the MdsManager. If not existing it will be created.
+     * @param rmds - RMDS type (i.e. "zk" for ZooKeeper or "consul" for Consul)
+     * @param rmdsAddress - list of comma separated addresses of the RMDS cluster.
+     * @param rmdsRoot - path to adopt as root for the RMDS. If not existing it will be created.
      * @param kvsAccountFile - path of the property file containing KVS accounts details.
      * @param kvsRoot - KVS container to adopt as root by the KVSs. If not existing it will be created.
      * @param kvsTestOnStartup - perform latency tests and sort KVSs accordingly.
@@ -147,24 +151,31 @@ public class Hybris {
      * @param ecK - erasure coding k parameter (number of data devices).
      * @throws HybrisException
      */
-    public Hybris(String zkAddress, String zkRoot,
+    public Hybris(String rmds, String rmdsAddress, String rmdsRoot,
             String kvsAccountFile, String kvsRoot, boolean kvsTestOnStartup,
             String clientId, int t, int writeTimeout, int readTimeout, boolean gcEnabled, boolean cryptoEnabled,
             boolean cachingEnable, String memcachedAddrs, int cacheExp, String cachePolicy, boolean ecEnabled, int ecK) 
                     throws HybrisException {
         
-        this.configureAndInitialize(zkAddress, zkRoot, kvsAccountFile, kvsRoot, kvsTestOnStartup, clientId, 
+        this.configureAndInitialize(rmds, rmdsAddress, rmdsRoot, kvsAccountFile, kvsRoot, kvsTestOnStartup, clientId, 
                 t, writeTimeout, readTimeout, gcEnabled, cryptoEnabled, cachingEnable, 
                 memcachedAddrs, cacheExp, cachePolicy, ecEnabled, ecK);
     }
     
-    private void configureAndInitialize(String zkAddress, String zkRoot,
+    private void configureAndInitialize(String rmds, String rmdsAddress, String rmdsRoot,
             String kvsAccountFile, String kvsRoot, boolean kvsTestOnStartup,
             String clientId, int t, int writeTimeout, int readTimeout, boolean gcEnabled, boolean cryptoEnabled,
             boolean cachingEnable, String memcachedAddrs, int cacheExp, String cachePolicy, boolean ecEnabled, int ecK) 
                     throws HybrisException {
-        try {
-            this.mds = new MdsManager(zkAddress, zkRoot);
+        
+    	try {
+    		if (rmds.equalsIgnoreCase(Rmds.ZOOKEEPER_ID))
+    			this.mds = new ZkRmds(rmdsAddress, rmdsRoot);
+    		else if (rmds.equalsIgnoreCase(Rmds.CONSUL_ID))
+    			this.mds = new ConsulRmds(rmdsAddress, rmdsRoot);
+    		else
+    			throw new IOException("Invalid RMDS id in configuration file");
+    		
             this.kvs = new KvsManager(kvsAccountFile, kvsRoot, kvsTestOnStartup);
         } catch (IOException e) {
             logger.error("Could not initialize ZooKeeper or the cloud storage KvStores.", e);
@@ -257,7 +268,7 @@ public class Hybris {
         Metadata md = this.mds.tsRead(key, stat);
         if (md == null) {
             ts = new Timestamp(0, this.clientId);
-            stat.setVersion(MdsManager.NONODE);
+            stat.setVersion(ZkRmds.NONODE);
         } else {
             ts = md.getTs();
             ts.inc( this.clientId );
@@ -358,7 +369,7 @@ public class Hybris {
                 }
             
             if (!completed) {
-                if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
+                if (this.gcEnabled) mds.markOrphanKey(key, ts, savedReplicasLst);
                 logger.warn("Could not store data in cloud stores for key {}.", key);
                 throw new HybrisException("Could not store data in cloud stores");
             }
@@ -398,7 +409,7 @@ public class Hybris {
             executor.shutdown();
     
             if (savedReplicasLst.size() < this.quorum) {
-                if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
+                if (this.gcEnabled) mds.markOrphanKey(key, ts, savedReplicasLst);
                 logger.warn("Could not store data in cloud stores for key {}.", key);
                 throw new HybrisException("Could not store data on cloud stores");
             }
@@ -416,12 +427,12 @@ public class Hybris {
                 newMd = new Metadata(ts, Utils.getHash(value), value.length, savedReplicasLst, cryptoKey);
             overwritten = this.mds.tsWrite(key, newMd, stat.getVersion());
         } catch (HybrisException e) {
-            if (this.gcEnabled) this.mds.new GcMarker(key, ts, savedReplicasLst).start();
+            if (this.gcEnabled) mds.markOrphanKey(key, ts, savedReplicasLst);
             logger.warn("Could not store metadata on Zookeeper for key {}.", key);
             throw new HybrisException("Could not store the metadata on Zookeeper");
         }
 
-        if (this.gcEnabled && overwritten) this.mds.new GcMarker(key).start();
+        if (this.gcEnabled && overwritten) mds.markStaleKey(key);
 
         logger.info("Data stored on: {}", savedReplicasLst);
         return savedReplicasLst;
@@ -444,7 +455,7 @@ public class Hybris {
         for (Entry<String, Metadata> entry : mdMap.entrySet()) {
             if (entry.getValue() == null) {
                 Stat st = new Stat();
-                st.setVersion(MdsManager.NONODE);
+                st.setVersion(ZkRmds.NONODE);
                 statMap.put(entry.getKey(), st);
                 mdMap.put(entry.getKey(), new Metadata(new Timestamp(0, this.clientId), null,0,null,null));
             } else {
@@ -496,9 +507,9 @@ public class Hybris {
     
             if (savedReplicasLst.size() < this.quorum) {
                 if (this.gcEnabled) 
-                    this.mds.new GcMarker(entry.getKey(),
+                	mds.markOrphanKey(entry.getKey(),
                             mdMap.get(entry.getKey()).getTs(), 
-                            savedReplicasLst).start();
+                            savedReplicasLst);
                 logger.warn("Could not store data in cloud stores for key {}.", entry.getKey());
                 throw new HybrisException("Could not store data on cloud stores");
             }
@@ -520,8 +531,8 @@ public class Hybris {
         } catch (HybrisException e) {
             if (this.gcEnabled)
                 for (Entry<String, byte[]> entry: map.entrySet())
-                    this.mds.new GcMarker(entry.getKey(), mdMap.get(entry.getKey()).getTs(), 
-                            mdMap.get(entry.getKey()).getReplicasLst()).start();
+                	mds.markOrphanKey(entry.getKey(), mdMap.get(entry.getKey()).getTs(), 
+                            mdMap.get(entry.getKey()).getReplicasLst());
             logger.warn("Could not transactionally write metadata on ZooKeeper");
             throw new HybrisException("Could not store the metadata on Zookeeper");
         }
@@ -892,7 +903,7 @@ public class Hybris {
      * Class in charge of handling ZooKeeper notifications.
      * @author P. Viotti
      */
-    private class HybrisWatcher implements CuratorWatcher {
+    public class HybrisWatcher implements CuratorWatcher {
 
         private boolean changed = false;
         public boolean isChanged() { return this.changed; }

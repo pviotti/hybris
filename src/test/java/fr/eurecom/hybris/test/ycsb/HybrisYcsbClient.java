@@ -69,7 +69,7 @@ public class HybrisYcsbClient extends DB {
         String kvsRoot = props.getProperty(this.PROP_KVS_ROOT);
 
         try {
-            this.hybris = new Hybris(mdsAddress, MDS_TEST_ROOT, accountFile,
+            this.hybris = new Hybris("zk", mdsAddress, MDS_TEST_ROOT, accountFile,
                     kvsRoot, true, null, t, 600, 600, false, false,
                     cache, cacheAddress, cacheExp, this.CACHING_POLICY, false, 0);
         } catch (HybrisException e) {

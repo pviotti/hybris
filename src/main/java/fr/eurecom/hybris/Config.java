@@ -48,6 +48,7 @@ public class Config {
     public static String CACHE_EXP = "hybris.cache.exp";
     public static String CACHE_POLICY = "hybris.cache.policy";
 
+    public static String MDS = "hybris.mds";
     public static String MDS_ADDR = "hybris.mds.address";
     public static String MDS_ROOT = "hybris.mds.root";
 

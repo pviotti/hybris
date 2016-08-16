@@ -114,7 +114,7 @@ public class KvsManager {
         int cost;
 
         for (String accountId : accountIds) {
-            accessKey = this.conf.getAccountsProperty( String.format(Config.C_AKEY, accountId));
+            accessKey = this.conf.getAccountsProperty( String.format(Config.C_AKEY, accountId) );
             secretKey = this.conf.getAccountsProperty( String.format(Config.C_SKEY, accountId) );
             enabled = Boolean.parseBoolean( this.conf.getAccountsProperty( String.format(Config.C_ENABLED, accountId)) );
             cost = Integer.parseInt( this.conf.getAccountsProperty( String.format(Config.C_COST, accountId) ));
