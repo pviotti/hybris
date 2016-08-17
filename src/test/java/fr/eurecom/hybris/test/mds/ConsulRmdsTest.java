@@ -37,18 +37,21 @@ import org.apache.zookeeper.data.Stat;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
+
+import com.pszymczyk.consul.junit.ConsulResource;
 
 import fr.eurecom.hybris.Config;
 import fr.eurecom.hybris.HybrisException;
 import fr.eurecom.hybris.Utils;
 import fr.eurecom.hybris.kvs.drivers.Kvs;
 import fr.eurecom.hybris.kvs.drivers.TransientKvs;
-import fr.eurecom.hybris.mds.ZkRmds;
 import fr.eurecom.hybris.mds.ConsulRmds;
 import fr.eurecom.hybris.mds.Metadata;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
+import fr.eurecom.hybris.mds.ZkRmds;
 import fr.eurecom.hybris.test.HybrisAbstractTest;
 
 
@@ -56,12 +59,14 @@ public class ConsulRmdsTest extends HybrisAbstractTest {
 
     private static ConsulRmds mds;
     private static String MDS_TEST_ROOT = "mdstest-root";
+    
+    @ClassRule
+    public static final ConsulResource consul = new ConsulResource();
 
     @BeforeClass
     public static void beforeClassSetup() throws Exception {
         Config.getInstance();
-        //zkTestingServer = new TestingServer();
-        mds = new ConsulRmds("localhost", MDS_TEST_ROOT);
+        mds = new ConsulRmds("http://localhost:" + consul.getHttpPort(), MDS_TEST_ROOT);
     }
 
     // Executed before each test

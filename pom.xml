@@ -126,6 +126,12 @@
 			<version>2.11.0</version>
 		</dependency>
 
+		<dependency>
+			<groupId>com.pszymczyk.consul</groupId>
+			<artifactId>embedded-consul</artifactId>
+			<version>0.1.9</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>
