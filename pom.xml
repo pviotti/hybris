@@ -1,11 +1,32 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
+
 	<groupId>fr.eurecom.hybris</groupId>
 	<artifactId>hybris</artifactId>
 	<version>0.4.0-SNAPSHOT</version>
+	<packaging>jar</packaging>
+
 	<name>Hybris</name>
-	<description>Hybris storage library</description>
+	<description>
+		Hybris is a library for robust hybrid cloud storage.
+	</description>
+	<url>https://github.com/pviotti/hybris</url>
+	<inceptionYear>2013</inceptionYear>
+
+	<licenses>
+		<license>
+			<name>The Apache Software License, Version 2.0</name>
+			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<organization>
+		<name>EURECOM</name>
+		<url>http://www.eurecom.fr/</url>
+	</organization>
+
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<skipTests>false</skipTests>
@@ -15,37 +36,20 @@
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
-			<version>1.7.12</version>
+			<version>1.7.21</version>
 		</dependency>
 
 		<!-- MDS dependencies -->
 		<dependency>
 			<groupId>org.apache.zookeeper</groupId>
 			<artifactId>zookeeper</artifactId>
-			<version>3.4.6</version>
-			<!-- These following exclusions are due to issues in retrieving Sun packages 
-				from Maven repositories. Ref. 1: http://maven.apache.org/guides/mini/guide-coping-with-sun-jars.html 
-				Ref. 2: http://stackoverflow.com/questions/4908651/the-following-artifacts-could-not-be-resolved-javax-jmsjmsjar1-1 -->
-			<exclusions>
-				<exclusion>
-					<groupId>com.sun.jmx</groupId>
-					<artifactId>jmxri</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.jdmk</groupId>
-					<artifactId>jmxtools</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.jms</groupId>
-					<artifactId>jms</artifactId>
-				</exclusion>
-			</exclusions>
+			<version>3.4.8</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.curator</groupId>
 			<artifactId>curator-framework</artifactId>
-			<version>2.8.0</version>
+			<version>2.11.0</version>
 		</dependency>
 
 		<dependency>
@@ -57,39 +61,27 @@
 
 		<!-- KVS dependencies -->
 		<dependency>
-			<groupId>com.microsoft.windowsazure</groupId>
-			<artifactId>microsoft-windowsazure-api</artifactId>
-			<version>0.4.6</version>
+			<groupId>com.microsoft.azure</groupId>
+			<artifactId>azure-storage</artifactId>
+			<version>4.3.0</version>
 		</dependency>
 
 		<dependency>
 			<groupId>net.java.dev.jets3t</groupId>
 			<artifactId>jets3t</artifactId>
-			<version>0.9.3</version>
-			<exclusions>
-				<!-- because in the uber-jar it would conflict with another version (4.2 
-					instead of 4.1) required by AWS SDK -->
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpclient</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpcore</artifactId>
-				</exclusion>
-			</exclusions>
+			<version>0.9.4</version>
 		</dependency>
 
 		<dependency>
 			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk</artifactId>
-			<version>1.10.5.1</version>
+			<artifactId>aws-java-sdk-s3</artifactId>
+			<version>1.11.26</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.jclouds</groupId>
 			<artifactId>jclouds-blobstore</artifactId>
-			<version>1.9.0</version>
+			<version>1.9.2</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.jclouds.labs</groupId>
@@ -100,7 +92,7 @@
 		<dependency>
 			<groupId>net.spy</groupId>
 			<artifactId>spymemcached</artifactId>
-			<version>2.11.7</version>
+			<version>2.12.1</version>
 		</dependency>
 
 		<dependency>
@@ -126,20 +118,12 @@
 			<groupId>com.yahoo.ycsb</groupId>
 			<artifactId>core</artifactId>
 			<version>0.1.4</version>
-			<exclusions>
-				<!-- because in the uber-jar it would conflict with another version required 
-					by jClouds -->
-				<exclusion>
-					<groupId>com.google.collections</groupId>
-					<artifactId>google-collections</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.curator</groupId>
 			<artifactId>curator-test</artifactId>
-			<version>2.8.0</version>
+			<version>2.11.0</version>
 		</dependency>
 
 	</dependencies>
@@ -148,7 +132,7 @@
 		<plugins>
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.1</version>
+				<version>3.5.1</version>
 				<configuration>
 					<source>1.8</source>
 					<target>1.8</target>
@@ -156,7 +140,7 @@
 			</plugin>
 			<plugin>
 				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.4</version>
+				<version>3.0.2</version>
 				<executions>
 					<execution>
 						<goals>
@@ -167,7 +151,7 @@
 			</plugin>
 			<plugin>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.15</version>
+				<version>2.19.1</version>
 				<configuration> <!-- for skipping the tests when building -->
 					<skipTests>${skipTests}</skipTests>
 					<environmentVariables>
@@ -177,7 +161,7 @@
 			</plugin>
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
-				<version>2.4</version>
+				<version>2.6</version>
 				<configuration>
 					<descriptors>
 						<descriptor>src/main/assembly/jar-with-dependencies.xml</descriptor>
@@ -185,8 +169,8 @@
 				</configuration>
 			</plugin>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-dependency-plugin</artifactId>
+				<version>2.10</version>
 				<configuration>
 					<outputDirectory>
 						${project.build.directory}
@@ -194,9 +178,8 @@
 				</configuration>
 			</plugin>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-eclipse-plugin</artifactId>
-				<version>2.9</version>
+				<version>2.10</version>
 				<configuration>
 					<downloadSources>true</downloadSources>
 					<downloadJavadocs>true</downloadJavadocs>
@@ -205,7 +188,7 @@
 			<plugin>
 				<groupId>com.mycila</groupId>
 				<artifactId>license-maven-plugin</artifactId>
-				<version>2.6</version>
+				<version>2.11</version>
 				<configuration>
 					<header>com/mycila/maven/plugin/license/templates/APACHE-2.txt</header>
 					<properties>
@@ -242,14 +225,12 @@
 	<reporting>
 		<plugins>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.10</version>
+				<version>2.17</version>
 			</plugin>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>2.9.1</version>
+				<version>2.10.4</version>
 			</plugin>
 		</plugins>
 	</reporting>

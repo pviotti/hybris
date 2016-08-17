@@ -36,8 +36,8 @@ import fr.eurecom.hybris.HybrisException;
 import fr.eurecom.hybris.Utils;
 import fr.eurecom.hybris.kvs.KvsManager;
 import fr.eurecom.hybris.kvs.drivers.Kvs;
-import fr.eurecom.hybris.mds.ZkRmds;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
+import fr.eurecom.hybris.mds.ZkRmds;
 
 @Ignore
 public class GcManagerTest extends HybrisAbstractTest {

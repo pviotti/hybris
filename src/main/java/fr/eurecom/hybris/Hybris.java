@@ -767,7 +767,8 @@ public class Hybris {
 
         List<Kvs> kvsSublst = this.kvs.getKvsSortedByReadLatency();
         kvsSublst.retainAll(md.getReplicasLst());
-        Future<Entry<Kvs, byte[]>>[] futuresArray = new Future[kvsSublst.size()];
+        @SuppressWarnings("unchecked")
+		Future<Entry<Kvs, byte[]>>[] futuresArray = new Future[kvsSublst.size()];
 
         do {
             for (Kvs kvStore : kvsSublst)

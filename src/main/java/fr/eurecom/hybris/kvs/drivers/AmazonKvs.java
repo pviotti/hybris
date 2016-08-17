@@ -54,7 +54,7 @@ public class AmazonKvs extends Kvs {
 
         this.tm = new TransferManager(credentials);
         TransferManagerConfiguration tmc = new TransferManagerConfiguration();
-        tmc.setMultipartUploadThreshold(30000000);  // 30 MB
+        tmc.setMultipartUploadThreshold(30000000L);  // 30 MB
         tmc.setMinimumUploadPartSize(10000000);     // 10 MB
         this.tm.setConfiguration(tmc);
 

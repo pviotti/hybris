@@ -110,6 +110,7 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 
 	/*
 	 * (non-Javadoc)
+	 * 
 	 * @see
 	 * fr.eurecom.hybris.mds.Mds1#stateChanged(org.apache.curator.framework.
 	 * CuratorFramework, org.apache.curator.framework.state.ConnectionState)
@@ -118,7 +119,6 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 		if (!ConnectionState.CONNECTED.equals(newState))
 			logger.warn("Zookeeper connection state changed to: " + newState);
 	}
-
 
 	/*
 	 * -------------------------------------------------------------------------
@@ -416,9 +416,8 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 		this.zkCli.close();
 	}
 
-	/* -------------------------------------- 
-	 * GC functions
-	 * --------------------------------------
+	/*
+	 * -------------------------------------- GC functions
 	 */
 
 	public void markStaleKey(final String key) {
@@ -458,7 +457,6 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 		}).start();
 	}
 
-	
 	/*
 	 * (non-Javadoc)
 	 * 
