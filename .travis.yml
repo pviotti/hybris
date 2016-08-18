@@ -1,0 +1,7 @@
+language: java
+install:
+  - make
+script:
+  - make test
+notifications:
+    email: paolo.viotti@gmail.com
