@@ -23,7 +23,7 @@ mavenize:
 	mvn install:install-file -Dfile=lib/ycsb-core-0.1.4.jar -DgroupId=com.yahoo.ycsb -DartifactId=core -Dversion=0.1.4 -Dpackaging=jar
 
 compile: mavenize lib/libJerasure.jni.so
-	mvn package
+	mvn -DskipTests=true package
 	
 clean:
 	mvn clean
