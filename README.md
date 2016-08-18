@@ -1,4 +1,4 @@
-# Hybris
+# Hybris [![Build Status](https://travis-ci.org/pviotti/hybris.svg?branch=master)](https://travis-ci.org/pviotti/hybris)
 
 Hybris is a key-value hybrid cloud storage system that robustly replicates data 
 over untrusted public clouds while keeping metadata on trusted private premises.  
