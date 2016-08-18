@@ -41,21 +41,17 @@ import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 public class Utils {
 
-    /** length of hash digest */
-    public final static int HASH_LENGTH = 20;
-
-    /** length of cryptographic key (16,24,32) */
-    public final static int CRYPTO_KEY_LENGTH = 16;
-
     /** KVS key separator */
     private final static String KVS_KEY_SEPARATOR = "#";
 
     /** encryption algorithm */
     private final static String ENC_ALGORITHM = "AES";
     private final static String ENC_ALGORITHM_MODE = "AES/CFB/NoPadding";
+    public final static int CRYPTO_KEY_LENGTH = 16; // length of AES key (16,24,32)
 
     /** hashing algorithm */
-    private final static String HASH_ALGORITHM = "SHA-1";
+    private final static String HASH_ALGORITHM = "SHA-224";
+    public final static int HASH_LENGTH = 28;
 
     private final static SecureRandom random = new SecureRandom();
 

@@ -85,7 +85,7 @@ public class ConsulRmdsTest extends HybrisAbstractTest {
         String cid = Utils.generateClientId();
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), cid);
-        byte[] hash = new byte[20];
+        byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
         replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
@@ -120,7 +120,7 @@ public class ConsulRmdsTest extends HybrisAbstractTest {
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         List<Kvs> replicas = new ArrayList<Kvs>();
         replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
-        byte[] hash = new byte[20];
+        byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
         Stat stat = new Stat();
         Metadata retrieved;
@@ -173,7 +173,7 @@ public class ConsulRmdsTest extends HybrisAbstractTest {
         LinkedHashMap<String, Metadata> map = new LinkedHashMap<String, Metadata>();
         LinkedHashMap<String, Stat> statMap = new LinkedHashMap<String, Stat>();
         int numKeys = 5, i = 0;
-        byte[] hash = new byte[20];
+        byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
         replicas.add(new TransientKvs("transient", "b", "c", "d", true, 20));
@@ -265,7 +265,7 @@ public class ConsulRmdsTest extends HybrisAbstractTest {
         LinkedHashMap<String, Metadata> map = new LinkedHashMap<String, Metadata>();
         LinkedHashMap<String, Stat> statMap = new LinkedHashMap<String, Stat>();
         int numKeys = 10, i = 0;
-        byte[] hash = new byte[20];
+        byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
         replicas.add(new TransientKvs("transient", "b", "c", "d", true, 20));
@@ -336,7 +336,7 @@ public class ConsulRmdsTest extends HybrisAbstractTest {
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         List<Kvs> replicas = new ArrayList<Kvs>();
         replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
-        byte[] hash = new byte[20];
+        byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
         String cid1 = "ZZZ";
 
@@ -382,7 +382,7 @@ public class ConsulRmdsTest extends HybrisAbstractTest {
 
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), Utils.generateClientId());
-        byte[] hash = new byte[20];
+        byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
         replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
@@ -419,7 +419,7 @@ public class ConsulRmdsTest extends HybrisAbstractTest {
         List<String> keys = new LinkedList<String>();
         keys.add(key1); keys.add(key2); keys.add(key3); keys.add(key4); keys.add(key5);
         Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), Utils.generateClientId());
-        byte[] hash = new byte[20];
+        byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
         replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
@@ -439,7 +439,7 @@ public class ConsulRmdsTest extends HybrisAbstractTest {
             assertTrue(listedKeys.contains(k));
 
         ts.inc(Utils.generateClientId());
-        byte[] hash1 = new byte[20];
+        byte[] hash1 = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash1);
         md = new Metadata(ts, hash1, 9, replicas, null);
         mds.tsWrite(key4, md, ZkRmds.NONODE);  // overwrites a key
@@ -493,7 +493,7 @@ public class ConsulRmdsTest extends HybrisAbstractTest {
         List<String> keys = new LinkedList<String>();
         keys.add(key1); keys.add(key2); keys.add(key3); keys.add(key4); keys.add(key5);
         Timestamp ts = new Timestamp(new BigInteger(10, this.random).intValue(), Utils.generateClientId());
-        byte[] hash = new byte[20];
+        byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
         replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 10));
@@ -516,7 +516,7 @@ public class ConsulRmdsTest extends HybrisAbstractTest {
         }
 
         Timestamp ts4 = new Timestamp(ts.getNum() + 1, Utils.generateClientId());
-        byte[] hash1 = new byte[20];
+        byte[] hash1 = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash1);
         Metadata md4 = new Metadata(ts4, hash1, 12, replicas, null);
         mds.tsWrite(key4, md4, ZkRmds.NONODE);  // overwrites a key
