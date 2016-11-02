@@ -35,18 +35,31 @@ public class TransientKvs extends Kvs {
     }
 
     public void put(String key, byte[] value) {
-        this.hashMap.put(key.substring(0, key.indexOf("#")), value);
+        this.hashMap.put(getOriginalKey(key), value);
     }
 
     public byte[] get(String key) {
-        return this.hashMap.get(key.substring(0, key.indexOf("#")));
+        return this.hashMap.get(getOriginalKey(key));
     }
 
     public void delete(String key) {
-        this.hashMap.remove(key.substring(0, key.indexOf("#")));
+        this.hashMap.remove(getOriginalKey(key));
     }
 
     public List<String> list() {
         return new ArrayList<String>(this.hashMap.keySet());
+    }
+    
+    /*
+     * To test this dummy key-value store using clients 
+     * on different machines we need the keys stored in memory 
+     * to be equal to the original (Hybris) one. 
+     * Hence, this function strips the "#sn_cid" suffix.
+     */
+    private String getOriginalKey(String compositeKey) {
+    	if (compositeKey.indexOf("#") != -1)
+    		return compositeKey.substring(0, compositeKey.indexOf("#"));
+    	else
+    		return compositeKey;
     }
 }
