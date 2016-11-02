@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.http.HttpStatus;
 import org.jets3t.service.ServiceException;
 import org.jets3t.service.impl.rest.httpclient.GoogleStorageService;
+import org.jets3t.service.model.GSBucket;
 import org.jets3t.service.model.GSObject;
 import org.jets3t.service.security.GSCredentials;
 import org.slf4j.Logger;
@@ -114,9 +115,14 @@ public class GoogleKvs extends Kvs {
 
     private void createContainer() throws IOException {
         try {
-            this.gsService.getOrCreateBucket(this.rootContainer);
+            this.gsService.createBucket(this.rootContainer, GSBucket.LOCATION_EUROPE, null);	// XXX hardcoded bucket location 
         } catch (ServiceException e) {
-            throw new IOException(e);
+        	/* In case the bucket is already existing, we get this exception:
+        	 * 	ResponseCode: 409
+        	 * 	ResponseStatus: Conflict
+        	 */
+        	if (e.getResponseCode() != 409)
+        		throw new IOException(e);
         }
     }
 

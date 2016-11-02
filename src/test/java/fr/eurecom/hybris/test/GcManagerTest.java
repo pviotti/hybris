@@ -53,9 +53,9 @@ public class GcManagerTest extends HybrisAbstractTest {
 
     public GcManagerTest() throws Exception {
         zkTestingServer = new TestingServer();
-        this.hybris = new Hybris("zk", zkTestingServer.getConnectString(), this.MDS_TEST_ROOT, this.KVS_ACCOUNTS_FILE,
+        this.hybris = new Hybris("zk", zkTestingServer.getConnectString(), this.MDS_TEST_ROOT, true, this.KVS_ACCOUNTS_FILE,
                 this.KVS_ROOT, false, "clientId", 0, 600, 600, true, false, false, null, 0, "onwrite", false, 0);
-        this.mds = new ZkRmds(zkTestingServer.getConnectString(), this.MDS_TEST_ROOT);
+        this.mds = new ZkRmds(zkTestingServer.getConnectString(), this.MDS_TEST_ROOT, true);
         this.kvs = new KvsManager(this.KVS_ACCOUNTS_FILE, this.KVS_ROOT, false);
     }
 

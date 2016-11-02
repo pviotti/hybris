@@ -51,6 +51,7 @@ public class Config {
     public static String MDS = "hybris.mds";
     public static String MDS_ADDR = "hybris.mds.address";
     public static String MDS_ROOT = "hybris.mds.root";
+    public static String MDS_READ = "hybris.mds.quorumread";
 
     public static String KVS_ROOT = "hybris.kvs.root";
     public static String KVS_ACCOUNTSFILE = "hybris.kvs.accountsfile";

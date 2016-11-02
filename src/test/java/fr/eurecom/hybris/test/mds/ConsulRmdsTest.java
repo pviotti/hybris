@@ -66,7 +66,7 @@ public class ConsulRmdsTest extends HybrisAbstractTest {
     @BeforeClass
     public static void beforeClassSetup() throws Exception {
         Config.getInstance();
-        mds = new ConsulRmds("http://localhost:" + consul.getHttpPort(), MDS_TEST_ROOT);
+        mds = new ConsulRmds("http://localhost:" + consul.getHttpPort(), MDS_TEST_ROOT, true);
     }
 
     // Executed before each test

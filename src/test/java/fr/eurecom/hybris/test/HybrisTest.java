@@ -107,7 +107,7 @@ public class HybrisTest extends HybrisAbstractTest {
         byte[] value = new byte[50];
         this.random.nextBytes(value);
         
-        Hybris hec = new Hybris("zk", zkTestingServer.getConnectString(), "hybris", "accounts-test.properties",
+        Hybris hec = new Hybris("zk", zkTestingServer.getConnectString(), "hybris",  true, "accounts-test.properties",
                 "hybris-test-container", false, null, 1, 600, 600, false, false, false, "", 0, "", true, 2);
         
         //hybris.testLatencyAndSortClouds(100);
@@ -127,9 +127,9 @@ public class HybrisTest extends HybrisAbstractTest {
         byte[] value = new byte[1048576];
         this.random.nextBytes(value);
         
-        Hybris hr = new Hybris("zk", zkTestingServer.getConnectString(), "hybris", "accounts-test.properties", 
+        Hybris hr = new Hybris("zk", zkTestingServer.getConnectString(), "hybris", true, "accounts-test.properties", 
                 "hybris-test-container", true, null, 1, 600, 600, false, false, false, "", 0, "", false, 0);
-        Hybris hec = new Hybris("zk", zkTestingServer.getConnectString(), "hybris", "accounts-test.properties",
+        Hybris hec = new Hybris("zk", zkTestingServer.getConnectString(), "hybris", true, "accounts-test.properties",
                 "hybris-test-container", true, null, 1, 600, 600, false, false, false, "", 0, "", true, 2);
         
         long start = 0, end = 0;

@@ -39,7 +39,8 @@ public class RackspaceKvs extends Kvs {
 
     private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
-    private final static String RACKSPACE_US_ID = "rackspace-cloudfiles-us";
+    //private final static String RACKSPACE_US_ID = "rackspace-cloudfiles-us";
+    private final static String RACKSPACE_UK_ID = "rackspace-cloudfiles-uk";
     /*
      * Supported regions for Cloud Files US:
      * - Dallas (DFW)
@@ -47,8 +48,9 @@ public class RackspaceKvs extends Kvs {
      * - North Virginia (IAD)
      * - Hong Kong (HKG)
      * - Sydney, Australia (SYD)
+     * - London, EU (LON)
      */
-    private final static String REGION_ID = "IAD";
+    private final static String REGION_ID = "LON";
     
     private transient final BlobStore blobStore;
 
@@ -57,7 +59,7 @@ public class RackspaceKvs extends Kvs {
         super(id, container, enabled, cost);
 
         try {
-            blobStore = ContextBuilder.newBuilder(RACKSPACE_US_ID)
+            blobStore = ContextBuilder.newBuilder(RACKSPACE_UK_ID)
                     .credentials(accessKey, secretKey)
                     .buildView(RegionScopedBlobStoreContext.class)
                     .getBlobStore(REGION_ID);

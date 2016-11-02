@@ -66,6 +66,8 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 	private final String gcRoot;
 	private final String gcStaleDir;
 	private final String gcOrphansDir;
+	
+	private final boolean quorumRead;
 
 	/**
 	 * Constructs a new MdsManager.
@@ -79,13 +81,14 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 	 *             thrown in case of error while initializing the Zookeeper
 	 *             client
 	 */
-	public ZkRmds(String zkConnectionStr, String zkRoot) throws IOException {
+	public ZkRmds(String zkConnectionStr, String zkRoot, boolean qRead) throws IOException {
 
 		this.storageRoot = "/" + zkRoot;
 
 		this.gcRoot = this.storageRoot + "-gc";
 		this.gcStaleDir = this.gcRoot + "/stale";
 		this.gcOrphansDir = this.gcRoot + "/orphans";
+		this.quorumRead = qRead;
 
 		try {
 			RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 3);
@@ -171,7 +174,7 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 					logger.debug("Found smaller version ({}) writing {}: retrying.", newmd.getTs(), key);
 					return this.tsWrite(key, md, stat.getVersion());
 				} else {
-					logger.warn("Found greater version ({}) writing {}: overwritten.", newmd.getTs(), key);
+					logger.debug("Found greater version ({}) writing {}: overwritten.", newmd.getTs(), key);
 					return false;
 				}
 
@@ -240,8 +243,43 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 
 		String path = this.storageRoot + "/" + key;
 		try {
-			this.zkCli.sync().forPath(path);
+			if (quorumRead)
+				this.zkCli.setData().forPath(this.storageRoot, new byte[]{(byte) 0x00});
+			else
+				this.zkCli.sync().forPath(path);
 			byte[] rawMd = this.zkCli.getData().storingStatIn(stat).forPath(path);
+			return new Metadata(rawMd);
+		} catch (KeeperException e) {
+
+			if (e.code() == KeeperException.Code.NONODE)
+				return null;
+			else {
+				logger.error("Could not read ZNode " + path, e);
+				throw new HybrisException("Could not read the ZNode " + path, e);
+			}
+
+		} catch (Exception e) {
+			logger.error("Could not read ZNode " + path, e);
+			throw new HybrisException("Could not read the ZNode " + path + e.getMessage(), e);
+		}
+	}
+	
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see fr.eurecom.hybris.mds.Mds1#tsRead(java.lang.String,
+	 * org.apache.zookeeper.data.Stat,
+	 * org.apache.curator.framework.api.CuratorWatcher)
+	 */
+	public Metadata tsRead(String key, Stat stat, HybrisWatcher watcher) throws HybrisException {
+
+		String path = this.storageRoot + "/" + key;
+		try {
+			if (quorumRead)
+				this.zkCli.setData().forPath(this.storageRoot, new byte[]{(byte) 0x00});
+			else
+				this.zkCli.sync().forPath(path);
+			byte[] rawMd = this.zkCli.getData().storingStatIn(stat).usingWatcher(watcher).forPath(path);
 			return new Metadata(rawMd);
 		} catch (KeeperException e) {
 
@@ -274,35 +312,6 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 		} catch (Exception e) {
 			logger.error("Could not perform transactional timestamped read.", e);
 			throw new HybrisException("Could not perform transactional timestamped read: " + e.getMessage(), e);
-		}
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see fr.eurecom.hybris.mds.Mds1#tsRead(java.lang.String,
-	 * org.apache.zookeeper.data.Stat,
-	 * org.apache.curator.framework.api.CuratorWatcher)
-	 */
-	public Metadata tsRead(String key, Stat stat, HybrisWatcher watcher) throws HybrisException {
-
-		String path = this.storageRoot + "/" + key;
-		try {
-			this.zkCli.sync().forPath(path);
-			byte[] rawMd = this.zkCli.getData().storingStatIn(stat).usingWatcher(watcher).forPath(path);
-			return new Metadata(rawMd);
-		} catch (KeeperException e) {
-
-			if (e.code() == KeeperException.Code.NONODE)
-				return null;
-			else {
-				logger.error("Could not read ZNode " + path, e);
-				throw new HybrisException("Could not read the ZNode " + path, e);
-			}
-
-		} catch (Exception e) {
-			logger.error("Could not read ZNode " + path, e);
-			throw new HybrisException("Could not read the ZNode " + path + e.getMessage(), e);
 		}
 	}
 

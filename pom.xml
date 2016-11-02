@@ -46,7 +46,7 @@
 			<version>3.4.8</version>
 		</dependency>
 
-		<dependency>
+		<dependency> <!-- 3.x versions are for ZooKeeper 3.5.x -->
 			<groupId>org.apache.curator</groupId>
 			<artifactId>curator-framework</artifactId>
 			<version>2.11.0</version>
@@ -55,7 +55,7 @@
 		<dependency>
 			<groupId>com.ecwid.consul</groupId>
 			<artifactId>consul-api</artifactId>
-			<version>1.1.11</version>
+			<version>1.2.1</version>
 		</dependency>
 
 
@@ -63,7 +63,7 @@
 		<dependency>
 			<groupId>com.microsoft.azure</groupId>
 			<artifactId>azure-storage</artifactId>
-			<version>4.3.0</version>
+			<version>4.4.0</version>
 		</dependency>
 
 		<dependency>
@@ -75,7 +75,7 @@
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-s3</artifactId>
-			<version>1.11.26</version>
+			<version>1.11.48</version>
 		</dependency>
 
 		<dependency>
@@ -85,7 +85,7 @@
 		</dependency>
 		<dependency>
 			<groupId>org.apache.jclouds.labs</groupId>
-			<artifactId>rackspace-cloudfiles-us</artifactId>
+			<artifactId>rackspace-cloudfiles-uk</artifactId>
 			<version>1.9.0</version>
 		</dependency>
 
@@ -129,7 +129,7 @@
 		<dependency>
 			<groupId>com.pszymczyk.consul</groupId>
 			<artifactId>embedded-consul</artifactId>
-			<version>0.1.9</version>
+			<version>0.2.0</version>
 		</dependency>
 
 	</dependencies>

@@ -58,13 +58,13 @@ public class ConsulRmds implements Rmds {
     private final String gcRoot;
     private final String gcStaleDir;
     private final String gcOrphansDir;
-
-	public ConsulRmds(String connectionStr, String root) {
+    
+	public ConsulRmds(String connectionStr, String root, boolean qRead) {
 		storageRoot = root;
 		gcRoot = this.storageRoot + "-gc";
         gcStaleDir = this.gcRoot + "/stale";
         gcOrphansDir = this.gcRoot + "/orphans";
-		
+        
 		cClient = new ConsulClient(connectionStr);
 		cClient.setKVBinaryValue(storageRoot, new byte[1]);
 	}

@@ -35,15 +35,15 @@ public class TransientKvs extends Kvs {
     }
 
     public void put(String key, byte[] value) {
-        this.hashMap.put(key, value);
+        this.hashMap.put(key.substring(0, key.indexOf("#")), value);
     }
 
     public byte[] get(String key) {
-        return this.hashMap.get(key);
+        return this.hashMap.get(key.substring(0, key.indexOf("#")));
     }
 
     public void delete(String key) {
-        this.hashMap.remove(key);
+        this.hashMap.remove(key.substring(0, key.indexOf("#")));
     }
 
     public List<String> list() {

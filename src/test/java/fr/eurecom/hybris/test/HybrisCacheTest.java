@@ -63,7 +63,7 @@ public class HybrisCacheTest extends HybrisAbstractTest {
     @Ignore
     @Test
     public void testCacheOnWrite() throws IOException, HybrisException {
-        hybris = new Hybris("zk", zkTestingServer.getConnectString(), mdsRoot, accountsFile,
+        hybris = new Hybris("zk", zkTestingServer.getConnectString(), mdsRoot, true, accountsFile,
                 kvsRoot, false, clientId, 0, 6000, 6000, false, false, true, memAddr, 5000, "onwrite", false, 0);
         MemcachedClient cacheClient = new MemcachedClient(new BinaryConnectionFactory(),
                 AddrUtil.getAddresses(memAddr));
@@ -83,7 +83,7 @@ public class HybrisCacheTest extends HybrisAbstractTest {
     @Ignore
     @Test
     public void testCacheOnRead() throws IOException, HybrisException {
-        hybris = new Hybris("zk", zkTestingServer.getConnectString(), mdsRoot, accountsFile,
+        hybris = new Hybris("zk", zkTestingServer.getConnectString(), mdsRoot, true, accountsFile,
                 kvsRoot, false, clientId, 0, 6000, 6000, false, false, true, memAddr, 5000, "onread", false, 0);
         MemcachedClient cacheClient = new MemcachedClient(new BinaryConnectionFactory(),
                 AddrUtil.getAddresses(memAddr));
@@ -106,7 +106,7 @@ public class HybrisCacheTest extends HybrisAbstractTest {
     @Ignore
     @Test
     public void testTamperedCache() throws IOException, HybrisException {
-        hybris = new Hybris("zk", zkTestingServer.getConnectString(), mdsRoot, accountsFile,
+        hybris = new Hybris("zk", zkTestingServer.getConnectString(), mdsRoot, true, accountsFile,
                 kvsRoot, false, clientId, 0, 6000, 6000, false, false, true, memAddr, 5000, "onwrite", false, 0);
         MemcachedClient cacheClient = new MemcachedClient(new BinaryConnectionFactory(),
                 AddrUtil.getAddresses(memAddr));
@@ -135,7 +135,7 @@ public class HybrisCacheTest extends HybrisAbstractTest {
     @Ignore
     @Test
     public void testBigFileCache() throws IOException, HybrisException {
-        hybris = new Hybris("zk", zkTestingServer.getConnectString(), mdsRoot, accountsFile,
+        hybris = new Hybris("zk", zkTestingServer.getConnectString(), mdsRoot, true, accountsFile,
                 kvsRoot, false, clientId, 0, 6000, 6000, false, false, true, memAddr, 5000, "onwrite", false, 0);
         MemcachedClient cacheClient = new MemcachedClient(new BinaryConnectionFactory(),
                 AddrUtil.getAddresses(memAddr));
@@ -155,7 +155,7 @@ public class HybrisCacheTest extends HybrisAbstractTest {
     @Test
     public void testMemcachedNotAvailable() {
         try {
-            hybris = new Hybris("zk", zkTestingServer.getConnectString(), mdsRoot, accountsFile,
+            hybris = new Hybris("zk", zkTestingServer.getConnectString(), mdsRoot, true, accountsFile,
                     kvsRoot, false, clientId, 0, 6000, 6000, false, false, true, "not valid:1234", 5000, "onwrite", false, 0);
             String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
             byte[] value = new byte[50];

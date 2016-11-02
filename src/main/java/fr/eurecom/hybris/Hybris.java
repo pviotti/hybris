@@ -114,8 +114,8 @@ public class Hybris {
             throw new HybrisException("Could not read the configuration file " + propertiesFile, e);
         }
         
-        this.configureAndInitialize(conf.getProperty(Config.MDS),
-        		conf.getProperty(Config.MDS_ADDR), conf.getProperty(Config.MDS_ROOT),
+        this.configureAndInitialize(conf.getProperty(Config.MDS), conf.getProperty(Config.MDS_ADDR), 
+        		conf.getProperty(Config.MDS_ROOT), Boolean.parseBoolean(conf.getProperty(Config.MDS_READ)),
                 conf.getProperty(Config.KVS_ACCOUNTSFILE), conf.getProperty(Config.KVS_ROOT),
                 Boolean.parseBoolean(conf.getProperty(Config.KVS_TESTSONSTARTUP)),
                 conf.getProperty(Config.HS_CLIENTID), Integer.parseInt(conf.getProperty(Config.HS_F)),
@@ -134,6 +134,7 @@ public class Hybris {
      * @param rmds - RMDS type (i.e. "zk" for ZooKeeper or "consul" for Consul)
      * @param rmdsAddress - list of comma separated addresses of the RMDS cluster.
      * @param rmdsRoot - path to adopt as root for the RMDS. If not existing it will be created.
+     * @param qRead - use linearizable quorum read RMDS operations 
      * @param kvsAccountFile - path of the property file containing KVS accounts details.
      * @param kvsRoot - KVS container to adopt as root by the KVSs. If not existing it will be created.
      * @param kvsTestOnStartup - perform latency tests and sort KVSs accordingly.
@@ -151,18 +152,18 @@ public class Hybris {
      * @param ecK - erasure coding k parameter (number of data devices).
      * @throws HybrisException
      */
-    public Hybris(String rmds, String rmdsAddress, String rmdsRoot,
+    public Hybris(String rmds, String rmdsAddress, String rmdsRoot, boolean qRead,
             String kvsAccountFile, String kvsRoot, boolean kvsTestOnStartup,
             String clientId, int t, int writeTimeout, int readTimeout, boolean gcEnabled, boolean cryptoEnabled,
             boolean cachingEnable, String memcachedAddrs, int cacheExp, String cachePolicy, boolean ecEnabled, int ecK) 
                     throws HybrisException {
         
-        this.configureAndInitialize(rmds, rmdsAddress, rmdsRoot, kvsAccountFile, kvsRoot, kvsTestOnStartup, clientId, 
+        this.configureAndInitialize(rmds, rmdsAddress, rmdsRoot, qRead, kvsAccountFile, kvsRoot, kvsTestOnStartup, clientId, 
                 t, writeTimeout, readTimeout, gcEnabled, cryptoEnabled, cachingEnable, 
                 memcachedAddrs, cacheExp, cachePolicy, ecEnabled, ecK);
     }
     
-    private void configureAndInitialize(String rmds, String rmdsAddress, String rmdsRoot,
+    private void configureAndInitialize(String rmds, String rmdsAddress, String rmdsRoot, boolean qRead,
             String kvsAccountFile, String kvsRoot, boolean kvsTestOnStartup,
             String clientId, int t, int writeTimeout, int readTimeout, boolean gcEnabled, boolean cryptoEnabled,
             boolean cachingEnable, String memcachedAddrs, int cacheExp, String cachePolicy, boolean ecEnabled, int ecK) 
@@ -170,9 +171,9 @@ public class Hybris {
         
     	try {
     		if (rmds.equalsIgnoreCase(Rmds.ZOOKEEPER_ID))
-    			this.mds = new ZkRmds(rmdsAddress, rmdsRoot);
+    			this.mds = new ZkRmds(rmdsAddress, rmdsRoot, qRead);
     		else if (rmds.equalsIgnoreCase(Rmds.CONSUL_ID))
-    			this.mds = new ConsulRmds(rmdsAddress, rmdsRoot);
+    			this.mds = new ConsulRmds(rmdsAddress, rmdsRoot, qRead);
     		else
     			throw new IOException("Invalid RMDS id in configuration file");
     		

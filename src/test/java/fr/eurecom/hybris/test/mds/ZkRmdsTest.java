@@ -60,7 +60,7 @@ public class ZkRmdsTest extends HybrisAbstractTest {
     public static void beforeClassSetup() throws Exception {
         Config.getInstance();
         zkTestingServer = new TestingServer();
-        mds = new ZkRmds(zkTestingServer.getConnectString(), MDS_TEST_ROOT);
+        mds = new ZkRmds(zkTestingServer.getConnectString(), MDS_TEST_ROOT, true);
     }
 
     // Executed before each test
