@@ -48,5 +48,8 @@ loc:
 loctest:
 	wc -l `find ./src/test -name "*.java"`
 
+depupdates:
+	mvn versions:display-dependency-updates
+
 eclipse:
 	mvn eclipse:eclipse

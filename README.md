@@ -26,7 +26,7 @@ Maven is used to compile the code and manage the dependencies.
 
 Read the [wiki][2] for more information on development setup.
 
-### Authors and license
+## Authors and license
 
 Hybris has been developed at [EURECOM][3] as part of the [CloudSpaces][4] European research project.
 Its code is released under the terms of Apache 2.0 license.  
