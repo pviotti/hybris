@@ -224,7 +224,7 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 
 			// XXX see if it is worth retrying
 
-			logger.error("Could not perform transactional timestamped write.", e);
+			logger.error("Could not perform transactional timestamped write.");
 			throw new HybrisException("Could not perform transactional timestamped write: " + e.getMessage(), e);
 
 		} catch (Exception e) {
