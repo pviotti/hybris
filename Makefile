@@ -39,6 +39,9 @@ tree:
 test:
 	mvn -DskipTests=false -Dtest=$(TEST) test
 
+huntbugs:
+	mvn one.util:huntbugs-maven-plugin:huntbugs
+
 indent:
 	find ./src/ -iname "*.java" -exec sed -i "s/\t/    /g" {} \;
 

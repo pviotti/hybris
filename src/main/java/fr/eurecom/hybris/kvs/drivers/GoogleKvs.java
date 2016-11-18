@@ -88,12 +88,8 @@ public class GoogleKvs extends Kvs {
         try {
             this.gsService.deleteObject(this.rootContainer, key);
         } catch (ServiceException e) {
-
-            if (e instanceof ServiceException) {
-                ServiceException se = e;
-                if (se.getResponseCode() == HttpStatus.SC_NOT_FOUND)
-                    return;
-            }
+            if (e.getResponseCode() == HttpStatus.SC_NOT_FOUND)
+                return;
 
             throw new IOException(e);
         }

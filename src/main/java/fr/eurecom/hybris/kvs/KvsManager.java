@@ -22,7 +22,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -34,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import fr.eurecom.hybris.Config;
+import fr.eurecom.hybris.Utils;
 import fr.eurecom.hybris.kvs.drivers.AmazonKvs;
 import fr.eurecom.hybris.kvs.drivers.AzureKvs;
 import fr.eurecom.hybris.kvs.drivers.FaultyKvs;
@@ -53,12 +53,11 @@ public class KvsManager {
 
     private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
-    private final Config conf;
     private final List<Kvs> kvsLst;                     // kvStores list (not sorted)
     private final List<Kvs> kvsLstByReads;              // kvStores sorted by read latency
     private final List<Kvs> kvsLstByWrites;             // kvStores sorted by write latency
 
-    private final int LATENCY_TEST_DATA_SIZE = 100;     // default value: 100kB
+    private static final int LATENCY_TEST_DATA_SIZE = 100;     // default value: 100kB
     
     public static final String FAIL_PREFIX = "FAIL-";
 
@@ -99,14 +98,14 @@ public class KvsManager {
 
     public KvsManager(String accountsFile, String container, boolean testLatency) throws IOException {
 
-        this.conf = Config.getInstance();
-        this.conf.loadAccountsProperties(accountsFile);
+    	Config conf = Config.getInstance();
+        conf.loadAccountsProperties(accountsFile);
 
         this.kvsLst = new ArrayList<Kvs>();
         this.kvsLstByReads = new ArrayList<Kvs>();
         this.kvsLstByWrites = new ArrayList<Kvs>();
 
-        String[] accountIds = this.conf.getAccountsIds();
+        String[] accountIds = conf.getAccountsIds();
 
         Kvs kvStore;
         String accessKey, secretKey;
@@ -114,10 +113,10 @@ public class KvsManager {
         int cost;
 
         for (String accountId : accountIds) {
-            accessKey = this.conf.getAccountsProperty( String.format(Config.C_AKEY, accountId) );
-            secretKey = this.conf.getAccountsProperty( String.format(Config.C_SKEY, accountId) );
-            enabled = Boolean.parseBoolean( this.conf.getAccountsProperty( String.format(Config.C_ENABLED, accountId)) );
-            cost = Integer.parseInt( this.conf.getAccountsProperty( String.format(Config.C_COST, accountId) ));
+            accessKey = conf.getAccountsProperty( String.format(Config.C_AKEY, accountId) );
+            secretKey = conf.getAccountsProperty( String.format(Config.C_SKEY, accountId) );
+            enabled = Boolean.parseBoolean( conf.getAccountsProperty( String.format(Config.C_ENABLED, accountId)) );
+            cost = Integer.parseInt( conf.getAccountsProperty( String.format(Config.C_COST, accountId) ));
 
             try {
                 switch (KvsId.valueOf(accountId.toUpperCase())) {
@@ -161,7 +160,7 @@ public class KvsManager {
         this.kvsLstByWrites.addAll(this.kvsLst);
 
         if (testLatency)
-            this.testLatencyAndSortClouds(this.LATENCY_TEST_DATA_SIZE);
+            this.testLatencyAndSortClouds(LATENCY_TEST_DATA_SIZE);
     }
 
 
@@ -236,26 +235,19 @@ public class KvsManager {
 
         private final Kvs kvStore;
 
-        private final String TEST_KEY = "latency_test-";
+        private static final String TEST_KEY = "latency_test-";
         private final byte[] testData;
-        private final Random random = new Random();
 
         public LatencyTester(Kvs kvStore, int testDataSize) {
             this.kvStore = kvStore;
             if (testDataSize == 0)
-                testDataSize = KvsManager.this.LATENCY_TEST_DATA_SIZE;
-            this.testData = this.generatePayload(testDataSize, (byte) 'x');
-        }
-
-        private byte[] generatePayload(int size, byte b) {
-            byte[] array = new byte[size * 1000];
-            this.random.nextBytes(array);
-            return array;
+                testDataSize = KvsManager.LATENCY_TEST_DATA_SIZE;
+            this.testData = Utils.generateRandomBytes(new byte[testDataSize]);
         }
 
         public void run() {
 
-            String testKey = this.TEST_KEY + new Random().nextInt(1000);
+            String testKey = TEST_KEY + Utils.random.nextInt(1000);
             long start, end = 0;
 
             // Write

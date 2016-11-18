@@ -56,13 +56,6 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 	private final CuratorFramework zkCli;
 	private final String storageRoot;
 
-	/*
-	 * Integer marker to tell whether a metadata node has to be created. Used as
-	 * Zookeeper setData API parameter, it implies overwriting no matter which
-	 * znode version.
-	 */
-	public static int NONODE = -1;
-
 	private final String gcRoot;
 	private final String gcStaleDir;
 	private final String gcOrphansDir;

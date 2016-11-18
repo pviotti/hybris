@@ -53,7 +53,7 @@ public class Utils {
     private final static String HASH_ALGORITHM = "SHA-224";
     public final static int HASH_LENGTH = 28;
 
-    private final static SecureRandom random = new SecureRandom();
+    public final static SecureRandom random = new SecureRandom();
 
     public static byte[] getHash(byte[] inputBytes) {
         MessageDigest hash;
@@ -160,27 +160,20 @@ public class Utils {
 
     /* -------------------------------------- Data compression functions -------------------------------------- */
 
-    public static byte[] compress(byte[] data) {    // XXX
-        ByteArrayOutputStream baos = null;
+    public static byte[] compress(byte[] data) throws IOException {    // XXX
         Deflater dfl = new Deflater(Deflater.BEST_COMPRESSION, true);
         dfl.setInput(data);
         dfl.finish();
-        baos = new ByteArrayOutputStream();
         byte[] tmp = new byte[4*1024];
-        try{
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()){
             while(!dfl.finished()){
                 int size = dfl.deflate(tmp);
                 baos.write(tmp, 0, size);
             }
-        } catch (Exception ex){
-            ex.printStackTrace();
-            return data;
-        } finally {
-            try{
-                if(baos != null) baos.close();
-            } catch(Exception ex){}
-        }
-        return baos.toByteArray();
+            return baos.toByteArray();
+        } catch (Exception e){
+            throw new IOException(e);
+        } 
     }
 
     public static byte[] decompress(byte[] data) throws IOException, DataFormatException {  // XXX

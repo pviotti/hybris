@@ -52,9 +52,6 @@ public class ConsulRmds implements Rmds {
 	private final ConsulClient cClient;
 	private final String storageRoot;
 
-	// Integer marker to tell whether a metadata key has to be created.
-	public static int NONODE = -1;
-	
     private final String gcRoot;
     private final String gcStaleDir;
     private final String gcOrphansDir;

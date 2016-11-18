@@ -30,38 +30,38 @@ public class Config {
     private static Properties hybrisProperties = null;
     private static Properties accountsProperties = null;
 
-    public static String LOGGER_NAME = "hybrisLogger";
+    public static final String LOGGER_NAME = "hybrisLogger";
 
-    public static String HS_F = "hybris.f";
-    public static String HS_CLIENTID = "hybris.clientid";
-    public static String HS_TO_WRITE = "hybris.timeoutwrite";
-    public static String HS_TO_READ = "hybris.timeoutread";
-    public static String HS_GC = "hybris.gc";
+    public static final String HS_F = "hybris.f";
+    public static final String HS_CLIENTID = "hybris.clientid";
+    public static final String HS_TO_WRITE = "hybris.timeoutwrite";
+    public static final String HS_TO_READ = "hybris.timeoutread";
+    public static final String HS_GC = "hybris.gc";
 
-    public static String HS_CRYPTO = "hybris.crypto";
+    public static final String HS_CRYPTO = "hybris.crypto";
     
-    public static String ECODING = "hybris.erasurecoding";
-    public static String ECODING_K = "hybris.erasurecoding.k";
+    public static final String ECODING = "hybris.erasurecoding";
+    public static final String ECODING_K = "hybris.erasurecoding.k";
 
-    public static String CACHE_ENABLED = "hybris.cache";
-    public static String CACHE_ADDRESS = "hybris.cache.address";
-    public static String CACHE_EXP = "hybris.cache.exp";
-    public static String CACHE_POLICY = "hybris.cache.policy";
+    public static final String CACHE_ENABLED = "hybris.cache";
+    public static final String CACHE_ADDRESS = "hybris.cache.address";
+    public static final String CACHE_EXP = "hybris.cache.exp";
+    public static final String CACHE_POLICY = "hybris.cache.policy";
 
-    public static String MDS = "hybris.mds";
-    public static String MDS_ADDR = "hybris.mds.address";
-    public static String MDS_ROOT = "hybris.mds.root";
-    public static String MDS_READ = "hybris.mds.quorumread";
+    public static final String MDS = "hybris.mds";
+    public static final String MDS_ADDR = "hybris.mds.address";
+    public static final String MDS_ROOT = "hybris.mds.root";
+    public static final String MDS_READ = "hybris.mds.quorumread";
 
-    public static String KVS_ROOT = "hybris.kvs.root";
-    public static String KVS_ACCOUNTSFILE = "hybris.kvs.accountsfile";
-    public static String KVS_TESTSONSTARTUP = "hybris.kvs.latencytestonstartup";
+    public static final String KVS_ROOT = "hybris.kvs.root";
+    public static final String KVS_ACCOUNTSFILE = "hybris.kvs.accountsfile";
+    public static final String KVS_TESTSONSTARTUP = "hybris.kvs.latencytestonstartup";
 
-    private static String C_ACCOUNTS = "hybris.kvs.drivers";
-    public static String C_AKEY = "hybris.kvs.drivers.%s.akey";
-    public static String C_SKEY = "hybris.kvs.drivers.%s.skey";
-    public static String C_ENABLED = "hybris.kvs.drivers.%s.enabled";
-    public static String C_COST = "hybris.kvs.drivers.%s.cost";
+    private static final String C_ACCOUNTS = "hybris.kvs.drivers";
+    public static final String C_AKEY = "hybris.kvs.drivers.%s.akey";
+    public static final String C_SKEY = "hybris.kvs.drivers.%s.skey";
+    public static final String C_ENABLED = "hybris.kvs.drivers.%s.enabled";
+    public static final String C_COST = "hybris.kvs.drivers.%s.cost";
 
     public static synchronized Config getInstance () {
         if (instance == null)

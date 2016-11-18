@@ -20,8 +20,6 @@ import java.util.Arrays;
 
 import org.apache.curator.test.TestingServer;
 
-import com.pszymczyk.consul.ConsulProcess;
-
 public abstract class HybrisAbstractTest {
 
     protected String TEST_KEY_PREFIX = "test-";

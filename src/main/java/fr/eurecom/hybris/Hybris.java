@@ -577,7 +577,7 @@ public class Hybris {
                                                 md.getReplicasLst().get(i), ChunkState.KO);
             
             int idxFrom = 0, idxTo = k;
-            boolean completed = true;
+            boolean completed = false;
             int retrieved = 0;
             do {
                 List<Kvs> kvsSublst = kvsLst.subList(idxFrom, idxTo);

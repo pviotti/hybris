@@ -33,10 +33,17 @@ import fr.eurecom.hybris.HybrisException;
  */
 public interface Rmds {
 	
-	public static int NONODE = -1;
+	public static final String ZOOKEEPER_ID = "zk";
+	public static final String CONSUL_ID = "consul";
 	
-	public static String ZOOKEEPER_ID = "zk";
-	public static String CONSUL_ID = "consul";
+	/* Conventional integer marker to tell whether a 
+	 * metadata key has to be created (rather than modified).
+	 * 
+	 * Used as Zookeeper setData API parameter, 
+	 * it forces overwriting no matter which 
+	 * znode version is currently written. 
+	 */
+	public static final int NONODE = -1;
 	
 	
 	/**
