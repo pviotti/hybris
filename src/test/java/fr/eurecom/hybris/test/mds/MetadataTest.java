@@ -49,9 +49,9 @@ public class MetadataTest extends HybrisAbstractTest {
         this.random.nextBytes(hash);
         this.random.nextBytes(cryptoKey);
         List<Kvs> replicas = new ArrayList<Kvs>();
-        replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
-        replicas.add(new TransientKvs("transient", "B-accessKey", "B-secretKey", "container", true, 20));
-        replicas.add(new TransientKvs("transient", "C-accessKey", "C-secretKey", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
         Metadata md = new Metadata(ts, hash, size, replicas, cryptoKey);
 
         byte[] serialized = md.serialize();
@@ -91,9 +91,9 @@ public class MetadataTest extends HybrisAbstractTest {
         this.random.nextBytes(cryptoKey);
         //byte[] cryptoKey = null;
         List<Kvs> replicas = new ArrayList<Kvs>();
-        replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
-        replicas.add(new TransientKvs("transient", "B-accessKey", "B-secretKey", "container", true, 20));
-        replicas.add(new TransientKvs("transient", "C-accessKey", "C-secretKey", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
         Metadata md = new Metadata(ts, chunksHashes, replicas, size, cryptoKey);
 
         byte[] serialized = md.serialize();
@@ -151,9 +151,9 @@ public class MetadataTest extends HybrisAbstractTest {
 
         // replica list contains a not supported kvs id
         replicas = new ArrayList<Kvs>();
-        replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
-        replicas.add(new TransientKvs("tranNOTEXISTENTsient", "B-accessKey", "B-secretKey", "container", true, 20));
-        replicas.add(new TransientKvs("transient", "C-accessKey", "C-secretKey", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
+        replicas.add(new TransientKvs("tranNOTEXISTENTsient", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
         md = new Metadata(ts, hash, size, replicas, cryptoKey);
 
         try {

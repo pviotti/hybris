@@ -82,9 +82,9 @@ public class ZkRmdsTest extends HybrisAbstractTest {
         byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
-        replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
-        replicas.add(new TransientKvs("transient", "B-accessKey", "B-secretKey", "container", true, 20));
-        replicas.add(new TransientKvs("transient", "C-accessKey", "C-secretKey", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
         Metadata md = new Metadata(ts, hash, 0, replicas, null);
 
         mds.tsWrite(key, md, ZkRmds.NONODE);
@@ -113,7 +113,7 @@ public class ZkRmdsTest extends HybrisAbstractTest {
 
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         List<Kvs> replicas = new ArrayList<Kvs>();
-        replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
         byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
         Stat stat = new Stat();
@@ -169,7 +169,7 @@ public class ZkRmdsTest extends HybrisAbstractTest {
         byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
-        replicas.add(new TransientKvs("transient", "b", "c", "d", true, 20));
+        replicas.add(new TransientKvs("transient", "d", true, 20));
         Metadata retrieved;
         for (i=0; i<numKeys; i++) {
             String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
@@ -260,7 +260,7 @@ public class ZkRmdsTest extends HybrisAbstractTest {
         byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
-        replicas.add(new TransientKvs("transient", "b", "c", "d", true, 20));
+        replicas.add(new TransientKvs("transient", "d", true, 20));
         for (i=0; i<numKeys; i++) {
             String k = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
             map.put(k, new Metadata(new Timestamp(this.random.nextInt(10), "qwe"), hash, 2, replicas, null));
@@ -326,7 +326,7 @@ public class ZkRmdsTest extends HybrisAbstractTest {
 
         String key = this.TEST_KEY_PREFIX + new BigInteger(50, this.random).toString(32);
         List<Kvs> replicas = new ArrayList<Kvs>();
-        replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
         byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
         String cid1 = "ZZZ";
@@ -376,9 +376,9 @@ public class ZkRmdsTest extends HybrisAbstractTest {
         byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
-        replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
-        replicas.add(new TransientKvs("transient", "B-accessKey", "B-secretKey", "container", true, 20));
-        replicas.add(new TransientKvs("transient", "C-accessKey", "C-secretKey", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
 
         Metadata md = new Metadata(ts, hash, 7, replicas, null);
         mds.tsWrite(key, md, ZkRmds.NONODE);
@@ -413,8 +413,8 @@ public class ZkRmdsTest extends HybrisAbstractTest {
         byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
-        replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 20));
-        replicas.add(new TransientKvs("transient", "B-accessKey", "B-secretKey", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
 
         Metadata md = new Metadata(ts, hash, 8, replicas, null);
 
@@ -487,8 +487,8 @@ public class ZkRmdsTest extends HybrisAbstractTest {
         byte[] hash = new byte[Utils.HASH_LENGTH];
         this.random.nextBytes(hash);
         List<Kvs> replicas = new ArrayList<Kvs>();
-        replicas.add(new TransientKvs("transient", "A-accessKey", "A-secretKey", "container", true, 10));
-        replicas.add(new TransientKvs("transient", "B-accessKey", "B-secretKey", "container", true, 20));
+        replicas.add(new TransientKvs("transient", "container", true, 10));
+        replicas.add(new TransientKvs("transient", "container", true, 20));
 
         Metadata md = new Metadata(ts, hash, 11, replicas, null);
 

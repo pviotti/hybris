@@ -28,8 +28,7 @@ public class FaultyKvs extends Kvs {
 
     private transient final Map<String, byte[]> hashMap;
 
-    public FaultyKvs(String id, String accessKey, String secretKey,
-            String container, boolean enabled, int cost) {
+    public FaultyKvs(String id, String container, boolean enabled, int cost) {
         super(id, container, enabled, cost);
         this.hashMap = new ConcurrentHashMap<String, byte[]>();
     }

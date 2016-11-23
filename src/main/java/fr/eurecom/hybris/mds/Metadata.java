@@ -379,6 +379,9 @@ public class Metadata implements KryoSerializable {
                     case FAULTY:
                         this.replicasLst.add(new Kvs(KvsId.FAULTY.toString(), null, false, 0));
                         break;
+                    case FILE:
+                        this.replicasLst.add(new Kvs(KvsId.FILE.toString(), null, false, 0));
+                        break;
                     default:
                         break;
                 }

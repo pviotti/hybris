@@ -28,8 +28,7 @@ public class TransientKvs extends Kvs {
 
     private transient final Map<String, byte[]> hashMap;
 
-    public TransientKvs(String id, String accessKey, String secretKey,
-            String container, boolean enabled, int cost) {
+    public TransientKvs(String id, String container, boolean enabled, int cost) {
         super(id, container, enabled, cost);
         this.hashMap = new ConcurrentHashMap<String, byte[]>();
     }
