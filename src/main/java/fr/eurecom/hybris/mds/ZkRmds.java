@@ -60,10 +60,12 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 	private final String gcStaleDir;
 	private final String gcOrphansDir;
 	
+	private final String rawMdDir;
+	
 	private final boolean quorumRead;
 
 	/**
-	 * Constructs a new MdsManager.
+	 * Constructs a new ZooKeeper-based RMDS manager.
 	 * 
 	 * @param zkConnectionStr
 	 *            Zookeeper cluster connection string (e.g.
@@ -81,6 +83,8 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 		this.gcRoot = this.storageRoot + "-gc";
 		this.gcStaleDir = this.gcRoot + "/stale";
 		this.gcOrphansDir = this.gcRoot + "/orphans";
+		
+		this.rawMdDir = this.storageRoot + "-rawmd";
 		this.quorumRead = qRead;
 
 		try {
@@ -89,7 +93,8 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 			this.zkCli.getConnectionStateListenable().addListener(this);
 			this.zkCli.start();
 
-			for (String dir : new String[] { this.storageRoot, this.gcRoot, this.gcStaleDir, this.gcOrphansDir })
+			for (String dir : new String[] { this.storageRoot, this.gcRoot, 
+					this.gcStaleDir, this.gcOrphansDir, this.rawMdDir })
 				try {
 					this.zkCli.create().forPath(dir);
 					logger.debug("Created {}.", dir);
@@ -408,6 +413,80 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 	public void shutdown() {
 		this.zkCli.close();
 	}
+	
+	/*
+	 * -------------------------------------- Raw MD API
+	 */
+	
+	public void rawWrite(String key, byte[] value) throws HybrisException {
+		String path = this.rawMdDir + "/" + key;
+		try {
+			this.zkCli.create().forPath(path, value);
+		} catch (KeeperException e) { 
+			
+			if (e.code() == KeeperException.Code.NODEEXISTS) {  
+				try {
+					this.zkCli.setData().forPath(path, value);
+				} catch (Exception e1) {
+					logger.error("Could not write ZNode " + path, e1);
+					throw new HybrisException("Could not write ZNode " + path + ": " + e1.getMessage(), e1);
+				}
+			}
+			
+		} catch (Exception e) {
+			logger.error("Could not write ZNode " + path, e);
+			throw new HybrisException("Could not write ZNode " + path + ": " + e.getMessage(), e);
+		}
+	}
+
+	public byte[] rawRead(String key) throws HybrisException {
+		String path = this.rawMdDir + "/" + key;
+		try {
+			this.zkCli.sync().forPath(path);
+			return this.zkCli.getData().forPath(path);
+		} catch (KeeperException e) {
+
+			if (e.code() == KeeperException.Code.NONODE)
+				return null;
+			else {
+				logger.error("Could not read ZNode " + path, e);
+				throw new HybrisException("Could not read the ZNode " + path, e);
+			}
+
+		} catch (Exception e) {
+			logger.error("Could not read ZNode " + path, e);
+			throw new HybrisException("Could not read the ZNode " + path + e.getMessage(), e);
+		}
+	}
+
+	public void rawDelete(String key) throws HybrisException {
+		String path = this.rawMdDir + "/" + key;
+		try {
+			this.zkCli.delete().forPath(path);
+		} catch (KeeperException e) { 
+			
+			if (e.code() == KeeperException.Code.NONODE)  
+				return;
+			else {
+				logger.error("Could not delete ZNode " + path, e);
+				throw new HybrisException("Could not delete ZNode " + path + ": " + e.getMessage(), e);
+			}
+			
+		} catch (Exception e) {
+			logger.error("Could not delete ZNode " + path, e);
+			throw new HybrisException("Could not delete ZNode " + path + ": " + e.getMessage(), e);
+		}
+	}
+
+	public List<String> rawList() throws HybrisException {
+		try {
+			return this.zkCli.getChildren().forPath(this.rawMdDir);
+		} catch (Exception e) {
+			logger.error("Could not list the children of ZNode " + this.rawMdDir, e);
+			throw new HybrisException(e);
+		}
+	}
+	
 
 	/*
 	 * -------------------------------------- GC functions

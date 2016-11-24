@@ -56,11 +56,15 @@ public class ConsulRmds implements Rmds {
     private final String gcStaleDir;
     private final String gcOrphansDir;
     
+    private final String rawMdDir;
+    
 	public ConsulRmds(String connectionStr, String root, boolean qRead) {
 		storageRoot = root;
 		gcRoot = this.storageRoot + "-gc";
         gcStaleDir = this.gcRoot + "/stale";
         gcOrphansDir = this.gcRoot + "/orphans";
+        
+        rawMdDir = this.storageRoot + "-rawmd";
         
 		cClient = new ConsulClient(connectionStr);
 		cClient.setKVBinaryValue(storageRoot, new byte[1]);
@@ -185,6 +189,38 @@ public class ConsulRmds implements Rmds {
 	}
 
 	public void shutdown() {
+	}
+	
+	/*
+	 * -------------------------------------- Raw MD API
+	 */
+	
+	public void rawWrite(String key, byte[] value) throws HybrisException {
+		String path = this.rawMdDir + "/" + key;
+		cClient.setKVBinaryValue(path, value);
+	}
+
+	public byte[] rawRead(String key) throws HybrisException {
+		String path = this.rawMdDir + "/" + key;
+		QueryParams qp = new QueryParams(ConsistencyMode.CONSISTENT);
+		Response<GetBinaryValue> resGet = cClient.getKVBinaryValue(path, qp);
+		if (resGet.getValue() == null)
+			return null;
+		else 
+			return resGet.getValue().getValue();
+	}
+
+	public void rawDelete(String key) throws HybrisException {
+		String path = this.rawMdDir + "/" + key;
+		cClient.deleteKVValue(path);
+	}
+
+	public List<String> rawList() throws HybrisException {
+		Response<List<String>> lstResp = cClient.getKVKeysOnly(this.rawMdDir);
+		List<String> lstKeys = new LinkedList<String>();
+		for (String key : lstResp.getValue())
+			lstKeys.add(key.split("/")[2]);
+		return lstKeys;
 	}
 
 	/* -------------------------------------- GC functions */

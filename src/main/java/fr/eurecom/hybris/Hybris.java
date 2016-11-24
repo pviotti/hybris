@@ -63,7 +63,7 @@ public class Hybris {
 
     private static final Logger logger = LoggerFactory.getLogger(Config.LOGGER_NAME);
 
-    protected Rmds mds;
+    public Rmds rmds;
     protected KvsManager kvs;
     
     /* erasure coding */
@@ -171,9 +171,9 @@ public class Hybris {
         
     	try {
     		if (rmds.equalsIgnoreCase(Rmds.ZOOKEEPER_ID))
-    			this.mds = new ZkRmds(rmdsAddress, rmdsRoot, qRead);
+    			this.rmds = new ZkRmds(rmdsAddress, rmdsRoot, qRead);
     		else if (rmds.equalsIgnoreCase(Rmds.CONSUL_ID))
-    			this.mds = new ConsulRmds(rmdsAddress, rmdsRoot, qRead);
+    			this.rmds = new ConsulRmds(rmdsAddress, rmdsRoot, qRead);
     		else
     			throw new IOException("Invalid RMDS id in configuration file");
     		
@@ -206,7 +206,7 @@ public class Hybris {
             gc = new GcManager(this);
         this.cryptoEnabled = cryptoEnabled;
         if (this.cryptoEnabled)
-            this.IV = this.mds.getOrCreateIv();
+            this.IV = this.rmds.getOrCreateIv();
         
         this.ecEnabled = ecEnabled;
         if (this.ecEnabled) 
@@ -266,7 +266,7 @@ public class Hybris {
 
         Timestamp ts;
         Stat stat = new Stat();
-        Metadata md = this.mds.tsRead(key, stat);
+        Metadata md = this.rmds.tsRead(key, stat);
         if (md == null) {
             ts = new Timestamp(0, this.clientId);
             stat.setVersion(ZkRmds.NONODE);
@@ -370,7 +370,7 @@ public class Hybris {
                 }
             
             if (!completed) {
-                if (this.gcEnabled) mds.markOrphanKey(key, ts, savedReplicasLst);
+                if (this.gcEnabled) rmds.markOrphanKey(key, ts, savedReplicasLst);
                 logger.warn("Could not store data in cloud stores for key {}.", key);
                 throw new HybrisException("Could not store data in cloud stores");
             }
@@ -410,7 +410,7 @@ public class Hybris {
             executor.shutdown();
     
             if (savedReplicasLst.size() < this.quorum) {
-                if (this.gcEnabled) mds.markOrphanKey(key, ts, savedReplicasLst);
+                if (this.gcEnabled) rmds.markOrphanKey(key, ts, savedReplicasLst);
                 logger.warn("Could not store data in cloud stores for key {}.", key);
                 throw new HybrisException("Could not store data on cloud stores");
             }
@@ -426,14 +426,14 @@ public class Hybris {
                 newMd = new Metadata(ts, chunkHashes, savedReplicasLst, value.length, cryptoKey);
             else
                 newMd = new Metadata(ts, Utils.getHash(value), value.length, savedReplicasLst, cryptoKey);
-            overwritten = this.mds.tsWrite(key, newMd, stat.getVersion());
+            overwritten = this.rmds.tsWrite(key, newMd, stat.getVersion());
         } catch (HybrisException e) {
-            if (this.gcEnabled) mds.markOrphanKey(key, ts, savedReplicasLst);
+            if (this.gcEnabled) rmds.markOrphanKey(key, ts, savedReplicasLst);
             logger.warn("Could not store metadata on Zookeeper for key {}.", key);
             throw new HybrisException("Could not store the metadata on Zookeeper");
         }
 
-        if (this.gcEnabled && overwritten) mds.markStaleKey(key);
+        if (this.gcEnabled && overwritten) rmds.markStaleKey(key);
 
         logger.info("Data stored on: {}", savedReplicasLst);
         return savedReplicasLst;
@@ -452,7 +452,7 @@ public class Hybris {
         for (Entry<String, byte[]> entry : map.entrySet())
             statMap.put(entry.getKey(), new Stat());
         
-        LinkedHashMap<String, Metadata> mdMap = this.mds.tsMultiRead(statMap);
+        LinkedHashMap<String, Metadata> mdMap = this.rmds.tsMultiRead(statMap);
         for (Entry<String, Metadata> entry : mdMap.entrySet()) {
             if (entry.getValue() == null) {
                 Stat st = new Stat();
@@ -508,7 +508,7 @@ public class Hybris {
     
             if (savedReplicasLst.size() < this.quorum) {
                 if (this.gcEnabled) 
-                	mds.markOrphanKey(entry.getKey(),
+                	rmds.markOrphanKey(entry.getKey(),
                             mdMap.get(entry.getKey()).getTs(), 
                             savedReplicasLst);
                 logger.warn("Could not store data in cloud stores for key {}.", entry.getKey());
@@ -528,11 +528,11 @@ public class Hybris {
         }
         
         try {
-            mds.tsMultiWrite(mdMap, statMap);
+            rmds.tsMultiWrite(mdMap, statMap);
         } catch (HybrisException e) {
             if (this.gcEnabled)
                 for (Entry<String, byte[]> entry: map.entrySet())
-                	mds.markOrphanKey(entry.getKey(), mdMap.get(entry.getKey()).getTs(), 
+                	rmds.markOrphanKey(entry.getKey(), mdMap.get(entry.getKey()).getTs(), 
                             mdMap.get(entry.getKey()).getReplicasLst());
             logger.warn("Could not transactionally write metadata on ZooKeeper");
             throw new HybrisException("Could not store the metadata on Zookeeper");
@@ -551,7 +551,7 @@ public class Hybris {
      */
     public byte[] get(String key) throws HybrisException {
 
-        Metadata md = this.mds.tsRead(key, null);
+        Metadata md = this.rmds.tsRead(key, null);
         if (md == null || md.isTombstone()) {
             logger.warn("Could not find metadata associated with key {}.", key);
             return null;
@@ -753,7 +753,7 @@ public class Hybris {
     private byte[] parallelGet(String key) throws HybrisException {
 
         HybrisWatcher hwatcher = this.new HybrisWatcher();
-        Metadata md = this.mds.tsRead(key, null, hwatcher);
+        Metadata md = this.rmds.tsRead(key, null, hwatcher);
         if (md == null || md.isTombstone()) {
             logger.warn("Could not find metadata associated with key {}.", key);
             return null;
@@ -828,7 +828,7 @@ public class Hybris {
     public void delete(String key) throws HybrisException {
 
         Stat stat = new Stat();
-        Metadata md = this.mds.tsRead(key, stat);
+        Metadata md = this.rmds.tsRead(key, stat);
         if (md == null) {
             logger.debug("Could not find the metadata associated with key {}.", key);
             return;
@@ -852,7 +852,7 @@ public class Hybris {
         Timestamp ts = md.getTs();
         ts.inc( this.clientId );
         Metadata tombstone = Metadata.getTombstone(ts);
-        this.mds.delete(key, tombstone, stat.getVersion());
+        this.rmds.delete(key, tombstone, stat.getVersion());
     }
 
 
@@ -862,7 +862,7 @@ public class Hybris {
      * @throws HybrisException
      */
     public List<String> list() throws HybrisException {
-        return this.mds.list();
+        return this.rmds.list();
     }
 
 
@@ -873,7 +873,7 @@ public class Hybris {
      * @throws HybrisException
      */
     public Map<String, Metadata> getAllMetadata() throws HybrisException {
-        return this.mds.getAll();
+        return this.rmds.getAll();
     }
 
 
@@ -893,7 +893,7 @@ public class Hybris {
     public void shutdown() {
         for (Kvs kvStore : this.kvs.getKvsList())
             this.kvs.shutdown(kvStore);
-        this.mds.shutdown();
+        this.rmds.shutdown();
         if (this.cacheEnabled)
             this.cache.shutdown();
     }

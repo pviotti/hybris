@@ -42,7 +42,7 @@ public class GcManager {
 
 	public GcManager(Hybris hybris) {
 		this.kvs = hybris.kvs;
-		this.mds = hybris.mds;
+		this.mds = hybris.rmds;
 	}
 
 	/**

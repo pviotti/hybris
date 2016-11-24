@@ -58,7 +58,7 @@ public interface Rmds {
 	boolean tsWrite(String key, Metadata md, long version) throws HybrisException;
 
 	/**
-	 * XXX Transactional writes of several znodes on ZooKeeper.
+	 * Transactional writes of several znodes on ZooKeeper.
 	 * @param lst LinkedHashMap, sorted by insertion order map of key String and Metadata objects
 	 * @param versions array of znode versions of the corresponding keys in lst 
 	 * @return
@@ -181,5 +181,16 @@ public interface Rmds {
 	 * @throws HybrisException
 	 */
 	void emptyStaleAndOrphansContainers() throws HybrisException;
-
+	
+	
+	/* Raw Metadata handling API
+	 * 
+	 * This API is available for applications that need to exploit
+	 * Hybris RMDS for their own metadata, for performance or consistency reasons. 
+	 */
+	
+	void rawWrite(String key, byte[] value) throws HybrisException;
+	byte[] rawRead(String key) throws HybrisException;
+	void rawDelete(String key) throws HybrisException;
+	List<String> rawList() throws HybrisException;
 }
