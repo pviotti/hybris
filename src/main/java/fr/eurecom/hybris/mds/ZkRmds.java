@@ -45,7 +45,7 @@ import fr.eurecom.hybris.kvs.drivers.Kvs;
 import fr.eurecom.hybris.mds.Metadata.Timestamp;
 
 /**
- * Reliable Metadata Store based on ZooKeeper.
+ * Reliable MetaData Store based on ZooKeeper.
  * 
  * @author P. Viotti
  */
@@ -142,17 +142,12 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 				logger.debug("ZNode {} modified.", path);
 				return true;
 			}
-		} catch (KeeperException e) { // NONODE exception should not happen
-										// since we set a tombstone value upon
-										// deletion
-
-			if (e.code() == KeeperException.Code.NODEEXISTS || // multiple
-																// clients tried
-																// to create
-					e.code() == KeeperException.Code.BADVERSION) { // or modify
-																	// the same
-																	// znode
-																	// concurrently
+		} catch (KeeperException e) { 
+			
+			// NONODE exception should not happen since we use tombstones for deletion
+			if (e.code() == KeeperException.Code.NODEEXISTS || 
+					e.code() == KeeperException.Code.BADVERSION) {  
+				// multiple clients tried to create or modify the same znode concurrently
 
 				Stat stat = new Stat();
 				byte[] newValue = null;
@@ -211,12 +206,8 @@ public class ZkRmds implements Rmds, ConnectionStateListener {
 
 			return true; // XXX
 
-		} catch (KeeperException e) { // NONODE exception should not happen
-										// since we set a tombstone value upon
-										// deletion
-
-			// XXX see if it is worth retrying
-
+		} catch (KeeperException e) { 
+			// NONODE exception should not happen since we use tombstones for deletion
 			logger.error("Could not perform transactional timestamped write.");
 			throw new HybrisException("Could not perform transactional timestamped write: " + e.getMessage(), e);
 
